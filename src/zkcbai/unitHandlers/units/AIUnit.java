@@ -9,6 +9,7 @@ package zkcbai.unitHandlers.units;
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import java.util.LinkedList;
 import java.util.Queue;
 import zkcbai.unitHandlers.UnitHandler;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -20,7 +21,7 @@ import zkcbai.unitHandlers.units.tasks.Task;
 public class AIUnit {
     private Unit unit;
     private Task task;
-    private Queue<Task> taskqueue;
+    private Queue<Task> taskqueue = new LinkedList();
     private UnitHandler handler;
     
     public AIUnit(Unit u, UnitHandler handler){
@@ -58,6 +59,10 @@ public class AIUnit {
     
     public AIFloat3 getPos(){
         return unit.getPos();
+    }
+    
+    public Unit getUnit(){
+        return unit;
     }
     
     public Task getTask(){

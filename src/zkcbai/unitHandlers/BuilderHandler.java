@@ -1,9 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package zkcbai.unitHandlers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
@@ -14,41 +8,42 @@ import zkcbai.Command;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.tasks.Task;
 
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
 /**
  *
  * @author User
  */
-public class FighterHandler extends UnitHandler{
+public class BuilderHandler extends UnitHandler {
 
-    
-    List<AIUnit> fighters = new ArrayList();
+    List<AIUnit> builders = new ArrayList();
 
-    public FighterHandler(Command cmd, OOAICallback clbk) {
+    public BuilderHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
     }
     
-    
     @Override
     public AIUnit addUnit(Unit u) {
-        fighters.add(new AIUnit(u, this));
-        aiunits.put(u.getUnitId(), fighters.get(fighters.size()-1));
-        fighters.get(fighters.size()-1).idle();
-        return fighters.get(fighters.size()-1);
+        builders.add(new AIUnit(u, this));
+        aiunits.put(u.getUnitId(), builders.get(builders.size()-1));
+        builders.get(builders.size()-1).idle();
+        return builders.get(builders.size()-1);
     }
 
     @Override
     public void unitIdle(AIUnit u) {
-        
     }
 
     @Override
     public void abortedTask(Task t) {
-        
     }
 
     @Override
     public void finishedTask(Task t) {
     }
-
     
 }

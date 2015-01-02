@@ -3,11 +3,11 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package zkcbai.unitHandlers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
+import com.springrts.ai.oo.clb.UnitDef;
 import java.util.ArrayList;
 import java.util.List;
 import zkcbai.Command;
@@ -18,37 +18,37 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class FighterHandler extends UnitHandler{
+public class FactoryHandler extends UnitHandler {
 
-    
-    List<AIUnit> fighters = new ArrayList();
+    List<AIUnit> facs = new ArrayList();
 
-    public FighterHandler(Command cmd, OOAICallback clbk) {
+    public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
     }
     
     
     @Override
     public AIUnit addUnit(Unit u) {
-        fighters.add(new AIUnit(u, this));
-        aiunits.put(u.getUnitId(), fighters.get(fighters.size()-1));
-        fighters.get(fighters.size()-1).idle();
-        return fighters.get(fighters.size()-1);
+        facs.add(new AIUnit(u, this));
+        aiunits.put(u.getUnitId(), facs.get(facs.size() - 1));
+        facs.get(facs.size() - 1).idle();
+        return facs.get(facs.size() - 1);
     }
 
     @Override
     public void unitIdle(AIUnit u) {
-        
     }
 
     @Override
     public void abortedTask(Task t) {
-        
     }
 
     @Override
     public void finishedTask(Task t) {
     }
-
     
+    public UnitDef getNextFac(){
+        return clbk.getUnitDefByName("factorycloak");
+    }
+
 }

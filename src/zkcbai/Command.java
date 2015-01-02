@@ -3,27 +3,49 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package zkcbai;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.WeaponDef;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import zkcbai.unitHandlers.UnitFinishedListener;
+import zkcbai.unitHandlers.CommanderHandler;
+import zkcbai.unitHandlers.FactoryHandler;
+import zkcbai.unitHandlers.units.AIUnit;
 
 /**
  *
  * @author User
  */
 public class Command implements AI {
-    
-    private final OOAICallback callback;
+
+    private final OOAICallback clbk;
     private final int ownTeamId;
-    
-    public Command(int teamId, OOAICallback callback){
-        this.callback = callback;
+
+    private List<UnitFinishedListener> unitFinishedListeners = new ArrayList();
+    private List<CommanderHandler> comHandlers = new ArrayList();
+    private FactoryHandler facHandler;
+    private Map<Integer, AIUnit> units = new TreeMap();
+
+    public Command(int teamId, OOAICallback callback) {
+        this.clbk = callback;
         ownTeamId = teamId;
-        
+        facHandler = new FactoryHandler(this, callback);
+    }
+
+    public FactoryHandler getFactoryHandler() {
+        return facHandler;
+    }
+
+    public void addUnitFinishedListener(UnitFinishedListener listener) {
+        unitFinishedListeners.add(listener);
     }
 
     @Override
@@ -78,11 +100,13 @@ public class Command implements AI {
 
     @Override
     public int unitMoveFailed(Unit unit) {
+        units.get(unit.getUnitId()).pathFindingError();
         return 0;
     }
 
     @Override
     public int unitIdle(Unit unit) {
+        units.get(unit.getUnitId()).idle();
         return 0;
     }
 
@@ -98,7 +122,36 @@ public class Command implements AI {
 
     @Override
     public int unitFinished(Unit unit) {
+        try {
+            switch (unit.getDef().getName()) {
+                case "armcom1":
+                    CommanderHandler comHandler = new CommanderHandler(this, clbk);
+                    comHandlers.add(comHandler);
+                    units.put(unit.getUnitId(), comHandler.addUnit(unit));
+                    break;
+                default:
+                    debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");
+            }
+        } catch (Exception e) {
+            debug("Exception in unitFinished: ", e);
+        }
         return 0;
+
     }
-    
+
+    public void debug(String s, Exception e) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        debug(s + sw.toString());
+    }
+
+    public void debug(Integer s) {
+        debug(s.toString());
+    }
+
+    public void debug(String s) {
+        clbk.getGame().sendTextMessage(s, clbk.getGame().getMyTeam());
+    }
+
 }

@@ -71,6 +71,11 @@ public class MoveTask extends Task{
         target.x += Math.random()*20-10;
         target.z += Math.random()*20-10;
     }
+
+    @Override
+    public Object getResult() {
+        return null;
+    }
     
     
 

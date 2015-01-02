@@ -4,16 +4,15 @@
  * and open the template in the editor.
  */
 
-package zkcbai.unitHandlers.units.tasks;
+package zkcbai.unitHandlers;
+
+import zkcbai.unitHandlers.units.AIUnit;
 
 /**
  *
  * @author User
  */
-public interface TaskIssuer {
+public interface UnitFinishedListener {
     
-        
-    public abstract void abortedTask(Task t);
-    
-    public abstract void finishedTask(Task t);
+    public void unitFinished(AIUnit u);
 }

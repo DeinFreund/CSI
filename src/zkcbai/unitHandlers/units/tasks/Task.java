@@ -25,4 +25,17 @@ public abstract class Task {
     public boolean equals(Task t){
         return taskId == t.getId();
     }
+    
+    private String info;
+    
+    public Task setInfo(String info){
+        this.info = info;
+        return this;
+    }
+    
+    public String getInfo(){
+        return this.info;
+    }
+    
+    public abstract Object getResult();
 }
