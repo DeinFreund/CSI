@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import zkcbai.Command;
+import zkcbai.UnitFinishedListener;
 import zkcbai.unitHandlers.units.AIUnit;
-import zkcbai.unitHandlers.UnitFinishedListener;
 
 /**
  *
@@ -29,12 +29,16 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     OOAICallback clbk;
     TaskIssuer issuer;
     List<AIUnit> assignedUnits;
+    Command command;
     
     
     public BuildTask(UnitDef building, AIFloat3 approxPos, TaskIssuer issuer, OOAICallback clbk, Command command) {//simplified constructor
-
-        this(building, clbk.getMap().findClosestBuildSite(building, approxPos, 1000, 3, (approxPos.z * 2 > clbk.getMap().getHeight()) ? 2 : 0),
-                (approxPos.z * 2 > clbk.getMap().getHeight()) ? 2 : 0, issuer, clbk, command);
+        this(building, approxPos, issuer, clbk, command, 3);
+    }
+    
+    public BuildTask(UnitDef building, AIFloat3 approxPos, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist) {//simplified constructor
+        this(building, clbk.getMap().findClosestBuildSite(building, approxPos, 1000, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0),
+                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, issuer, clbk, command);
     }
 
     public BuildTask(UnitDef building, AIFloat3 pos, int facing, TaskIssuer issuer, OOAICallback clbk, Command command){
@@ -43,6 +47,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         this.facing = facing;
         this.issuer = issuer;
         this.clbk = clbk;
+        this.command = command;
         assignedUnits = new ArrayList();
         command.addUnitFinishedListener(this);
         try { Thread.sleep(1); } catch (InterruptedException ex) {} //magic
@@ -50,6 +55,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     
     @Override
     public boolean execute(AIUnit u) {
+        command.debug("executing a build task");
         if (result != null) return true;
         if (!clbk.getMap().isPossibleToBuildAt(building, pos, facing)){
             issuer.abortedTask(this);
@@ -61,9 +67,12 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             }
             return true;
         }
+        command.debug("didn't abort");
         if (!assignedUnits.contains(u))assignedUnits.add(u);
-        if (u.distanceTo(pos)> 100){
-            u.assignTask(new MoveTask(pos,this));
+        if (u.distanceTo(pos)> 200){
+            AIFloat3 trg = new AIFloat3();
+            trg.interpolate( pos,u.getPos(),150f/u.distanceTo(pos));
+            u.assignTask(new MoveTask(trg,this));
             u.queueTask(this);
             return false;
         }

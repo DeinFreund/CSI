@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
@@ -21,7 +22,6 @@ import zkcbai.unitHandlers.units.tasks.Task;
 public class FighterHandler extends UnitHandler{
 
     
-    List<AIUnit> fighters = new ArrayList();
 
     public FighterHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
@@ -30,10 +30,10 @@ public class FighterHandler extends UnitHandler{
     
     @Override
     public AIUnit addUnit(Unit u) {
-        fighters.add(new AIUnit(u, this));
-        aiunits.put(u.getUnitId(), fighters.get(fighters.size()-1));
-        fighters.get(fighters.size()-1).idle();
-        return fighters.get(fighters.size()-1);
+        AIUnit au = new AIUnit(u, this);
+        aiunits.put(u.getUnitId(), au);
+        au.idle();
+        return au;
     }
 
     @Override
@@ -49,6 +49,22 @@ public class FighterHandler extends UnitHandler{
     @Override
     public void finishedTask(Task t) {
     }
+
+    @Override
+    public void removeUnit(AIUnit u) {
+        aiunits.remove(u.getUnit().getUnitId());
+    }
+
+    @Override
+    public void unitDestroyed(AIUnit u) {
+        removeUnit(u);
+    }
+
+    @Override
+    public void unitDestroyed(Enemy e) {
+    }
+
+
 
     
 }

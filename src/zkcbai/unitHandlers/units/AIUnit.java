@@ -11,6 +11,7 @@ import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.util.LinkedList;
 import java.util.Queue;
+import zkcbai.unitHandlers.DevNullHandler;
 import zkcbai.unitHandlers.UnitHandler;
 import zkcbai.unitHandlers.units.tasks.Task;
 
@@ -26,6 +27,7 @@ public class AIUnit {
     
     public AIUnit(Unit u, UnitHandler handler){
         unit = u;
+        if (handler == null) handler = new DevNullHandler(null,null);
         this.handler = handler;
     }
     
@@ -43,10 +45,15 @@ public class AIUnit {
             task = null;
             if (!taskqueue.isEmpty()){
                 task = taskqueue.poll();
+                doTask();
             }else{
                 handler.unitIdle(this);
             }
         }
+    }
+    
+    public void destroyed(){
+        
     }
     
     public void idle(){
@@ -74,12 +81,13 @@ public class AIUnit {
         pos.sub(trg);
         return pos.length();
     }
-    
-    public static final int OPTION_DONT_REPEAT = (1 << 3);//   8
-    public static final int OPTION_RIGHT_MOUSE_KEY = (1 << 4); //  16
-    public static final int OPTION_SHIFT_KEY = (1 << 5); //  32
-    public static final int OPTION_CONTROL_KEY = (1 << 6);//  64
-    public static final int OPTION_ALT_KEY = (1 << 7); // 128
+
+    public static final short OPTION_NONE = 0;//   0
+    public static final short OPTION_DONT_REPEAT = (1 << 3);//   8
+    public static final short OPTION_RIGHT_MOUSE_KEY = (1 << 4); //  16
+    public static final short OPTION_SHIFT_KEY = (1 << 5); //  32
+    public static final short OPTION_CONTROL_KEY = (1 << 6);//  64
+    public static final short OPTION_ALT_KEY = (1 << 7); // 128
     
     public void moveTo(AIFloat3 trg, short options, int timeout){
         unit.moveTo(trg, options, timeout);

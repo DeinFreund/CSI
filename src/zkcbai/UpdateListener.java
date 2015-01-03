@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-package zkcbai.unitHandlers;
+package zkcbai;
 
 import zkcbai.unitHandlers.units.AIUnit;
 
@@ -12,7 +12,7 @@ import zkcbai.unitHandlers.units.AIUnit;
  *
  * @author User
  */
-public interface UnitFinishedListener {
+public interface UpdateListener {
     
-    public void unitFinished(AIUnit u);
+    public void update(int frame);
 }

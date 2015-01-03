@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-package zkcbai.unitHandlers;
+package zkcbai;
 
 import zkcbai.unitHandlers.units.AIUnit;
 

@@ -4,15 +4,15 @@
  * and open the template in the editor.
  */
 
-package zkcbai.unitHandlers;
+package zkcbai;
 
-import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.Enemy;
 
 /**
  *
  * @author User
  */
-public interface UnitFinishedListener {
+public interface EnemyLeaveRadarListener {
     
-    public void unitFinished(AIUnit u);
+    public void enemyLeaveRadar(Enemy e);
 }

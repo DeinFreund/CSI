@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
@@ -20,7 +21,6 @@ import zkcbai.unitHandlers.units.tasks.Task;
  */
 public class FactoryHandler extends UnitHandler {
 
-    List<AIUnit> facs = new ArrayList();
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
@@ -29,10 +29,10 @@ public class FactoryHandler extends UnitHandler {
     
     @Override
     public AIUnit addUnit(Unit u) {
-        facs.add(new AIUnit(u, this));
-        aiunits.put(u.getUnitId(), facs.get(facs.size() - 1));
-        facs.get(facs.size() - 1).idle();
-        return facs.get(facs.size() - 1);
+        AIUnit au = new AIUnit(u, this);
+        aiunits.put(u.getUnitId(), au);
+        au.idle();
+        return au;
     }
 
     @Override
@@ -49,6 +49,21 @@ public class FactoryHandler extends UnitHandler {
     
     public UnitDef getNextFac(){
         return clbk.getUnitDefByName("factorycloak");
+    }
+    
+    
+    @Override
+    public void removeUnit(AIUnit u) {
+        aiunits.remove(u.getUnit().getUnitId());
+    }
+
+    @Override
+    public void unitDestroyed(AIUnit u) {
+        removeUnit(u);
+    }
+
+    @Override
+    public void unitDestroyed(Enemy e) {
     }
 
 }

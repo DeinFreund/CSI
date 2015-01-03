@@ -48,6 +48,7 @@ public class MoveTask extends Task{
     public boolean execute(AIUnit u) {
         if (errors > 5){
             issuer.abortedTask(this);
+            u.idle();
             return true;
         }
         lastUnit = u;
