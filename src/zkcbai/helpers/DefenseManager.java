@@ -5,20 +5,75 @@
  */
 package zkcbai.helpers;
 
+import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.UnitDef;
+import java.util.HashSet;
+import java.util.Set;
 import zkcbai.Command;
+import zkcbai.EnemyDiscoveredListener;
+import zkcbai.EnemyEnterLOSListener;
+import zkcbai.UnitDestroyedListener;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.Enemy;
 
 /**
  *
  * @author User
  */
-public class DefenseManager extends Helper{
+public class DefenseManager extends Helper implements EnemyEnterLOSListener, UnitDestroyedListener, EnemyDiscoveredListener{
 
     public DefenseManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
+        cmd.addEnemyEnterLOSListener(this);
+        cmd.addUnitDestroyedListener(this);
+        cmd.addEnemyDiscoveredListener(this);
+        
+        for (UnitDef ud : clbk.getUnitDefs()){
+            if (ud.getTooltip().toLowerCase().contains("riot") || ud.getTooltip().toLowerCase().contains("anti-swarm") ){
+                riotDefs.add(ud);
+            }
+        }
     }
 
+    private Set<Enemy> defenses = new HashSet();
+    private Set<Enemy> riots = new HashSet();
+    
+    private final Set<UnitDef> riotDefs = new HashSet();
+    
+    public float getDanger(AIFloat3 pos){
+        float result = 0;
+        for (Enemy e : defenses){
+             result += (e.distanceTo(pos) <= e.getMaxRange() ? 1 : 0) * e.getDef().getCost(command.metal);
+        }
+        return result;
+    }
+    public float getDanger(AIFloat3 pos, float radius){
+        float result = 0;
+        for (Enemy e : defenses){
+             result += (e.distanceTo(pos) <= (e.getMaxRange()+radius) ? 1 : 0) * e.getDef().getCost(command.metal);
+        }
+        return result;
+    }
+    
+    public boolean isRaiderAccessible(AIFloat3 pos){
+        for (Enemy e : riots){
+            if (e.distanceTo(pos) < e.getMaxRange()* 1.5 && riotDefs.contains(e.getDef())) return false;
+        }
+        return true;
+    }
+    public Enemy getNearestRiot(AIFloat3 pos){
+        float minDist = Float.MAX_VALUE;
+        Enemy best = null;
+        for (Enemy e : riots){
+            if (e.distanceTo(pos) < minDist && riotDefs.contains(e.getDef())) {
+                minDist = e.distanceTo(pos);
+                best = e;
+            }
+        }
+        return best;
+    }
+    
     @Override
     public void unitFinished(AIUnit u) {
     }
@@ -26,5 +81,29 @@ public class DefenseManager extends Helper{
     @Override
     public void update(int frame) {
     }
+
+    @Override
+    public void unitDestroyed(AIUnit u) {
+    }
+
+    @Override
+    public void unitDestroyed(Enemy e) {
+        defenses.remove(e);
+        riots.remove(e);
+    }
+
+    @Override
+    public void enemyEnterLOS(Enemy e) {
+        if (e.getDef().getSpeed() <= 0 && e.getDef().isAbleToAttack() && !defenses.contains(e)){
+            defenses.add(e);
+        }
+    }
+
+    @Override
+    public void enemyDiscovered(Enemy e) {
+        if (riotDefs.contains(e.getDef())) riots.add(e);
+    }
+    
+
     
 }

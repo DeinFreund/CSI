@@ -47,10 +47,10 @@ public class CommanderHandler extends UnitHandler {
         if (!plopped) {
             com.assignTask(new BuildTask(command.getFactoryHandler().getNextFac(), com.getPos(), this, clbk, command).setInfo("plop"));
         } else {
-            if (command.areaManager.getNearestMex(startPos).distanceTo(startPos) < 700){
-                com.assignTask(command.areaManager.getNearestMex(com.getPos()).createBuildTask(this));
+            if (command.areaManager.getNearestBuildableMex(startPos).distanceTo(startPos) < 700){
+                com.assignTask(command.areaManager.getNearestBuildableMex(com.getPos()).createBuildTask(this));
             }else{
-                com.assignTask(new BuildTask(clbk.getUnitDefByName("corrad"), com.getPos(), this, clbk, command));
+                com.assignTask(new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command));
             }
         }
     }

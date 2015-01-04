@@ -8,9 +8,13 @@ package zkcbai.unitHandlers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import zkcbai.Command;
+import zkcbai.unitHandlers.squads.RaiderSquad;
+import zkcbai.unitHandlers.squads.Squad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -27,18 +31,34 @@ public class FighterHandler extends UnitHandler{
         super(cmd, clbk);
     }
     
+    Set<Squad> squads = new HashSet();
+    
+    Map<Integer, Squad> unitSquads = new TreeMap();
     
     @Override
     public AIUnit addUnit(Unit u) {
         AIUnit au = new AIUnit(u, this);
         aiunits.put(u.getUnitId(), au);
         au.idle();
+        
+        for(Squad s : squads){
+            if (s.size() < 3) {
+                unitSquads.put(u.getUnitId(), s);
+                s.addUnit(au);
+                return au;
+            }
+        }
+        Squad rs = new RaiderSquad(this, command, clbk, command.areaManager.getArea(u.getPos()).getNearestArea(command.areaManager.HOSTILE).getPos());
+        squads.add(rs);
+        rs.addUnit(au);
+        unitSquads.put(u.getUnitId(), rs);
         return au;
     }
 
     @Override
     public void unitIdle(AIUnit u) {
-        
+        if (!unitSquads.containsKey(u.getUnit().getUnitId())) return;
+        unitSquads.get(u.getUnit().getUnitId()).unitIdle(u);
     }
 
     @Override
@@ -53,6 +73,8 @@ public class FighterHandler extends UnitHandler{
     @Override
     public void removeUnit(AIUnit u) {
         aiunits.remove(u.getUnit().getUnitId());
+        unitSquads.get(u.getUnit().getUnitId()).removeUnit(u);
+        unitSquads.remove(u.getUnit().getUnitId());
     }
 
     @Override

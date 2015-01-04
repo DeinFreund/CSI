@@ -8,11 +8,12 @@ package zkcbai.unitHandlers;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
+import zkcbai.unitHandlers.units.tasks.BuildTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
@@ -21,22 +22,30 @@ import zkcbai.unitHandlers.units.tasks.Task;
  */
 public class FactoryHandler extends UnitHandler {
 
+    private static final String[] facs = new String[]{"factorycloak", "factoryplane"};
+
+    private Set<UnitDef> builtFacs = new HashSet();
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
     }
-    
-    
+
     @Override
     public AIUnit addUnit(Unit u) {
         AIUnit au = new AIUnit(u, this);
         aiunits.put(u.getUnitId(), au);
         au.idle();
+        builtFacs.add(u.getDef());
         return au;
     }
 
     @Override
     public void unitIdle(AIUnit u) {
+        switch (u.getUnit().getDef().getName()) {
+            case "factorycloak":
+                u.assignTask(new BuildTask(clbk.getUnitDefByName("armpw"),u.getPos(),0,this,clbk,command));
+                break;
+        }
     }
 
     @Override
@@ -46,15 +55,24 @@ public class FactoryHandler extends UnitHandler {
     @Override
     public void finishedTask(Task t) {
     }
-    
-    public UnitDef getNextFac(){
+
+    public UnitDef getNextFac() {
+        for (String s : facs) {
+            if (!builtFacs.contains(clbk.getUnitDefByName(s))) {
+                return clbk.getUnitDefByName(s);
+            }
+        }
         return clbk.getUnitDefByName("factorycloak");
     }
-    
-    
+
     @Override
     public void removeUnit(AIUnit u) {
+        if (!aiunits.containsKey(u.getUnit().getUnitId())) return;
         aiunits.remove(u.getUnit().getUnitId());
+        builtFacs.clear();
+        for (AIUnit au : aiunits.values()){
+            builtFacs.add(au.getUnit().getDef());
+        }
     }
 
     @Override

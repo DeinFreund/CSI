@@ -26,6 +26,7 @@ import zkcbai.unitHandlers.FactoryHandler;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.helpers.LosManager;
 import zkcbai.helpers.RadarManager;
+import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.Enemy;
 
 /**
@@ -48,6 +49,7 @@ public class Command implements AI {
     private final List<EnemyEnterLOSListener> enemyEnterLOSListeners = new ArrayList();
     private final List<EnemyLeaveRadarListener> enemyLeaveRadarListeners = new ArrayList();
     private final List<EnemyLeaveLOSListener> enemyLeaveLOSListeners = new ArrayList();
+    private final List<EnemyDiscoveredListener> enemyDiscoveredListeners = new ArrayList();
     private final List<UnitFinishedListener> unitFinishedListeners = new ArrayList();
     private final List<UnitDestroyedListener> unitDestroyedListeners = new ArrayList();
     private final List<UpdateListener> updateListeners = new ArrayList();
@@ -55,6 +57,7 @@ public class Command implements AI {
 
     private final List<CommanderHandler> comHandlers = new ArrayList();
     private final FactoryHandler facHandler;
+    private final FighterHandler fighterHandler;
 
     private final Map<Integer, AIUnit> units = new TreeMap();
     private final Map<Integer, Enemy> enemies = new TreeMap();
@@ -67,12 +70,18 @@ public class Command implements AI {
         this.clbk = callback;
         ownTeamId = teamId;
         facHandler = new FactoryHandler(this, callback);
+        fighterHandler = new FighterHandler(this, clbk);
         metal = clbk.getResources().get(0);
         energy = clbk.getResources().get(1);
         losManager = new LosManager(this, clbk);
         areaManager = new ZoneManager(this, clbk);
         radarManager = new RadarManager(this, clbk);
         defenseManager = new DefenseManager(this, clbk);
+
+        String[] importantSpeedDefs = new String[]{"bomberdive","fighter","corawac","corvamp"};
+        for (String s : importantSpeedDefs) {
+            defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
+        }
     }
 
     public FactoryHandler getFactoryHandler() {
@@ -83,6 +92,14 @@ public class Command implements AI {
         return defSpeedMap;
     }
 
+    public List<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius){
+        List<Enemy> list = new ArrayList();
+        for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
+            list.add(enemies.get(u.getUnitId()));
+        }
+        return list;
+    }
+    
     public Set<UnitDef> getEnemyUnitDefs() {
         return enemyDefs;
     }
@@ -91,11 +108,15 @@ public class Command implements AI {
         return frame;
     }
 
-    public void addEnemyEnteredRadarListener(EnemyEnterRadarListener listener) {
+    public void addEnemyEnterRadarListener(EnemyEnterRadarListener listener) {
         enemyEnterRadarListeners.add(listener);
     }
 
-    public void addEnemyEnteredLOSListener(EnemyEnterLOSListener listener) {
+    public void addEnemyDiscoveredListener(EnemyDiscoveredListener listener) {
+        enemyDiscoveredListeners.add(listener);
+    }
+
+    public void addEnemyEnterLOSListener(EnemyEnterLOSListener listener) {
         enemyEnterLOSListeners.add(listener);
     }
 
@@ -178,8 +199,7 @@ public class Command implements AI {
     public int enemyEnterLOS(Unit enemy) {
         try {
             if (!enemies.containsKey(enemy.getUnitId())) {
-                enemies.put(enemy.getUnitId(), new Enemy(enemy, this, clbk));
-
+                enemyDiscovered(new Enemy(enemy, this, clbk));
             }
             if (!enemyDefs.contains(enemy.getDef())) {
                 enemyDefs.add(enemy.getDef());
@@ -223,7 +243,7 @@ public class Command implements AI {
     public int enemyEnterRadar(Unit enemy) {
         try {
             if (!enemies.containsKey(enemy.getUnitId())) {
-                enemies.put(enemy.getUnitId(), new Enemy(enemy, this, clbk));
+                enemyDiscovered(new Enemy(enemy, this, clbk));
             }
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             aiEnemy.enterRadar();
@@ -238,6 +258,13 @@ public class Command implements AI {
             debug("Exception in enemyEnterRadar: ", e);
         }
         return 0;
+    }
+
+    public void enemyDiscovered(Enemy enemy) {
+        enemies.put(enemy.getUnit().getUnitId(), enemy);
+        for (EnemyDiscoveredListener listener : enemyDiscoveredListeners) {
+            listener.enemyDiscovered(enemy);
+        }
     }
 
     @Override
@@ -269,16 +296,16 @@ public class Command implements AI {
             AIUnit aiunit = units.get(unit.getUnitId());
             if (aiunit != null) {
                 aiunit.destroyed();
-                
+
                 for (UnitDestroyedListener listener : unitDestroyedListeners) {
                     listener.unitDestroyed(aiunit);
                 }
-                
+
             }
             Enemy e = enemies.get(unit.getUnitId());
             if (e != null) {
                 e.destroyed();
-                
+
                 for (UnitDestroyedListener listener : unitDestroyedListeners) {
                     listener.unitDestroyed(e);
                 }
@@ -351,6 +378,12 @@ public class Command implements AI {
                     CommanderHandler comHandler = new CommanderHandler(this, clbk);
                     comHandlers.add(comHandler);
                     aiunit = comHandler.addUnit(unit);
+                    break;
+                case "factorycloak":
+                    aiunit = facHandler.addUnit(unit);
+                    break;
+                case "armpw":
+                    aiunit = fighterHandler.addUnit(unit);
                     break;
                 default:
                     debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");

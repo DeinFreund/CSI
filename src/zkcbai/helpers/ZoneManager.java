@@ -70,7 +70,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             String teamDefBody = m.group(2);
             Pattern sbp = Pattern.compile("startrect\\w+=(\\d+(\\.\\d+)?);");
             Matcher mb = sbp.matcher(teamDefBody);
-            
+
             float[] startbox = new float[4];
             int i = 0;
 
@@ -82,21 +82,21 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 startbox[i] = Float.parseFloat(mb.group(1));
                 i++;
             }
-            
+
             int mapWidth = 8 * clbk.getMap().getWidth();
             int mapHeight = 8 * clbk.getMap().getHeight();
-            
+
             startbox[0] *= mapHeight;
             startbox[1] *= mapWidth;
             startbox[2] *= mapWidth;
             startbox[3] *= mapHeight;
-            
+
             for (Area a : getAreasInRectangle(new AIFloat3(startbox[1], 0, startbox[3]), new AIFloat3(startbox[2], 0, startbox[0]))) {
                 a.setOwner((allyTeamId == clbk.getGame().getMyAllyTeam()) ? Owner.own : Owner.enemy);
             }
         }
     }
-    
+
     public void setMexSpots(List<AIFloat3> spots) {
         for (AIFloat3 pos : spots) {
             mexes.add(new Mex(pos));
@@ -114,7 +114,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
     }
 
-    public Mex getNearestMex(AIFloat3 pos) {
+    public Mex getNearestBuildableMex(AIFloat3 pos) {
         float minDist = Float.MAX_VALUE;
         Mex best = null;
         for (Mex m : mexes) {
@@ -126,10 +126,22 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         return best;
     }
 
+    public Mex getNearestMex(AIFloat3 pos) {
+        float minDist = Float.MAX_VALUE;
+        Mex best = null;
+        for (Mex m : mexes) {
+            if (m.distanceTo(pos) < minDist) {
+                minDist = m.distanceTo(pos);
+                best = m;
+            }
+        }
+        return best;
+    }
+
     public Area getArea(AIFloat3 pos) {
         return map[map.length * (int) pos.x / mwidth][map[0].length * (int) pos.z / mheight];
     }
-    
+
     public List<Area> getAreasInRectangle(AIFloat3 coords, AIFloat3 coords2) {
         int x1 = (int) (coords.x * map.length / 8 / clbk.getMap().getWidth());
         int y1 = (int) (coords.z * map[0].length / 8 / clbk.getMap().getHeight());
@@ -167,6 +179,24 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         own, none, enemy
     }
+    public final AreaChecker NOT_IN_LOS = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return !a.isVisible();
+        }
+    };
+    public final AreaChecker HOSTILE = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return a.getZone() == Zone.hostile;
+        }
+    };
+    public final AreaChecker RAIDER_ACCESSIBLE = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return command.defenseManager.isRaiderAccessible(a.getPos());
+        }
+    };
 
     public class Area {
 
@@ -177,43 +207,38 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public Area(int x, int y) {
             this.x = x;
             this.y = y;
-            this.pos = new AIFloat3(x * mwidth / map.length, 0, y * mheight / map[0].length);
+            this.pos = new AIFloat3((x+0.5f) * mwidth / map.length, 0, (y+0.5f) * mheight / map[0].length);
             this.pos.y = clbk.getMap().getElevationAt(pos.x, pos.z);
         }
-        
-        private void setOwner(Owner o){
+
+        private void setOwner(Owner o) {
             owner = o;
         }
 
-        public Area getNearestInvisibleArea() {
+        public Area getNearestArea(AreaChecker checker) {
             for (int radius = 0; radius < Math.max(map.length, map[0].length); radius++) {
-                command.debug(radius + " radius from " + x + "|" + y + " == " + pos.toString());
                 int x, y;
                 x = this.x - radius;
                 for (y = this.y - radius; y <= this.y + radius; y++) {
-                    command.debug("checking " + x + "|" + y);
-                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && !map[x][y].isVisible()) {
+                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && checker.checkArea(map[x][y])) {
                         return map[x][y];
                     }
                 }
                 x = this.x + radius;
                 for (y = this.y - radius; y <= this.y + radius; y++) {
-                    command.debug("checking " + x + "|" + y);
-                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && !map[x][y].isVisible()) {
+                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && checker.checkArea(map[x][y])) {
                         return map[x][y];
                     }
                 }
                 y = this.y - radius;
                 for (x = this.x - radius; x <= this.x + radius; x++) {
-                    command.debug("checking " + x + "|" + y);
-                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && !map[x][y].isVisible()) {
+                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && checker.checkArea(map[x][y])) {
                         return map[x][y];
                     }
                 }
                 y = this.y + radius;
                 for (x = this.x - radius; x <= this.x + radius; x++) {
-                    command.debug("checking " + x + "|" + y);
-                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && !map[x][y].isVisible()) {
+                    if (x >= 0 && y >= 0 && x < map.length && y < map[0].length && checker.checkArea(map[x][y])) {
                         return map[x][y];
                     }
                 }
@@ -231,7 +256,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public Zone getZone() {
-            if (!isVisible() && owner==Owner.enemy) return Zone.hostile;
+            if (!isVisible() && owner == Owner.enemy) {
+                return Zone.hostile;
+            } else {
+                owner = Owner.none;
+            }
+            if (command.defenseManager.getDanger(pos, Math.max(mwidth / map.length, mheight / map[0].length) / 2f) > 0) {
+                return Zone.hostile;
+            }
+            return Zone.noMansLand;
         }
     }
 

@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package zkcbai.unitHandlers.units;
 
 import com.springrts.ai.oo.AIFloat3;
@@ -20,63 +19,71 @@ import zkcbai.unitHandlers.units.tasks.Task;
  * @author User
  */
 public class AIUnit {
+
     private Unit unit;
     private Task task;
     private Queue<Task> taskqueue = new LinkedList();
     private UnitHandler handler;
-    
-    public AIUnit(Unit u, UnitHandler handler){
+
+    public AIUnit(Unit u, UnitHandler handler) {
         unit = u;
-        if (handler == null) handler = new DevNullHandler(null,null);
+        if (handler == null) {
+            handler = new DevNullHandler(null, null);
+        }
         this.handler = handler;
     }
-    
-    public void assignTask(Task t){
+
+    public void assignTask(Task t) {
         task = t;
         doTask();
     }
-    public void queueTask(Task t){
+
+    public void queueTask(Task t) {
         taskqueue.add(t);
         doTask();
     }
-    
-    private void doTask(){
-        if (task == null || task.execute(this)){
+
+    private void doTask() {
+        if (task == null || task.execute(this)) {
             task = null;
-            if (!taskqueue.isEmpty()){
+            if (!taskqueue.isEmpty()) {
                 task = taskqueue.poll();
                 doTask();
-            }else{
+            } else {
                 handler.unitIdle(this);
             }
         }
     }
-    
-    public void destroyed(){
-        
+
+    public void destroyed() {
+
     }
-    
-    public void idle(){
+
+    public void idle() {
         doTask();
     }
-    
-    public void pathFindingError(){
-        task.pathFindingError(this);
+
+    public void pathFindingError() {
+        if (task != null) {
+            task.pathFindingError(this);
+        } else {
+            idle();
+        }
     }
-    
-    public AIFloat3 getPos(){
+
+    public AIFloat3 getPos() {
         return unit.getPos();
     }
-    
-    public Unit getUnit(){
+
+    public Unit getUnit() {
         return unit;
     }
-    
-    public Task getTask(){
-       return task; 
+
+    public Task getTask() {
+        return task;
     }
-    
-    public float distanceTo(AIFloat3 trg){
+
+    public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
         return pos.length();
@@ -88,20 +95,40 @@ public class AIUnit {
     public static final short OPTION_SHIFT_KEY = (1 << 5); //  32
     public static final short OPTION_CONTROL_KEY = (1 << 6);//  64
     public static final short OPTION_ALT_KEY = (1 << 7); // 128
-    
-    public void moveTo(AIFloat3 trg, short options, int timeout){
+
+    public void moveTo(AIFloat3 trg, short options, int timeout) {
         unit.moveTo(trg, options, timeout);
     }
-    public void patrolTo(AIFloat3 trg, short options, int timeout){
+
+    public void patrolTo(AIFloat3 trg, short options, int timeout) {
         unit.patrolTo(trg, options, timeout);
     }
-    public void fight(AIFloat3 trg, short options, int timeout){
+
+    public void fight(AIFloat3 trg, short options, int timeout) {
         unit.fight(trg, options, timeout);
     }
-    public void build(UnitDef building,int facing, AIFloat3 trg, short options, int timeout){
-        unit.build(building,trg,facing, options, timeout);
+
+    public void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout) {
+        unit.build(building, trg, facing, options, timeout);
     }
-    public int getHashCode(){
+
+    public void moveTo(AIFloat3 trg, int timeout) {
+        unit.moveTo(trg, OPTION_NONE, timeout);
+    }
+
+    public void patrolTo(AIFloat3 trg, int timeout) {
+        unit.patrolTo(trg, OPTION_NONE, timeout);
+    }
+
+    public void fight(AIFloat3 trg, int timeout) {
+        unit.fight(trg, OPTION_NONE, timeout);
+    }
+
+    public void build(UnitDef building, int facing, AIFloat3 trg, int timeout) {
+        unit.build(building, trg, facing, OPTION_NONE, timeout);
+    }
+
+    public int getHashCode() {
         return unit.hashCode();
     }
 }

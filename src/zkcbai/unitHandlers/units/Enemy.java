@@ -9,6 +9,7 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import com.springrts.ai.oo.clb.WeaponMount;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
 
@@ -27,6 +28,7 @@ public class Enemy implements UpdateListener {
     private float maxVelocity = 0.5f;
     private AIFloat3 lastPos;
     private boolean alive = true;
+    private float maxRange = 0;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         unit = u;
@@ -34,11 +36,12 @@ public class Enemy implements UpdateListener {
         this.clbk = clbk;
         command = cmd;
         unitDef = clbk.getUnitDefByName("corllt");
+        lastPos = u.getPos();
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
     }
-    
+
     @Deprecated
-    public boolean isAlive(){
+    public boolean isAlive() {
         return alive;
     }
 
@@ -60,6 +63,10 @@ public class Enemy implements UpdateListener {
         return unit;
     }
 
+    public float getMaxRange() {
+        return maxRange;
+    }
+
     public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
@@ -72,27 +79,36 @@ public class Enemy implements UpdateListener {
             lastPos = unit.getPos();
         } else if (command.radarManager.isInRadar(lastPos) || command.losManager.isInLos(lastPos)) {
             //command.debug("new pos");
-            lastPos = command.areaManager.getArea(lastPos).getNearestInvisibleArea().getPos();
+            lastPos = command.areaManager.getArea(lastPos).getNearestArea(command.areaManager.NOT_IN_LOS).getPos();
         }
         //command.mark(getPos(), getPos().toString());
         command.addSingleUpdateListener(this, frame + 40);
     }
 
     public void enterLOS() {
-        unitDef = unit.getDef();
-        if (unitDef.getName().equals("cormex")){
-            command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
+        if (neverSeen) {
+            unitDef = unit.getDef();
+            maxRange = unit.getMaxRange();
+            if (unitDef.getName().equals("cormex")) {
+                command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
+            }
         }
         neverSeen = false;
     }
 
     public void identify() {
-        if (!neverSeen) return;
+        if (!neverSeen) {
+            return;
+        }
         maxVelocity = Math.max(unit.getVel().length(), maxVelocity);
         if (command.getEnemyUnitDefSpeedMap().ceilingEntry(unit.getVel().length()) == null) {
             unitDef = clbk.getUnitDefByName("armpw");
         } else {
             unitDef = command.getEnemyUnitDefSpeedMap().ceilingEntry(unit.getVel().length()).getValue();
+        }
+        maxRange = 0;
+        for (WeaponMount wm : unitDef.getWeaponMounts()) {
+            maxRange = Math.max(wm.getWeaponDef().getRange(), maxRange);
         }
         command.debug(unitDef.getHumanName() + " identified by Radar");
     }
@@ -108,12 +124,12 @@ public class Enemy implements UpdateListener {
 
     public void leaveRadar() {
     }
-    
-    public void destroyed(){
+
+    public void destroyed() {
         alive = false;
     }
-    
-    public boolean equals(Enemy e){
+
+    public boolean equals(Enemy e) {
         return unit.getUnitId() == e.getUnit().getUnitId();
     }
 }

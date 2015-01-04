@@ -57,7 +57,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     public boolean execute(AIUnit u) {
         command.debug("executing a build task");
         if (result != null) return true;
-        if (!clbk.getMap().isPossibleToBuildAt(building, pos, facing)){
+        if (building.getSpeed() <= 0 && !clbk.getMap().isPossibleToBuildAt(building, pos, facing)){
             issuer.abortedTask(this);
             List<AIUnit> auc = new ArrayList();
             Collections.copy(assignedUnits, auc);
