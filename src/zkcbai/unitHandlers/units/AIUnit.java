@@ -66,6 +66,7 @@ public class AIUnit implements UpdateListener {
     }
 
     public void destroyed() {
+        //handler.getCommand().mark(getPos(), "dead");
         clearUpdateListener();
         dead = true;
     }
@@ -75,7 +76,7 @@ public class AIUnit implements UpdateListener {
         if (dead) {
             return;
         }
-        handler.getCommand().mark(getPos(), "stop");
+        //handler.getCommand().mark(getPos(), "stop");
         unit.stop(OPTION_NONE, frame);// timeout
     }
 
@@ -149,8 +150,14 @@ public class AIUnit implements UpdateListener {
         }
     }
 
+    private int lastCall = 0;
+    
     public void fight(AIFloat3 trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "fight");
+        if (handler.getCommand().getCurrentFrame() == lastCall){
+            throw new RuntimeException("Double Call to Fight");
+        }
+        lastCall = handler.getCommand().getCurrentFrame();
         clearUpdateListener();
         areaManager.executedCommand();
         unit.fight(trg, options, Integer.MAX_VALUE);

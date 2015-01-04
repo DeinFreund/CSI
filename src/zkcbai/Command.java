@@ -53,7 +53,7 @@ public class Command implements AI {
     private final List<UnitFinishedListener> unitFinishedListeners = new ArrayList();
     private final List<UnitDestroyedListener> unitDestroyedListeners = new ArrayList();
     private final List<UpdateListener> updateListeners = new ArrayList();
-    private final Map<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap();
+    private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap();
 
     private final List<CommanderHandler> comHandlers = new ArrayList();
     private final FactoryHandler facHandler;
@@ -378,11 +378,11 @@ public class Command implements AI {
             for (UpdateListener listener : updateListeners) {
                 listener.update(frame);
             }
-            if (singleUpdateListeners.containsKey(frame)) {
-                for (UpdateListener listener : singleUpdateListeners.get(frame)) {
+            while (!singleUpdateListeners.isEmpty() && singleUpdateListeners.firstKey() <= frame) {
+                for (UpdateListener listener : singleUpdateListeners.firstEntry().getValue()) {
                     listener.update(frame);
                 }
-                singleUpdateListeners.remove(frame);
+                singleUpdateListeners.remove(singleUpdateListeners.firstKey());
             }
         } catch (Exception e) {
             debug("Exception in update: ", e);

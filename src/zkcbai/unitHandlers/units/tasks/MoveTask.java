@@ -55,13 +55,13 @@ public class MoveTask extends Task{
         if (u.distanceTo(target) < 40) return true;
         if (isSet(SAFE_MOVE)){
             
-            u.moveTo(target, (short)0, -1);
+            u.moveTo(target, (short)0, Integer.MAX_VALUE);
         }else 
         if (isSet(AGGRESSIVE_MOVE)){
             
-            u.moveTo(target, (short)0, -1);
+            u.moveTo(target, (short)0, Integer.MAX_VALUE);
         }else{
-            u.moveTo(target, (short)0, -1);
+            u.moveTo(target, (short)0, Integer.MAX_VALUE);
         }
         return false;
     }

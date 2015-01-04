@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package zkcbai.unitHandlers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
@@ -23,25 +22,23 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class FighterHandler extends UnitHandler{
-
-    
+public class FighterHandler extends UnitHandler {
 
     public FighterHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
     }
-    
+
     Set<Squad> squads = new HashSet();
-    
+
     Map<Integer, Squad> unitSquads = new TreeMap();
-    
+
     @Override
     public AIUnit addUnit(Unit u) {
         AIUnit au = new AIUnit(u, this);
         aiunits.put(u.getUnitId(), au);
-        
-        for(Squad s : squads){
-            if (s.size() < 5 && s.timeTo(au) < 30*10) {
+
+        for (Squad s : squads) {
+            if (s.size() < 5 && s.timeTo(au) < 30 * 10) {
                 unitSquads.put(u.getUnitId(), s);
                 s.addUnit(au);
                 return au;
@@ -56,14 +53,16 @@ public class FighterHandler extends UnitHandler{
 
     @Override
     public void unitIdle(AIUnit u) {
-        if (!unitSquads.containsKey(u.getUnit().getUnitId())) return;
+        if (!unitSquads.containsKey(u.getUnit().getUnitId())) {
+            return;
+        }
         //command.mark(u.getPos(), "idle");
         unitSquads.get(u.getUnit().getUnitId()).unitIdle(u);
     }
 
     @Override
     public void abortedTask(Task t) {
-        
+
     }
 
     @Override
@@ -72,6 +71,9 @@ public class FighterHandler extends UnitHandler{
 
     @Override
     public void removeUnit(AIUnit u) {
+        if (!aiunits.containsKey(u.getUnit().getUnitId())) {
+            return;
+        }
         aiunits.remove(u.getUnit().getUnitId());
         unitSquads.get(u.getUnit().getUnitId()).removeUnit(u);
         unitSquads.remove(u.getUnit().getUnitId());
@@ -86,7 +88,4 @@ public class FighterHandler extends UnitHandler{
     public void unitDestroyed(Enemy e) {
     }
 
-
-
-    
 }

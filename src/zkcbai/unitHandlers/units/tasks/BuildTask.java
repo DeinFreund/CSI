@@ -76,7 +76,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             u.queueTask(this);
             return false;
         }
-        u.build(building, facing, pos, (short)0, -1);
+        u.build(building, facing, pos, (short)0, Integer.MAX_VALUE);
         return false;
     }
 
