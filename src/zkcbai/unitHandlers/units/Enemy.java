@@ -12,6 +12,8 @@ import com.springrts.ai.oo.clb.UnitDef;
 import com.springrts.ai.oo.clb.WeaponMount;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
+import zkcbai.helpers.AreaChecker;
+import zkcbai.helpers.ZoneManager;
 
 /**
  *
@@ -31,13 +33,17 @@ public class Enemy implements UpdateListener {
     private float maxRange = 0;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
+        cmd.debug("constructing");
         unit = u;
         unitId = u.getUnitId();
         this.clbk = clbk;
         command = cmd;
         unitDef = clbk.getUnitDefByName("corllt");
         lastPos = u.getPos();
+        cmd.debug("adding listener");
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
+
+        cmd.debug("constructed");
     }
 
     @Deprecated
@@ -73,13 +79,30 @@ public class Enemy implements UpdateListener {
         return pos.length();
     }
 
+    public boolean shouldBeVisible(AIFloat3 pos) {
+        if (getDef().getCloakCost() <= 0) {
+            return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
+        } else {
+            return !clbk.getFriendlyUnitsIn(pos, getDef().getDecloakDistance()).isEmpty();
+        }
+    }
+
+    private final AreaChecker invisible = new AreaChecker() {
+
+        @Override
+        public boolean checkArea(ZoneManager.Area a) {
+            return !shouldBeVisible(a.getPos());
+        }
+
+    };
+
     @Override
     public void update(int frame) {
         if (unit.getPos().length() > 0) {
             lastPos = unit.getPos();
-        } else if (command.radarManager.isInRadar(lastPos) || command.losManager.isInLos(lastPos)) {
+        } else if (shouldBeVisible(lastPos)) {
             //command.debug("new pos");
-            lastPos = command.areaManager.getArea(lastPos).getNearestArea(command.areaManager.NOT_IN_LOS).getPos();
+            lastPos = command.areaManager.getArea(lastPos).getNearestArea(invisible).getPos();
         }
         //command.mark(getPos(), getPos().toString());
         command.addSingleUpdateListener(this, frame + 40);

@@ -110,7 +110,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     @Override
     public void update(int frame) {
         if (frame % 50 == 0) {
+            cmdsPerSec = cmds/50f*30;
             pnl.updateUI();
+            cmds = 0;
         }
     }
 
@@ -170,6 +172,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
     }
 
+    
+    private int cmds = 0;
+    private float cmdsPerSec;
+    
+    public void executedCommand(){
+        cmds ++;
+    }
+    
     public enum Zone {
 
         own, front, noMansLand, hostile
@@ -251,7 +261,6 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public AIFloat3 getPos() {
-            command.debug(pos.toString() + " == " + new AIFloat3(pos).toString());
             return new AIFloat3(pos);
         }
 
@@ -377,6 +386,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 g.drawOval(x - 5, y - 5, 10, 10);
                 g.drawOval(x - 4, y - 4, 8, 8);
             }
+            
+            g.setColor(Color.orange);
+            g.drawString(Math.round(cmdsPerSec*10)/10f  + " cmds/sec", 10, 10);
+            
 
         }
 

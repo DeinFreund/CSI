@@ -53,7 +53,7 @@ public class Command implements AI {
     private final List<UnitFinishedListener> unitFinishedListeners = new ArrayList();
     private final List<UnitDestroyedListener> unitDestroyedListeners = new ArrayList();
     private final List<UpdateListener> updateListeners = new ArrayList();
-    private final Map<Integer, List<UpdateListener>> singleUpdateListeners = new TreeMap();
+    private final Map<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap();
 
     private final List<CommanderHandler> comHandlers = new ArrayList();
     private final FactoryHandler facHandler;
@@ -78,10 +78,12 @@ public class Command implements AI {
         radarManager = new RadarManager(this, clbk);
         defenseManager = new DefenseManager(this, clbk);
 
-        String[] importantSpeedDefs = new String[]{"bomberdive","fighter","corawac","corvamp"};
+        String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp"};
         for (String s : importantSpeedDefs) {
             defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
         }
+
+        debug("ZKCBAI successfully initialized.");
     }
 
     public FactoryHandler getFactoryHandler() {
@@ -92,14 +94,19 @@ public class Command implements AI {
         return defSpeedMap;
     }
 
-    public List<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius){
+    public List<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
         List<Enemy> list = new ArrayList();
-        for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
-            list.add(enemies.get(u.getUnitId()));
+        /*for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
+         list.add(enemies.get(u.getUnitId()));
+         }*/
+        for (Enemy e : enemies.values()) {
+            if (e.distanceTo(pos) < radius) {
+                list.add(e);
+            }
         }
         return list;
     }
-    
+
     public Set<UnitDef> getEnemyUnitDefs() {
         return enemyDefs;
     }
@@ -136,12 +143,20 @@ public class Command implements AI {
         unitDestroyedListeners.add(listener);
     }
 
-    public void addSingleUpdateListener(UpdateListener listener, int frame) {
-        List<UpdateListener> list = singleUpdateListeners.get(frame);
+    public boolean addSingleUpdateListener(UpdateListener listener, int frame) {
+        if (frame >= 1000000000) {
+            return false;
+        }
+        Set<UpdateListener> list = singleUpdateListeners.get(frame);
         if (list == null) {
-            singleUpdateListeners.put(frame, new ArrayList());
+            singleUpdateListeners.put(frame, new HashSet());
         }
         singleUpdateListeners.get(frame).add(listener);
+        return true;
+    }
+
+    public void removeSingleUpdateListener(UpdateListener listener, int frame) {
+        singleUpdateListeners.get(frame).remove(listener);
     }
 
     public void addUpdateListener(UpdateListener listener) {
@@ -150,9 +165,7 @@ public class Command implements AI {
 
     private void checkForMetal(String luamsg) {
         List<AIFloat3> availablemetalspots = new ArrayList();
-        debug(luamsg.substring(12, luamsg.length()));
         for (String spotDesc : luamsg.substring(13, luamsg.length() - 2).split("},\\{")) {
-            debug(spotDesc);
             float x, y, z;
             y = Float.parseFloat(spotDesc.split(",")[0].split(":")[1]);
             x = Float.parseFloat(spotDesc.split(",")[1].split(":")[1]);
@@ -160,6 +173,7 @@ public class Command implements AI {
             availablemetalspots.add(new AIFloat3(x, y, z));
         }
 
+        debug("Received " + availablemetalspots.size() + " mex spots via luaMessage.");
         areaManager.setMexSpots(availablemetalspots);
     }
 
@@ -229,9 +243,11 @@ public class Command implements AI {
     public int enemyLeaveLOS(Unit enemy) {
         try {
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
-            aiEnemy.leaveLOS();
-            for (EnemyLeaveLOSListener listener : enemyLeaveLOSListeners) {
-                listener.enemyLeaveLOS(aiEnemy);
+            if (aiEnemy != null) {
+                aiEnemy.leaveLOS();
+                for (EnemyLeaveLOSListener listener : enemyLeaveLOSListeners) {
+                    listener.enemyLeaveLOS(aiEnemy);
+                }
             }
         } catch (Exception e) {
             debug("Exception in enemyLeaveLOS: ", e);
@@ -242,10 +258,13 @@ public class Command implements AI {
     @Override
     public int enemyEnterRadar(Unit enemy) {
         try {
+            debug(enemy.getUnitId() + " entered radar");
             if (!enemies.containsKey(enemy.getUnitId())) {
                 enemyDiscovered(new Enemy(enemy, this, clbk));
             }
+            debug("discovered");
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
+            debug("ai enemy is null " + (aiEnemy == null));
             aiEnemy.enterRadar();
             for (EnemyEnterRadarListener listener : enemyEnterRadarListeners) {
                 listener.enemyEnterRadar(aiEnemy);
@@ -261,7 +280,10 @@ public class Command implements AI {
     }
 
     public void enemyDiscovered(Enemy enemy) {
+
+        debug("discovering");
         enemies.put(enemy.getUnit().getUnitId(), enemy);
+        debug("put in map");
         for (EnemyDiscoveredListener listener : enemyDiscoveredListeners) {
             listener.enemyDiscovered(enemy);
         }
@@ -271,9 +293,11 @@ public class Command implements AI {
     public int enemyLeaveRadar(Unit enemy) {
         try {
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
-            aiEnemy.leaveRadar();
-            for (EnemyLeaveRadarListener listener : enemyLeaveRadarListeners) {
-                listener.enemyLeaveRadar(aiEnemy);
+            if (aiEnemy != null) {
+                aiEnemy.leaveRadar();
+                for (EnemyLeaveRadarListener listener : enemyLeaveRadarListeners) {
+                    listener.enemyLeaveRadar(aiEnemy);
+                }
             }
         } catch (Exception e) {
             debug("Exception in enemyLeaveRadar: ", e);
@@ -300,6 +324,7 @@ public class Command implements AI {
                 for (UnitDestroyedListener listener : unitDestroyedListeners) {
                     listener.unitDestroyed(aiunit);
                 }
+                units.remove(unit.getUnitId());
 
             }
             Enemy e = enemies.get(unit.getUnitId());
@@ -309,6 +334,7 @@ public class Command implements AI {
                 for (UnitDestroyedListener listener : unitDestroyedListeners) {
                     listener.unitDestroyed(e);
                 }
+                enemies.remove(unit.getUnitId());
             }
         } catch (Exception e) {
             debug("Exception in unitDestroyed: ", e);
@@ -334,6 +360,10 @@ public class Command implements AI {
     @Override
     public int unitIdle(Unit unit) {
         try {
+            if (!units.containsKey(unit.getUnitId())) {
+                debug("IDLEBUG unknown unit " + unit.getUnitId());
+                return 0;
+            }
             units.get(unit.getUnitId()).idle();
         } catch (Exception e) {
             debug("Exception in unitIdle: ", e);
@@ -352,8 +382,8 @@ public class Command implements AI {
                 for (UpdateListener listener : singleUpdateListeners.get(frame)) {
                     listener.update(frame);
                 }
+                singleUpdateListeners.remove(frame);
             }
-            singleUpdateListeners.remove(frame);
         } catch (Exception e) {
             debug("Exception in update: ", e);
         }
@@ -372,6 +402,7 @@ public class Command implements AI {
     @Override
     public int unitFinished(Unit unit) {
         try {
+            debug("IDLEBUG finished " + unit.getUnitId());
             AIUnit aiunit;
             switch (unit.getDef().getName()) {
                 case "armcom1":
@@ -389,6 +420,7 @@ public class Command implements AI {
                     debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");
                     aiunit = new AIUnit(unit, null);
             }
+            debug("IDLEBUG registering " + aiunit.getUnit().getUnitId());
             units.put(unit.getUnitId(), aiunit);
             for (UnitFinishedListener listener : unitFinishedListeners) {
                 listener.unitFinished(aiunit);

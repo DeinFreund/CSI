@@ -35,10 +35,16 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener {
 
     public abstract void removeUnit(AIUnit u);
 
+    @Deprecated
     public void unitIdle(Unit u) {
         unitIdle(aiunits.get(u.getUnitId()));
     }
 
+    public Command getCommand(){
+        return command;
+    }
+    
     public abstract void unitIdle(AIUnit u);
+    
 
 }
