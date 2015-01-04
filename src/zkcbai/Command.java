@@ -78,7 +78,7 @@ public class Command implements AI {
         radarManager = new RadarManager(this, clbk);
         defenseManager = new DefenseManager(this, clbk);
 
-        String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp"};
+        String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn" ,"armbrawl"};
         for (String s : importantSpeedDefs) {
             defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
         }
