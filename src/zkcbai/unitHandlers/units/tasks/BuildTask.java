@@ -59,6 +59,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         if (result != null) return true;
         if (building.getSpeed() <= 0 && !clbk.getMap().isPossibleToBuildAt(building, pos, facing)){
             issuer.abortedTask(this);
+            command.removeUnitFinishedListener(this);
             List<AIUnit> auc = new ArrayList();
             Collections.copy(assignedUnits, auc);
             assignedUnits.clear();
@@ -69,7 +70,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         }
         command.debug("didn't abort");
         if (!assignedUnits.contains(u))assignedUnits.add(u);
-        if (u.distanceTo(pos)> 200){
+        if (u.distanceTo(pos)> 300){
             AIFloat3 trg = new AIFloat3();
             trg.interpolate( pos,u.getPos(),150f/u.distanceTo(pos));
             u.assignTask(new MoveTask(trg,this));
@@ -104,9 +105,12 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
 
     @Override
     public void unitFinished(AIUnit u) {
-        if (u.getUnit().getDef().equals(building) && u.getPos().equals(pos)){
+        //command.mark(u.getPos(), u.getUnit().getDef().getHumanName() + " finished");
+        if (u.getUnit().getDef().equals(building) && u.distanceTo(pos)<20){
+            //command.mark(pos, "task finished");
             issuer.finishedTask(this);
             result = u;
+            command.removeUnitFinishedListener(this);
         }
     }
     

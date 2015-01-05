@@ -11,6 +11,7 @@ import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.util.LinkedList;
 import java.util.Queue;
+import zkcbai.Command;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.DevNullHandler;
@@ -52,13 +53,14 @@ public class AIUnit implements UpdateListener {
     }
 
     private void doTask() {
+        //getCommand().mark(getPos(), "doing task");
         if (task == null || task.execute(this)) {
             task = null;
             if (!taskqueue.isEmpty()) {
                 task = taskqueue.poll();
                 doTask();
             } else {
-                
+
                 //handler.getCommand().mark(unit.getPos(), "unitidle");
                 handler.unitIdle(this);
             }
@@ -73,6 +75,7 @@ public class AIUnit implements UpdateListener {
 
     @Override
     public void update(int frame) {
+        handler.getCommand().debug("waken up");
         if (dead) {
             return;
         }
@@ -81,7 +84,8 @@ public class AIUnit implements UpdateListener {
     }
 
     private void clearUpdateListener() {
-        if (wakeUpFrame > handler.getCommand().getCurrentFrame()) {
+        if (handler != null && wakeUpFrame > handler.getCommand().getCurrentFrame()) {
+            getCommand().debug("wake up removed");
             handler.getCommand().removeSingleUpdateListener(this, wakeUpFrame);
             wakeUpFrame = -1;
         }
@@ -97,7 +101,7 @@ public class AIUnit implements UpdateListener {
             task.pathFindingError(this);
         } else {
             handler.getCommand().mark(getPos(), "pathFindingError");
-            unit.wait(OPTION_NONE,Integer.MAX_VALUE);
+            unit.wait(OPTION_NONE, Integer.MAX_VALUE);
         }
     }
 
@@ -116,11 +120,16 @@ public class AIUnit implements UpdateListener {
     public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
+        pos.y = 0;
         return pos.length();
     }
 
     public void addToGroup(Group g) {
         unit.addToGroup(g, OPTION_NONE, Integer.MAX_VALUE);
+    }
+
+    public Command getCommand() {
+        return handler.getCommand();
     }
 
     public static final short OPTION_NONE = 0;//   0
@@ -132,47 +141,69 @@ public class AIUnit implements UpdateListener {
 
     public void moveTo(AIFloat3 trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "move");
-        clearUpdateListener();
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
         areaManager.executedCommand();
         unit.moveTo(trg, options, Integer.MAX_VALUE);
-        if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
-            wakeUpFrame = timeout;
-            handler.getCommand().debug("set wakeUpFrame to " + wakeUpFrame);
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+                handler.getCommand().debug("set wakeUpFrame to " + wakeUpFrame);
+            }
         }
     }
 
     public void patrolTo(AIFloat3 trg, short options, int timeout) {
-        clearUpdateListener();
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
         areaManager.executedCommand();
         unit.patrolTo(trg, options, Integer.MAX_VALUE);
-        if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
-            wakeUpFrame = timeout;
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
         }
     }
 
     private int lastCall = 0;
-    
+
     public void fight(AIFloat3 trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "fight");
-        if (handler.getCommand().getCurrentFrame() == lastCall){
-            throw new RuntimeException("Double Call to Fight");
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        if (handler.getCommand().getCurrentFrame() == lastCall) {
+            //throw new RuntimeException("Double Call to Fight");
+            getCommand().debug("Warning: Double Call to Fight");
         }
         lastCall = handler.getCommand().getCurrentFrame();
-        clearUpdateListener();
         areaManager.executedCommand();
         unit.fight(trg, options, Integer.MAX_VALUE);
-        if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
-            wakeUpFrame = timeout;
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
         }
     }
 
     public void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "build " + building.getHumanName());
-        clearUpdateListener();
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
         areaManager.executedCommand();
         unit.build(building, trg, facing, options, Integer.MAX_VALUE);
-        if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
-            wakeUpFrame = timeout;
+
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
         }
     }
 

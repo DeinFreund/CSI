@@ -100,11 +100,11 @@ public class LosManager extends Helper {
         int gridX = (int) Math.floor((x / mapWidth) * gridWidth);
         int gridZ = (int) Math.floor((z / mapHeight) * gridHeight);
 
-        int index = Math.min(gridX + gridZ * gridWidth, losMap.size() - 1);
+        int index =gridX + gridZ * gridWidth;
 
-        if (index > losMap.size()) {
+        /*if (index > losMap.size()) { // exception helps debug
             return false;
-        }
+        }*/
         return (losMap.get(index) > level);
     }
 

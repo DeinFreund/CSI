@@ -87,5 +87,9 @@ public class FighterHandler extends UnitHandler {
     @Override
     public void unitDestroyed(Enemy e) {
     }
+    
+    public void squadDestroyed(Squad s){
+        squads.remove(s);
+    }
 
 }

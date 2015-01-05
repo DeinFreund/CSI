@@ -7,6 +7,7 @@ package zkcbai.helpers;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.UnitDef;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.util.ArrayList;
@@ -110,7 +111,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     @Override
     public void update(int frame) {
         if (frame % 50 == 0) {
-            cmdsPerSec = cmds/50f*30;
+            cmdsPerSec = cmds / 50f * 30;
             pnl.updateUI();
             cmds = 0;
         }
@@ -172,14 +173,13 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
     }
 
-    
     private int cmds = 0;
     private float cmdsPerSec;
-    
-    public void executedCommand(){
-        cmds ++;
+
+    public void executedCommand() {
+        cmds++;
     }
-    
+
     public enum Zone {
 
         own, front, noMansLand, hostile
@@ -217,12 +217,30 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public Area(int x, int y) {
             this.x = x;
             this.y = y;
-            this.pos = new AIFloat3((x+0.5f) * mwidth / map.length, 0, (y+0.5f) * mheight / map[0].length);
+            this.pos = new AIFloat3((x + 0.5f) * mwidth / map.length, 0, (y + 0.5f) * mheight / map[0].length);
             this.pos.y = clbk.getMap().getElevationAt(pos.x, pos.z);
         }
 
         private void setOwner(Owner o) {
             owner = o;
+        }
+
+        public Area getHighestArea(UnitDef building, float maxDistance) {
+            int rw = (int) Math.floor(map.length * maxDistance / mwidth);
+            int rh = (int) Math.floor(map[0].length * maxDistance / mheight);
+            float h, maxh = 0;
+            Area best = null;
+
+            for (int x = this.x - rw; x <= this.x + rw; x++) {
+                for (int y = this.y - rh; y <= this.y + rh; y++) {
+                    h = clbk.getMap().getElevationAt(map[x][y].getPos().x, map[x][y].getPos().z);
+                    if (h > maxh && clbk.getMap().isPossibleToBuildAt(building, map[x][y].getPos(), 0)) {
+                        maxh = h;
+                        best = map[x][y];
+                    }
+                }
+            }
+            return best;
         }
 
         public Area getNearestArea(AreaChecker checker) {
@@ -386,10 +404,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 g.drawOval(x - 5, y - 5, 10, 10);
                 g.drawOval(x - 4, y - 4, 8, 8);
             }
-            
+
             g.setColor(Color.orange);
-            g.drawString(Math.round(cmdsPerSec*10)/10f  + " cmds/sec", 10, 10);
-            
+            g.drawString(Math.round(cmdsPerSec * 10) / 10f + " cmds/sec", 10, 10);
 
         }
 

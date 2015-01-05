@@ -58,7 +58,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     
     public boolean isRaiderAccessible(AIFloat3 pos){
         for (Enemy e : riots){
-            if (e.distanceTo(pos) < e.getMaxRange()* 1.5 && riotDefs.contains(e.getDef())) return false;
+            if (e.distanceTo(pos) < e.getMaxRange()* 1.8 && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) return false;
         }
         return true;
     }
@@ -66,7 +66,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         float minDist = Float.MAX_VALUE;
         Enemy best = null;
         for (Enemy e : riots){
-            if (e.distanceTo(pos) < minDist && riotDefs.contains(e.getDef())) {
+            if (e.distanceTo(pos) < minDist && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) {
                 minDist = e.distanceTo(pos);
                 best = e;
             }

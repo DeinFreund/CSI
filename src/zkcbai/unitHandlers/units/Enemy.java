@@ -31,6 +31,7 @@ public class Enemy implements UpdateListener {
     private AIFloat3 lastPos;
     private boolean alive = true;
     private float maxRange = 0;
+    private boolean isBuilding;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         cmd.debug("constructing");
@@ -40,6 +41,7 @@ public class Enemy implements UpdateListener {
         command = cmd;
         unitDef = clbk.getUnitDefByName("corllt");
         lastPos = u.getPos();
+        isBuilding = false;
         cmd.debug("adding listener");
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
 
@@ -55,7 +57,7 @@ public class Enemy implements UpdateListener {
         if (unit.getPos().length() > 0) {
             return unit.getPos();
         }
-        return lastPos;
+        return new AIFloat3(lastPos);
     }
 
     public UnitDef getDef() {
@@ -76,6 +78,7 @@ public class Enemy implements UpdateListener {
     public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
+        pos.y = 0;
         return pos.length();
     }
 
@@ -103,6 +106,8 @@ public class Enemy implements UpdateListener {
         } else if (shouldBeVisible(lastPos)) {
             //command.debug("new pos");
             lastPos = command.areaManager.getArea(lastPos).getNearestArea(invisible).getPos();
+            
+            if (isBuilding) command.unitDestroyed(unit, null);
         }
         //command.mark(getPos(), getPos().toString());
         command.addSingleUpdateListener(this, frame + 40);
@@ -115,6 +120,7 @@ public class Enemy implements UpdateListener {
             if (unitDef.getName().equals("cormex")) {
                 command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
             }
+            isBuilding = unit.getDef().getSpeed() <= 0;
         }
         neverSeen = false;
     }
@@ -149,6 +155,7 @@ public class Enemy implements UpdateListener {
     }
 
     public void destroyed() {
+        command.mark(getPos(), "dead");
         alive = false;
     }
 

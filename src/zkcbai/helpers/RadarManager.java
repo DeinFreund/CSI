@@ -100,11 +100,11 @@ public class RadarManager extends Helper {
         int gridX = (int) Math.floor((x / mapWidth) * gridWidth);
         int gridZ = (int) Math.floor((z / mapHeight) * gridHeight);
 
-        int index = Math.min(gridX + gridZ * gridWidth, radarMap.size() - 1);
+        int index = gridX + gridZ * gridWidth;
 
-        if (index > radarMap.size()) {
+        /*if (index > radarMap.size()) { // exception helps debug
             return false;
-        }
+        }*/
         return (radarMap.get(index) > level);
     }
 

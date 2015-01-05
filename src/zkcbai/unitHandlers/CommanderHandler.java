@@ -67,6 +67,18 @@ public class CommanderHandler extends UnitHandler {
             case "plop":
                 command.debug("Commander plopped fac");
                 plopped = true;
+                com.assignTask(command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
+                break;
+            case "startmex":
+                com.assignTask(new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win1"));
+                break;
+            case "win1":
+                com.assignTask(new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win2"));
+                break;
+            case "win2":
+                com.assignTask(new BuildTask(clbk.getUnitDefByName("corrad"), 
+                        command.areaManager.getArea(startPos).getHighestArea(clbk.getUnitDefByName("corrad"), 700).getPos(), 
+                        this, clbk, command).setInfo("radar"));
                 break;
         }
 

@@ -14,6 +14,7 @@ import com.springrts.ai.oo.clb.WeaponDef;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,17 +46,17 @@ public class Command implements AI {
     public final ZoneManager areaManager;
     public final DefenseManager defenseManager;
 
-    private final List<EnemyEnterRadarListener> enemyEnterRadarListeners = new ArrayList();
-    private final List<EnemyEnterLOSListener> enemyEnterLOSListeners = new ArrayList();
-    private final List<EnemyLeaveRadarListener> enemyLeaveRadarListeners = new ArrayList();
-    private final List<EnemyLeaveLOSListener> enemyLeaveLOSListeners = new ArrayList();
-    private final List<EnemyDiscoveredListener> enemyDiscoveredListeners = new ArrayList();
-    private final List<UnitFinishedListener> unitFinishedListeners = new ArrayList();
-    private final List<UnitDestroyedListener> unitDestroyedListeners = new ArrayList();
-    private final List<UpdateListener> updateListeners = new ArrayList();
+    private final Collection<EnemyEnterRadarListener> enemyEnterRadarListeners = new HashSet();
+    private final Collection<EnemyEnterLOSListener> enemyEnterLOSListeners = new HashSet();
+    private final Collection<EnemyLeaveRadarListener> enemyLeaveRadarListeners = new HashSet();
+    private final Collection<EnemyLeaveLOSListener> enemyLeaveLOSListeners = new HashSet();
+    private final Collection<EnemyDiscoveredListener> enemyDiscoveredListeners = new HashSet();
+    private final Collection<UnitFinishedListener> unitFinishedListeners = new HashSet();
+    private final Collection<UnitDestroyedListener> unitDestroyedListeners = new HashSet();
+    private final Collection<UpdateListener> updateListeners = new HashSet();
     private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap();
 
-    private final List<CommanderHandler> comHandlers = new ArrayList();
+    private final Collection<CommanderHandler> comHandlers = new HashSet();
     private final FactoryHandler facHandler;
     private final FighterHandler fighterHandler;
 
@@ -137,6 +138,9 @@ public class Command implements AI {
 
     public void addUnitFinishedListener(UnitFinishedListener listener) {
         unitFinishedListeners.add(listener);
+    }
+    public void removeUnitFinishedListener(UnitFinishedListener listener) {
+        unitFinishedListeners.remove(listener);
     }
 
     public void addUnitDestroyedListener(UnitDestroyedListener listener) {
@@ -308,6 +312,7 @@ public class Command implements AI {
     @Override
     public int enemyDamaged(Unit enemy, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
+            if (enemy.getHealth() <= 0) unitDestroyed(enemy,attacker);
         } catch (Exception e) {
             debug("Exception in enemyDamaged: ", e);
         }
@@ -422,7 +427,8 @@ public class Command implements AI {
             }
             debug("IDLEBUG registering " + aiunit.getUnit().getUnitId());
             units.put(unit.getUnitId(), aiunit);
-            for (UnitFinishedListener listener : unitFinishedListeners) {
+            Collection<UnitFinishedListener> unitFinishedListenersClone = new ArrayList(unitFinishedListeners);
+            for (UnitFinishedListener listener : unitFinishedListenersClone) {
                 listener.unitFinished(aiunit);
             }
         } catch (Exception e) {

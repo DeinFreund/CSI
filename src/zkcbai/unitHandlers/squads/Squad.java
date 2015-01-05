@@ -7,11 +7,15 @@ package zkcbai.unitHandlers.squads;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.utility.Point;
+import zkcbai.utility.SmallestEnclosingCircle;
 
 /**
  *
@@ -32,20 +36,21 @@ public abstract class Squad {
     }
 
     public AIFloat3 getPos() {
-        AIFloat3 pos = new AIFloat3();
+        List<Point> positions = new ArrayList();
         int c = 0;
         for (AIUnit au : units) {
-            pos.add(au.getPos());
-            c++;
+            positions.add(new Point(au.getPos().x,au.getPos().z));
         }
-        pos.scale(1f / c);
+        Point p = SmallestEnclosingCircle.makeCircle(positions).c;
+        AIFloat3 pos = new AIFloat3((float)p.x,0,(float)p.y);
+        pos.y = clbk.getMap().getElevationAt(pos.x, pos.z);
         return pos;
     }
 
     /**
      *
      * @param u
-     * @return time to unite with aiUnit u in frames
+     * @return time to unite with aiUnit u in frames(is incorrect)
      */
     public float timeTo(AIUnit u) {
         return u.distanceTo(getPos()) / u.getUnit().getMaxSpeed();
@@ -64,6 +69,7 @@ public abstract class Squad {
 
     public void removeUnit(AIUnit u) {
         units.remove(u);
+        if (units.isEmpty()) fighterHandler.squadDestroyed(this);
     }
 
     public int size() {
