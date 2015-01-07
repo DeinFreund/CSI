@@ -3,82 +3,107 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Deque;
+import zkcbai.Command;
+import zkcbai.helpers.CostSupplier;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.Enemy;
 
 /**
  *
  * @author User
  */
-public class MoveTask extends Task{
+public class MoveTask extends Task {
 
-    public static final int SAFE_MOVE = 1;
-    public static final int AGGRESSIVE_MOVE = 2;
-    
     private AIFloat3 target;
-    private int options;
     private int errors = 0;
     private TaskIssuer issuer;
     private AIUnit lastUnit;
-    
-    public MoveTask(AIFloat3 target, TaskIssuer issuer){
-        this(target,0,issuer);
+    private int timeout;
+    private Deque<AIFloat3> path;
+    private CostSupplier costSupplier;
+    private int lastPath = -1000;
+    private int repathTime = 90;
+    private Command command;
+
+    public MoveTask(AIFloat3 target, TaskIssuer issuer, Command cmd) {
+        this(target, Integer.MAX_VALUE, issuer, cmd);
     }
-    public MoveTask(AIFloat3 target, int options, TaskIssuer issuer){
+
+    public MoveTask(AIFloat3 target, int timeout, TaskIssuer issuer, Command cmd) {
+        this(target, timeout, issuer, null, cmd);
+    }
+
+    public MoveTask(AIFloat3 target, int timeout, TaskIssuer issuer, CostSupplier costSupplier, Command cmd) {
         this.target = target;
-        this.options = options;
         this.issuer = issuer;
-        try { Thread.sleep(1); } catch (InterruptedException ex) {}
+        this.timeout = timeout;
+        this.costSupplier = costSupplier;
+        this.command = cmd;
+        cmd.areaManager.executedTask();
+        if (cmd.areaManager.getExecutedTasks() > 100) {
+            issuer.reportSpam();
+        }
     }
-    
-    private boolean isSet(int option){
-        return (options & option) == option;
-    }
-    
-    public AIUnit getLastExecutingUnit(){
+
+    public AIUnit getLastExecutingUnit() {
         return lastUnit;
     }
-    
+
+    private void updatePath(AIUnit u) {
+        if (costSupplier == null) {
+            costSupplier = u.getCommand().pathfinder.FAST_PATH;
+        }
+        path = u.getCommand().pathfinder.findPath(u.getPos(), target, u.getUnit().getDef().getMoveData().getMaxSlope(), costSupplier);
+        if (path.size() <= 1) {
+            
+            command.debug("path finder probably didnt find a path");
+            errors = 20;
+        }
+    }
+
     @Override
     public boolean execute(AIUnit u) {
-        if (errors > 5){
+        
+        command.areaManager.executedTask();
+        if (command.areaManager.getExecutedTasks() > 100) {
+            issuer.reportSpam();
+        }
+        //u.getCommand().debug("executing movetask");
+        if (u.getCommand().getCurrentFrame() - lastPath > repathTime) {
+            lastPath = u.getCommand().getCurrentFrame();
+            updatePath(u);
+        }
+        if (errors > 15) {
             issuer.abortedTask(this);
-            u.idle();
             return true;
         }
         lastUnit = u;
-        if (u.distanceTo(target) < 40) return true;
-        if (isSet(SAFE_MOVE)){
-            
-            u.moveTo(target, (short)0, Integer.MAX_VALUE);
-        }else 
-        if (isSet(AGGRESSIVE_MOVE)){
-            
-            u.moveTo(target, (short)0, Integer.MAX_VALUE);
-        }else{
-            u.moveTo(target, (short)0, Integer.MAX_VALUE);
+        while (!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 220 && path.size() > 1) || (u.distanceTo(path.getFirst()) < 50))) {
+            path.pollFirst();
         }
+        if (path.isEmpty() || (u.getCommand().getCurrentFrame() >= timeout)) {
+            issuer.finishedTask(this);
+            return true;
+        }
+        u.moveTo(path.getFirst(), (short) 0, u.getCommand().getCurrentFrame() + 20);
         return false;
     }
-    
+
     @Override
     public void pathFindingError(AIUnit u) {
-        errors ++;
-        target.x += Math.random()*20-10;
-        target.z += Math.random()*20-10;
+        command.debug("pathFindingError");
+        errors++;
+        target.x += Math.random() * 60 - 30;
+        target.z += Math.random() * 60 - 30;
     }
 
     @Override
     public Object getResult() {
         return null;
     }
-    
-    
 
-    
 }

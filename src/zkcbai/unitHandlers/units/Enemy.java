@@ -32,6 +32,7 @@ public class Enemy implements UpdateListener {
     private boolean alive = true;
     private float maxRange = 0;
     private boolean isBuilding;
+    private int lastSeen = 0;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         cmd.debug("constructing");
@@ -42,6 +43,7 @@ public class Enemy implements UpdateListener {
         unitDef = clbk.getUnitDefByName("corllt");
         lastPos = u.getPos();
         isBuilding = false;
+        lastSeen = cmd.getCurrentFrame();
         cmd.debug("adding listener");
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
 
@@ -98,15 +100,20 @@ public class Enemy implements UpdateListener {
         }
 
     };
+    
+    public int timeSinceLastSeen(){
+        return command.getCurrentFrame() - lastSeen;
+    }
 
     @Override
     public void update(int frame) {
         if (unit.getPos().length() > 0) {
             lastPos = unit.getPos();
+            lastSeen = command.getCurrentFrame();
         } else if (shouldBeVisible(lastPos)) {
             //command.debug("new pos");
-            lastPos = command.areaManager.getArea(lastPos).getNearestArea(invisible).getPos();
-            
+            AIFloat3 npos = command.areaManager.getArea(lastPos).getNearestArea(invisible).getPos();
+            if (npos != null) lastPos = npos;
             if (isBuilding) command.unitDestroyed(unit, null);
         }
         //command.mark(getPos(), getPos().toString());
@@ -123,6 +130,14 @@ public class Enemy implements UpdateListener {
             isBuilding = unit.getDef().getSpeed() <= 0;
         }
         neverSeen = false;
+    }
+    
+    public boolean isBuilding(){
+        return isBuilding;
+    }
+    
+    public boolean isIdentifiedByRadar(){
+        return neverSeen && getDef().getSpeed() > 0.5;
     }
 
     public void identify() {
@@ -155,11 +170,12 @@ public class Enemy implements UpdateListener {
     }
 
     public void destroyed() {
-        command.mark(getPos(), "dead");
+        //command.mark(getPos(), "dead");
         alive = false;
     }
 
     public boolean equals(Enemy e) {
+        if (e== null) return false;
         return unit.getUnitId() == e.getUnit().getUnitId();
     }
 }

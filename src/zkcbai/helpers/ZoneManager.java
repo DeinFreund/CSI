@@ -115,6 +115,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             pnl.updateUI();
             cmds = 0;
         }
+        tasks = 0;
     }
 
     public Mex getNearestBuildableMex(AIFloat3 pos) {
@@ -178,6 +179,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
     public void executedCommand() {
         cmds++;
+    }
+    
+    private int tasks = 0;
+    public void executedTask() {
+        tasks++;
+    }
+    public int getExecutedTasks(){
+        return tasks;
     }
 
     public enum Zone {
@@ -271,7 +280,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                     }
                 }
             }
-            return map[(int) (Math.random() * map.length)][(int) (Math.random() * map[0].length)];
+            return null;
+            //return map[(int) (Math.random() * map.length)][(int) (Math.random() * map[0].length)];
         }
 
         public boolean isVisible() {
@@ -310,7 +320,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public void removeEnemyMex(Enemy e) {
-            if (this.enemy.equals(e)) {
+            if (this.enemy != null && this.enemy.equals(e)) {
                 this.enemy = null;
             }
         }

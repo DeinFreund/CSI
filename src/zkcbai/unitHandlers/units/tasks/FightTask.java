@@ -28,10 +28,6 @@ public class FightTask extends Task {
         this.target = target;
         this.issuer = issuer;
         this.timeout = timeout;
-        try {
-            Thread.sleep(1);
-        } catch (InterruptedException ex) {
-        }
     }
 
     public AIUnit getLastExecutingUnit() {

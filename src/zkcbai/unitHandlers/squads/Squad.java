@@ -75,6 +75,14 @@ public abstract class Squad {
     public int size() {
         return units.size();
     }
+    
+    public Set<AIUnit> disband(){
+        Set<AIUnit> res = units;
+        units = new HashSet();
+        fighterHandler.squadDestroyed(this);
+        return res;
+        
+    }
 
     public abstract void unitIdle(AIUnit u);
 

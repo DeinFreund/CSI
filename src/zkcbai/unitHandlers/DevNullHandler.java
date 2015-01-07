@@ -60,5 +60,9 @@ public class DevNullHandler extends UnitHandler{
     public void unitDestroyed(Enemy e) {
     }
 
+    @Override
+    public void reportSpam() {
+        throw new RuntimeException("I spammed MoveTasks!");
+    }
     
 }

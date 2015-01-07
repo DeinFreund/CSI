@@ -50,12 +50,15 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         this.command = command;
         assignedUnits = new ArrayList();
         command.addUnitFinishedListener(this);
-        try { Thread.sleep(1); } catch (InterruptedException ex) {} //magic
     }
     
     @Override
     public boolean execute(AIUnit u) {
         command.debug("executing a build task");
+        if (errors > 10){
+            issuer.abortedTask(this);
+            return true;
+        }
         if (result != null) return true;
         if (building.getSpeed() <= 0 && !clbk.getMap().isPossibleToBuildAt(building, pos, facing)){
             issuer.abortedTask(this);
@@ -70,10 +73,12 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         }
         command.debug("didn't abort");
         if (!assignedUnits.contains(u))assignedUnits.add(u);
-        if (u.distanceTo(pos)> 300){
+        if (u.distanceTo(pos)> 440){
             AIFloat3 trg = new AIFloat3();
-            trg.interpolate( pos,u.getPos(),150f/u.distanceTo(pos));
-            u.assignTask(new MoveTask(trg,this));
+            trg.interpolate( pos,u.getPos(),100f/u.distanceTo(pos));
+            
+            command.debug("assigning move");
+            u.assignTask(new MoveTask(trg,this,command));
             u.queueTask(this);
             return false;
         }
@@ -81,17 +86,20 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         return false;
     }
 
+    int errors = 0;
+    
     @Override
     public void pathFindingError(AIUnit u) {
-        
-        u.assignTask(null);
+        errors ++;
     }
 
     @Override
     public void abortedTask(Task t) {
+        errors ++;
+        /*
         try{
             pathFindingError(((MoveTask)t).getLastExecutingUnit());
-        }catch(ClassCastException ex){}
+        }catch(ClassCastException ex){}*/
     }
 
     @Override
@@ -112,6 +120,11 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             result = u;
             command.removeUnitFinishedListener(this);
         }
+    }
+
+    @Override
+    public void reportSpam() {
+        throw new RuntimeException("I spammed MoveTasks!");
     }
     
 }

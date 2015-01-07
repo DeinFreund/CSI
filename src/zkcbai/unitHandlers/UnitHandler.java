@@ -28,7 +28,9 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener {
     public UnitHandler(Command cmd, OOAICallback clbk) {
         command = cmd;
         this.clbk = clbk;
-        if (cmd != null) cmd.addUnitDestroyedListener(this);
+        if (cmd != null) {
+            cmd.addUnitDestroyedListener(this);
+        }
     }
 
     public abstract AIUnit addUnit(Unit u);
@@ -40,11 +42,16 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener {
         unitIdle(aiunits.get(u.getUnitId()));
     }
 
-    public Command getCommand(){
+    public Command getCommand() {
         return command;
+
     }
-    
+
+    @Override
+    public void unitDestroyed(AIUnit u) {
+        removeUnit(u);
+    }
+
     public abstract void unitIdle(AIUnit u);
-    
 
 }

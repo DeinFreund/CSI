@@ -26,6 +26,7 @@ import zkcbai.unitHandlers.CommanderHandler;
 import zkcbai.unitHandlers.FactoryHandler;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.helpers.LosManager;
+import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.RadarManager;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.Enemy;
@@ -45,6 +46,7 @@ public class Command implements AI {
     public final RadarManager radarManager;
     public final ZoneManager areaManager;
     public final DefenseManager defenseManager;
+    public final Pathfinder pathfinder;
 
     private final Collection<EnemyEnterRadarListener> enemyEnterRadarListeners = new HashSet();
     private final Collection<EnemyEnterLOSListener> enemyEnterLOSListeners = new HashSet();
@@ -68,23 +70,30 @@ public class Command implements AI {
     private int frame;
 
     public Command(int teamId, OOAICallback callback) {
-        this.clbk = callback;
-        ownTeamId = teamId;
-        facHandler = new FactoryHandler(this, callback);
-        fighterHandler = new FighterHandler(this, clbk);
-        metal = clbk.getResources().get(0);
-        energy = clbk.getResources().get(1);
-        losManager = new LosManager(this, clbk);
-        areaManager = new ZoneManager(this, clbk);
-        radarManager = new RadarManager(this, clbk);
-        defenseManager = new DefenseManager(this, clbk);
+        try {
+            this.clbk = callback;
+            ownTeamId = teamId;
+            facHandler = new FactoryHandler(this, callback);
+            fighterHandler = new FighterHandler(this, clbk);
+            metal = clbk.getResources().get(0);
+            energy = clbk.getResources().get(1);
+            losManager = new LosManager(this, clbk);
+            areaManager = new ZoneManager(this, clbk);
+            radarManager = new RadarManager(this, clbk);
+            defenseManager = new DefenseManager(this, clbk);
+            pathfinder = new Pathfinder(this, clbk);
 
-        String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn" ,"armbrawl"};
-        for (String s : importantSpeedDefs) {
-            defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
+            String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw"};
+            for (String s : importantSpeedDefs) {
+                defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
+            }
+
+            debug("ZKCBAI successfully initialized.");
+
+        } catch (Exception e) {
+            debug("Exception in init:", e);
+            throw new RuntimeException();// no point in continuing execution
         }
-
-        debug("ZKCBAI successfully initialized.");
     }
 
     public FactoryHandler getFactoryHandler() {
@@ -95,13 +104,21 @@ public class Command implements AI {
         return defSpeedMap;
     }
 
+    public List<Enemy> getEnemyUnits(AIFloat3 pos, float radius) {
+        List<Enemy> list = new ArrayList();
+        for (Enemy e : enemies.values()) {
+            list.add(e);
+        }
+        return list;
+    }
+
     public List<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
         List<Enemy> list = new ArrayList();
         /*for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
          list.add(enemies.get(u.getUnitId()));
          }*/
         for (Enemy e : enemies.values()) {
-            if (e.distanceTo(pos) < radius) {
+            if (e.distanceTo(pos) < radius && e.timeSinceLastSeen() < 600) {
                 list.add(e);
             }
         }
@@ -139,12 +156,17 @@ public class Command implements AI {
     public void addUnitFinishedListener(UnitFinishedListener listener) {
         unitFinishedListeners.add(listener);
     }
+
     public void removeUnitFinishedListener(UnitFinishedListener listener) {
         unitFinishedListeners.remove(listener);
     }
 
     public void addUnitDestroyedListener(UnitDestroyedListener listener) {
         unitDestroyedListeners.add(listener);
+    }
+
+    public void removeUnitDestroyedListener(UnitDestroyedListener listener) {
+        unitDestroyedListeners.remove(listener);
     }
 
     public boolean addSingleUpdateListener(UpdateListener listener, int frame) {
@@ -312,7 +334,9 @@ public class Command implements AI {
     @Override
     public int enemyDamaged(Unit enemy, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
-            if (enemy.getHealth() <= 0) unitDestroyed(enemy,attacker);
+            if (enemy.getHealth() <= 0) {
+                unitDestroyed(enemy, attacker);
+            }
         } catch (Exception e) {
             debug("Exception in enemyDamaged: ", e);
         }
@@ -336,7 +360,8 @@ public class Command implements AI {
             if (e != null) {
                 e.destroyed();
 
-                for (UnitDestroyedListener listener : unitDestroyedListeners) {
+                Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
+                for (UnitDestroyedListener listener : unitDestroyedListenersc) {
                     listener.unitDestroyed(e);
                 }
                 enemies.remove(unit.getUnitId());

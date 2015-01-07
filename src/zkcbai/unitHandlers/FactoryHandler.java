@@ -43,7 +43,7 @@ public class FactoryHandler extends UnitHandler {
     public void unitIdle(AIUnit u) {
         switch (u.getUnit().getDef().getName()) {
             case "factorycloak":
-                u.assignTask(new BuildTask(clbk.getUnitDefByName("armpw"),u.getPos(),0,this,clbk,command));
+                u.assignTask(new BuildTask(clbk.getUnitDefByName("armpw"), u.getPos(), 0, this, clbk, command));
                 break;
         }
     }
@@ -67,10 +67,12 @@ public class FactoryHandler extends UnitHandler {
 
     @Override
     public void removeUnit(AIUnit u) {
-        if (!aiunits.containsKey(u.getUnit().getUnitId())) return;
+        if (!aiunits.containsKey(u.getUnit().getUnitId())) {
+            return;
+        }
         aiunits.remove(u.getUnit().getUnitId());
         builtFacs.clear();
-        for (AIUnit au : aiunits.values()){
+        for (AIUnit au : aiunits.values()) {
             builtFacs.add(au.getUnit().getDef());
         }
     }
@@ -82,6 +84,11 @@ public class FactoryHandler extends UnitHandler {
 
     @Override
     public void unitDestroyed(Enemy e) {
+    }
+
+    @Override
+    public void reportSpam() {
+        throw new RuntimeException("I spammed MoveTasks!");
     }
 
 }

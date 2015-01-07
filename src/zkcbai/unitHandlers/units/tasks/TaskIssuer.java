@@ -16,4 +16,6 @@ public interface TaskIssuer {
     public abstract void abortedTask(Task t);
     
     public abstract void finishedTask(Task t);
+    
+    public abstract void reportSpam();
 }

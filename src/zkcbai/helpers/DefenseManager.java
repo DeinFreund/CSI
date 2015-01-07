@@ -38,6 +38,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
 
     private Set<Enemy> defenses = new HashSet();
     private Set<Enemy> riots = new HashSet();
+    private Set<Enemy> fighters = new HashSet();
     
     private final Set<UnitDef> riotDefs = new HashSet();
     
@@ -45,6 +46,14 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         float result = 0;
         for (Enemy e : defenses){
              result += (e.distanceTo(pos) <= e.getMaxRange() ? 1 : 0) * e.getDef().getCost(command.metal);
+        }
+        return result;
+    }
+    public float getGeneralDanger(AIFloat3 pos){
+        float result = 0;
+        for (Enemy e : fighters){
+             result += (e.distanceTo(pos) <= e.getMaxRange()*1.5 ? 0.5 : 0) * e.getDef().getCost(command.metal);
+             result += (e.distanceTo(pos) <= e.getMaxRange()*2.7 ? 0.5 : 0) * e.getDef().getCost(command.metal);
         }
         return result;
     }
@@ -61,6 +70,14 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
             if (e.distanceTo(pos) < e.getMaxRange()* 1.8 && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) return false;
         }
         return true;
+    }
+    public float getRaiderAccessibilityCost(AIFloat3 pos){
+        float res = 0;
+        for (Enemy e : riots){
+            if (e.distanceTo(pos) < e.getMaxRange()* 1.8 && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) res+= 1;
+            else if (e.distanceTo(pos) < e.getMaxRange()* 2.7 && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) res+= 0.3;
+        }
+        return res;
     }
     public Enemy getNearestRiot(AIFloat3 pos){
         float minDist = Float.MAX_VALUE;
@@ -90,6 +107,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     public void unitDestroyed(Enemy e) {
         defenses.remove(e);
         riots.remove(e);
+        fighters.remove(e);
     }
 
     @Override
@@ -97,11 +115,15 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         if (e.getDef().getSpeed() <= 0 && e.getDef().isAbleToAttack() && !defenses.contains(e)){
             defenses.add(e);
         }
+        if (e.getDef().isAbleToAttack() ) fighters.add(e);
+        if (riotDefs.contains(e.getDef())) riots.add(e);
+        else if (riots.contains(e)) riots.remove(e);//false positive
     }
 
     @Override
     public void enemyDiscovered(Enemy e) {
         if (riotDefs.contains(e.getDef())) riots.add(e);
+        if (e.getDef().isAbleToAttack() && e.isIdentifiedByRadar()) fighters.add(e);
     }
     
 
