@@ -51,6 +51,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
         if (!plopped) {
             com.assignTask(new BuildTask(command.getFactoryHandler().getNextFac(), com.getPos(), this, clbk, command).setInfo("plop"));
 
+            lastBuildTask = com.getTask();
         } else {
             if (lastBuildTask.getResult() != null) {
                 finishedTask(lastBuildTask);
@@ -58,7 +59,6 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
                 com.assignTask(lastBuildTask);
             }
         }
-        lastBuildTask = com.getTask();
     }
 
     @Override
@@ -74,31 +74,31 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             case "plop":
                 command.debug("Commander plopped fac");
                 plopped = true;
-                com.assignTask(command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
+                lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
                 break;
             case "startmex":
-                com.assignTask(new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win1"));
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win1"));
                 break;
             case "win1":
-                com.assignTask(new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win2"));
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win2"));
                 break;
             case "win2":
-                com.assignTask(new BuildTask(clbk.getUnitDefByName("corrad"),
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("corrad"),
                         command.areaManager.getArea(com.getPos()).getHighestArea(clbk.getUnitDefByName("corrad"), 350).getPos(),
                         this, clbk, command).setInfo("radar"));
                 break;
             case "win4":
             case "radar":
-                com.assignTask(command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("mex"));
+                lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("mex"));
                 break;
             case "mex":
-                com.assignTask(new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win3"));
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win3"));
                 break;
             case "win3":
-                com.assignTask(new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win4"));
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win4"));
                 break;
         }
-        lastBuildTask = com.getTask();
+        com.assignTask(lastBuildTask);
         command.debug("New task has info " + lastBuildTask.getInfo());
 
     }
@@ -134,7 +134,8 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             }
         }
         if (best != null) {
-            com.assignTask(new AttackTask(best, this, command));
+            //command.mark(best.getPos(), "com: " + best.timeSinceLastSeen());
+            com.assignTask(new AttackTask(best, frame+50,this, command));
             com.queueTask(lastBuildTask);
         }
         command.addSingleUpdateListener(this, frame + 40);

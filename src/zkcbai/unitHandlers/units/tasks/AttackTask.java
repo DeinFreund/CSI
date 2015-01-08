@@ -16,7 +16,7 @@ import zkcbai.unitHandlers.units.Enemy;
  *
  * @author User
  */
-public class AttackTask extends Task implements TaskIssuer,UnitDestroyedListener{
+public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListener {
 
     private Enemy target;
     private int errors = 0;
@@ -39,28 +39,43 @@ public class AttackTask extends Task implements TaskIssuer,UnitDestroyedListener
         this.timeout = timeout;
         this.costSupplier = costSupplier;
         this.command = cmd;
+        command.addUnitDestroyedListener(this);
     }
 
     @Override
     public boolean execute(AIUnit u) {
         if (target == null || (u.getCommand().getCurrentFrame() >= timeout)) {
             issuer.finishedTask(this);
+            command.removeUnitDestroyedListener(this);
             return true;
         }
         if (errors > 15) {
+            command.removeUnitDestroyedListener(this);
             issuer.abortedTask(this);
             return true;
         }
-        if (u.distanceTo(target.getPos()) > 300){
-            u.assignTask(new MoveTask(target.getPos(),command.getCurrentFrame()+20,this,costSupplier,command));
-            u.queueTask(this);
+        if (u.distanceTo(target.getPos()) > u.getUnit().getMaxRange() * 1.5) {
+            u.moveTo(target.getPos(), command.getCurrentFrame() + 80);
             return false;
+        }/*
+         AIFloat3 tpos = target.getPos();
+         AIFloat3 vel = new AIFloat3(target.getUnit().getVel());
+         vel.scale(10);
+         tpos.add(vel);
+         AIFloat3 npos = u.getPos();
+         npos.sub(tpos);
+         double arc = (Math.atan2(npos.z, npos.x) + 1*(Math.random()));
+         float range = u.getUnit().getMaxRange()*0.35f;
+         npos = new AIFloat3(range*(float)Math.cos(arc),0,range*(float)Math.sin(arc));
+         npos.add(tpos);
+         */
+
+        if (target.isBuilding()) {
+            u.attack(target.getUnit(), command.getCurrentFrame() + 25);
+        } else {
+            u.fight(target.getPos(), command.getCurrentFrame() + 25);
         }
-        AIFloat3 npos = u.getPos();
-        npos.z+= Math.random()*40-20;
-        npos.x+= Math.random()*40-20;
-        u.moveTo(npos, command.getCurrentFrame()+40);
-        u.attack(target.getUnit(),AIUnit.OPTION_SHIFT_KEY, command.getCurrentFrame()+40);
+        //u.moveTo(npos, Integer.MAX_VALUE);
         return false;
     }
 
@@ -81,9 +96,9 @@ public class AttackTask extends Task implements TaskIssuer,UnitDestroyedListener
 
     @Override
     public void unitDestroyed(Enemy e) {
-        if (e.equals(target)){
+        if (e.equals(target)) {
             target = null;
-            
+
         }
     }
 

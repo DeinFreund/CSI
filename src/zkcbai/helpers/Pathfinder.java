@@ -11,7 +11,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -33,7 +35,7 @@ public class Pathfinder extends Helper {
     float mwidth, mheight;
     int smwidth;
     float[] slopeMap;
-    private final static int mapCompression = 8;
+    private final static int mapCompression = 2;
     private final static int originalMapRes = 16;
     private final static int mapRes = originalMapRes * mapCompression;
 
@@ -49,6 +51,39 @@ public class Pathfinder extends Helper {
         }
     }
 
+    private Map<CostSupplier, float[]> costSupplierCosts = new HashMap();
+    private Map<CostSupplier, int[]> costSupplierLastUpdate = new HashMap();
+
+    private float getCachedCost(CostSupplier supplier, float slope, float maxSlope, int pos) {
+        if (!costSupplierCosts.containsKey(supplier)) {
+            costSupplierCosts.put(supplier, new float[slopeMap.length]);
+            costSupplierLastUpdate.put(supplier, new int[slopeMap.length]);
+        }
+        float[] costs = costSupplierCosts.get(supplier);
+        int[] lastUpdate = costSupplierLastUpdate.get(supplier);
+        if (command.getCurrentFrame() - lastUpdate[pos] > 15) {
+            lastUpdate[pos] = command.getCurrentFrame();
+            costs[pos] = supplier.getCost(slope, maxSlope, toAIFloat3(pos));
+        }
+        return costs[pos];
+    }
+
+    /**
+     * Finds the cheapest path between two arbitrary positions using the A*
+     * algorithm.
+     *
+     * @param start
+     * @param target
+     * @param maxSlope Maximum slope that can be travelled on. 0 &lt; maxslope
+     * &lt; 1
+     * @param costs Class implementing CostSupplier
+     * @return Path as List of AIFloat3. If list.size() &lt; 2 no valid path was
+     * @see #FAST_PATH
+     * @see #RAIDER_PATH
+     * @see #AVOID_ENEMIES
+     * found.
+     *
+     */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs) {
 
 //        command.debug("starting pathfinder");
@@ -57,7 +92,7 @@ public class Pathfinder extends Helper {
         long time = System.currentTimeMillis();
         int startPos = (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes); //reverse to return in right order when traversing backwards
         int targetPos = (int) (start.z / mapRes) * smwidth + (int) (start.x / mapRes);
-        int[] offset = new int[]{-1, 1, smwidth, -smwidth, smwidth + 1, smwidth - 1, -smwidth + 1, -smwidth - 1};
+        int[] offset = new int[]{-1, 1, smwidth, -smwidth};// smwidth + 1, smwidth - 1, -smwidth + 1, -smwidth - 1};
         float[] offsetCostMod = new float[]{1, 1, 1, 1, 1.5f, 1.5f, 1.5f, 1.5f};
 
         Deque<AIFloat3> result = new ArrayDeque();
@@ -112,14 +147,14 @@ public class Pathfinder extends Helper {
                 if (pos % (smwidth) == 0) {
                     continue;
                 }
-                if ((pos + 1) % (smwidth) == 0 ) {
+                if ((pos + 1) % (smwidth) == 0) {
                     continue;
                 }
                 if (inBounds(pos + offset[i], minCost.length)
-                        && cost + offsetCostMod[i] * costs.getCost(slopeMap[pos + offset[i]], maxSlope, toAIFloat3(pos + offset[i])) < minCost[pos + offset[i]]) {
+                        && cost + offsetCostMod[i] * getCachedCost(costs, slopeMap[pos + offset[i]], maxSlope, (pos + offset[i])) < minCost[pos + offset[i]]) {
 
                     pathTo[pos + offset[i]] = pos;
-                    minCost[pos + offset[i]] = cost + offsetCostMod[i] * costs.getCost(slopeMap[pos + offset[i]], maxSlope, toAIFloat3(pos + offset[i]));
+                    minCost[pos + offset[i]] = cost + offsetCostMod[i] * getCachedCost(costs, slopeMap[pos + offset[i]], maxSlope, (pos + offset[i]));
                     pq.add(new pqEntry(getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]],
                             minCost[pos + offset[i]], pos + offset[i]));
                 }
@@ -159,6 +194,9 @@ public class Pathfinder extends Helper {
         return 10 * slope / maxSlope + 1;
     }
 
+    /**
+     * Fastest path to target (not shortest)
+     */
     public final CostSupplier FAST_PATH = new CostSupplier() {
 
         @Override
@@ -169,6 +207,9 @@ public class Pathfinder extends Helper {
             return 10 * slope / maxSlope + 1;
         }
     };
+    /**
+     * Fastest path to target while avoiding riot units
+     */
     public final CostSupplier RAIDER_PATH = new CostSupplier() {
 
         @Override
@@ -179,6 +220,9 @@ public class Pathfinder extends Helper {
             return 10 * slope / maxSlope + 200 * command.defenseManager.getRaiderAccessibilityCost(pos) + 1;
         }
     };
+    /**
+     * Fastest path to target while avoiding enemies that are able to attack
+     */
     public final CostSupplier AVOID_ENEMIES = new CostSupplier() {
 
         @Override
@@ -219,6 +263,15 @@ public class Pathfinder extends Helper {
     public void update(int frame) {
     }
 
+    /**
+     *
+     * @param start
+     * @param target
+     * @param maxSlope
+     * @return Path as list of AIFloat3
+     * @deprecated Finds the shortest path using hardcoded costs. A CostSupplier
+     * should be used instead.
+     */
     @Deprecated
     public List<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope) {
 

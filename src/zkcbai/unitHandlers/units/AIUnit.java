@@ -62,7 +62,7 @@ public class AIUnit implements UpdateListener {
             thisFrame = getCommand().getCurrentFrame();
         }
         tasksThisFrame++;
-        if (tasksThisFrame > 200) {
+        if (tasksThisFrame > 120) {
             throw new RuntimeException("Too many tasks!");
         }
         //getCommand().mark(getPos(), "doing task");

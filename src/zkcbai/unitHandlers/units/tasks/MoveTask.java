@@ -61,7 +61,7 @@ public class MoveTask extends Task {
         if (path.size() <= 1) {
             
             command.debug("path finder probably didnt find a path");
-            errors = 20;
+            //errors = 20;
         }
     }
 

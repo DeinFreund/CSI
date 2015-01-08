@@ -35,19 +35,15 @@ public class Enemy implements UpdateListener {
     private int lastSeen = 0;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
-        cmd.debug("constructing");
         unit = u;
         unitId = u.getUnitId();
         this.clbk = clbk;
         command = cmd;
-        unitDef = clbk.getUnitDefByName("corllt");
         lastPos = u.getPos();
         isBuilding = false;
         lastSeen = cmd.getCurrentFrame();
-        cmd.debug("adding listener");
+        
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
-
-        cmd.debug("constructed");
     }
 
     @Deprecated
@@ -57,7 +53,7 @@ public class Enemy implements UpdateListener {
 
     public AIFloat3 getPos() {
         if (unit.getPos().length() > 0) {
-            return unit.getPos();
+            return new AIFloat3(unit.getPos());
         }
         return new AIFloat3(lastPos);
     }
@@ -66,6 +62,7 @@ public class Enemy implements UpdateListener {
         if (unit.getDef() != null) {
             return unit.getDef();
         }
+        if (unitDef == null ) identify();
         return unitDef;
     }
 
@@ -102,6 +99,7 @@ public class Enemy implements UpdateListener {
     };
     
     public int timeSinceLastSeen(){
+        if (isBuilding) return 0;
         return command.getCurrentFrame() - lastSeen;
     }
 
@@ -115,6 +113,9 @@ public class Enemy implements UpdateListener {
             AIFloat3 npos = command.areaManager.getArea(lastPos).getNearestArea(invisible).getPos();
             if (npos != null) lastPos = npos;
             if (isBuilding) command.unitDestroyed(unit, null);
+        }
+        if (neverSeen && unit.getVel().length() > maxVelocity) {
+            identify();
         }
         //command.mark(getPos(), getPos().toString());
         command.addSingleUpdateListener(this, frame + 40);
@@ -158,9 +159,7 @@ public class Enemy implements UpdateListener {
     }
 
     public void enterRadar() {
-        if (neverSeen && unit.getVel().length() > maxVelocity) {
-            identify();
-        }
+        
     }
 
     public void leaveLOS() {

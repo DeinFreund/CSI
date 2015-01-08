@@ -9,7 +9,10 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.awt.Color;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -180,12 +183,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     public void executedCommand() {
         cmds++;
     }
-    
+
     private int tasks = 0;
+
     public void executedTask() {
         tasks++;
     }
-    public int getExecutedTasks(){
+
+    public int getExecutedTasks() {
         return tasks;
     }
 
@@ -417,6 +422,19 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
             g.setColor(Color.orange);
             g.drawString(Math.round(cmdsPerSec * 10) / 10f + " cmds/sec", 10, 10);
+            for (Enemy e : command.getEnemyUnitsIn(new AIFloat3(), 10000)) {
+                Graphics2D g2d = (Graphics2D) g;
+                FontMetrics fm = g2d.getFontMetrics();
+                Rectangle2D r = fm.getStringBounds(e.getDef().getHumanName(), g2d);
+                int x = (int) Math.round(e.getPos().x * getWidth() / mwidth) - (int) r.getWidth() / 2;
+                int y = (int) Math.round(e.getPos().z * getHeight() / mheight) - (int) r.getHeight() / 2 + fm.getAscent();
+
+                g.setColor(Color.black);
+                g.fillRect(x, y - fm.getAscent(), (int) Math.round(r.getWidth()), (int) Math.round(r.getHeight()));
+
+                g.setColor(Color.orange);
+                g.drawString(e.getDef().getHumanName(), x, y);
+            }
 
         }
 

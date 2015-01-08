@@ -68,6 +68,7 @@ public class Command implements AI {
     private final TreeMap<Float, UnitDef> defSpeedMap = new TreeMap();
 
     private int frame;
+    private AIFloat3 startPos = null;
 
     public Command(int teamId, OOAICallback callback) {
         try {
@@ -189,6 +190,10 @@ public class Command implements AI {
         updateListeners.add(listener);
     }
 
+    public AIFloat3 getStartPos(){
+        return startPos;
+    }
+    
     private void checkForMetal(String luamsg) {
         List<AIFloat3> availablemetalspots = new ArrayList();
         for (String spotDesc : luamsg.substring(13, luamsg.length() - 2).split("},\\{")) {
@@ -295,10 +300,6 @@ public class Command implements AI {
             for (EnemyEnterRadarListener listener : enemyEnterRadarListeners) {
                 listener.enemyEnterRadar(aiEnemy);
             }
-//            debug("Health, Speed, Cost: ");
-//            debug(enemy.getHealth() + "/" + enemy.getMaxHealth());
-//            debug(enemy.getSpeed() + "/" + enemy.getMaxSpeed());
-//            debug(enemy.getVel().length());
         } catch (Exception e) {
             debug("Exception in enemyEnterRadar: ", e);
         }
@@ -307,9 +308,8 @@ public class Command implements AI {
 
     public void enemyDiscovered(Enemy enemy) {
 
-        debug("discovering");
+           // debug("ai enemy is null " + (enemy == null));
         enemies.put(enemy.getUnit().getUnitId(), enemy);
-        debug("put in map");
         for (EnemyDiscoveredListener listener : enemyDiscoveredListeners) {
             listener.enemyDiscovered(enemy);
         }
@@ -433,6 +433,7 @@ public class Command implements AI {
     public int unitFinished(Unit unit) {
         try {
             debug("IDLEBUG finished " + unit.getUnitId());
+            if (startPos == null) startPos = unit.getPos();
             AIUnit aiunit;
             switch (unit.getDef().getName()) {
                 case "armcom1":

@@ -36,9 +36,8 @@ public class FightTask extends Task {
 
     @Override
     public boolean execute(AIUnit u) {
-        if (errors > 5) {
+        if (errors > 10) {
             issuer.abortedTask(this);
-            u.idle();
             return true;
         }
         lastUnit = u;

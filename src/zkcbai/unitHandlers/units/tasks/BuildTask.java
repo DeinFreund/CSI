@@ -54,8 +54,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     
     @Override
     public boolean execute(AIUnit u) {
-        command.debug("executing a build task");
-        if (errors > 10){
+        if (errors > 3){
             issuer.abortedTask(this);
             return true;
         }
@@ -71,13 +70,11 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             }
             return true;
         }
-        command.debug("didn't abort");
         if (!assignedUnits.contains(u))assignedUnits.add(u);
         if (u.distanceTo(pos)> 440){
             AIFloat3 trg = new AIFloat3();
             trg.interpolate( pos,u.getPos(),100f/u.distanceTo(pos));
             
-            command.debug("assigning move");
             u.assignTask(new MoveTask(trg,this,command));
             u.queueTask(this);
             return false;

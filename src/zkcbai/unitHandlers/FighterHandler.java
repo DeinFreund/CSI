@@ -8,6 +8,7 @@ package zkcbai.unitHandlers;
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
+import com.springrts.ai.oo.clb.UnitDef;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -28,12 +29,22 @@ import zkcbai.EnemyEnterLOSListener;
  *
  * @author User
  */
-public class FighterHandler extends UnitHandler implements EnemyDiscoveredListener,EnemyEnterLOSListener {
+public class FighterHandler extends UnitHandler implements EnemyDiscoveredListener, EnemyEnterLOSListener {
+
+    private Collection<UnitDef> raiders;
 
     public FighterHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         cmd.addEnemyDiscoveredListener(this);
         cmd.addEnemyEnterLOSListener(this);
+
+        this.raiders = new HashSet();
+
+        String[] raiders = new String[]{"armpw"};
+
+        for (String s : raiders) {
+            this.raiders.add(clbk.getUnitDefByName(s));
+        }
     }
 
     Set<Squad> squads = new HashSet();
@@ -48,8 +59,8 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         useUnit(au);
         return au;
     }
-    
-    private void useUnit(AIUnit au){
+
+    private void useUnit(AIUnit au) {
         for (Squad s : squads) {
             if (s.size() < 5 && s.timeTo(au) < 30 * 10) {
                 unitSquads.put(au.getUnit().getUnitId(), s);
@@ -161,13 +172,35 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
     @Override
     public void enemyDiscovered(Enemy e) {
-        for (Squad s : squads){
-            if (s instanceof ScoutSquad){
+        for (Squad s : squads) {
+            if (s instanceof ScoutSquad) {
                 for (AIUnit u : s.disband()) {
                     unitSquads.remove(u.getUnit().getUnitId());
                     useUnit(u);
                 }
             }
+        }
+    }
+
+    public void requestReinforcements(RaiderSquad rs) {
+        float mindist = Float.MAX_VALUE;
+        AIUnit best = null;
+        Squad bests = null;
+        for (Squad s : squads) {
+            if (s.equals(rs)) continue;
+            for (AIUnit u : s.getUnits()) {
+                if (raiders.contains(u.getUnit().getDef()) && u.distanceTo(rs.getPos()) < mindist) {
+                    mindist = u.distanceTo(rs.getPos());
+                    best = u;
+                    bests = s;
+                }
+            }
+        }
+        if (best != null) {
+            bests.removeUnit(best);
+            unitSquads.remove(best.getUnit().getUnitId());
+            unitSquads.put(best.getUnit().getUnitId(), rs);
+            rs.addUnit(best);
         }
     }
 

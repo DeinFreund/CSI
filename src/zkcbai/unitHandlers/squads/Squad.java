@@ -8,6 +8,7 @@ package zkcbai.unitHandlers.squads;
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,10 +40,10 @@ public abstract class Squad {
         List<Point> positions = new ArrayList();
         int c = 0;
         for (AIUnit au : units) {
-            positions.add(new Point(au.getPos().x,au.getPos().z));
+            positions.add(new Point(au.getPos().x, au.getPos().z));
         }
         Point p = SmallestEnclosingCircle.makeCircle(positions).c;
-        AIFloat3 pos = new AIFloat3((float)p.x,0,(float)p.y);
+        AIFloat3 pos = new AIFloat3((float) p.x, 0, (float) p.y);
         pos.y = clbk.getMap().getElevationAt(pos.x, pos.z);
         return pos;
     }
@@ -55,7 +56,7 @@ public abstract class Squad {
     public float timeTo(AIUnit u) {
         return u.distanceTo(getPos()) / u.getUnit().getMaxSpeed();
     }
-    
+
     public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
@@ -67,21 +68,35 @@ public abstract class Squad {
         unitIdle(u);
     }
 
+    public Collection<AIUnit> getUnits(){
+        return new ArrayList(units);
+    }
+    
     public void removeUnit(AIUnit u) {
         units.remove(u);
-        if (units.isEmpty()) fighterHandler.squadDestroyed(this);
+        if (units.isEmpty()) {
+            fighterHandler.squadDestroyed(this);
+        }
     }
 
     public int size() {
         return units.size();
     }
-    
-    public Set<AIUnit> disband(){
+
+    public float getMetalCost() {
+        float res = 0;
+        for (AIUnit u : units) {
+            res += u.getUnit().getDef().getCost(command.metal);
+        }
+        return res;
+    }
+
+    public Set<AIUnit> disband() {
         Set<AIUnit> res = units;
         units = new HashSet();
         fighterHandler.squadDestroyed(this);
         return res;
-        
+
     }
 
     public abstract void unitIdle(AIUnit u);
