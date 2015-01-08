@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/UnitDestroyedListener.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/EnemyListener.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FighterHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/RaiderSquad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/BuildTask.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/ZoneManager.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/MoveTask.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/DevNullHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/EnemyEnterLOSListener.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/RadarManager.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/DefenseManager.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/BuilderHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/UnitIdleListener.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/Command.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AIUnit.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/EnemyDiscoveredListener.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/TaskIssuer.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/Helper.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FactoryHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/CommanderHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/Squad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/FightTask.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/UnitFinishedListener.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/LosManager.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/AI.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/UnitHandler.java</file>
+        </group>
+    </open-files>
+</project-private>
