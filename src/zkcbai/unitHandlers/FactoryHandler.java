@@ -11,6 +11,8 @@ import com.springrts.ai.oo.clb.UnitDef;
 import java.util.HashSet;
 import java.util.Set;
 import zkcbai.Command;
+import zkcbai.UpdateListener;
+import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.BuildTask;
@@ -20,32 +22,43 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class FactoryHandler extends UnitHandler {
+public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     private static final String[] facs = new String[]{"factorycloak", "factoryplane"};
 
     private Set<UnitDef> builtFacs = new HashSet();
+    private int assaultRequests = 0;
+
+    private final int assaultFrame = 10000;
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
+        //cmd.addSingleUpdateListener(this, assaultFrame);
     }
 
     @Override
     public AIUnit addUnit(Unit u) {
         AIUnit au = new AIUnit(u, this);
         aiunits.put(u.getUnitId(), au);
-        au.idle();
         builtFacs.add(u.getDef());
         return au;
     }
 
     @Override
-    public void unitIdle(AIUnit u) {
+    public void troopIdle(AIUnit u) {  
         switch (u.getUnit().getDef().getName()) {
             case "factorycloak":
-                u.assignTask(new BuildTask(clbk.getUnitDefByName("armpw"), u.getPos(), 0, this, clbk, command));
+                if (assaultRequests > 0) {
+                    u.assignTask(new BuildTask(clbk.getUnitDefByName("armzeus"), u.getPos(), 0, this, clbk, command));
+                } else {
+                    u.assignTask(new BuildTask(clbk.getUnitDefByName("armpw"), u.getPos(), 0, this, clbk, command));
+                }
                 break;
         }
+    }
+
+    public void requestAssault(int amt) {
+        assaultRequests += amt;
     }
 
     @Override
@@ -54,6 +67,11 @@ public class FactoryHandler extends UnitHandler {
 
     @Override
     public void finishedTask(Task t) {
+        if (t.getResult() instanceof AIUnit) {
+            if (((AIUnit) t.getResult()).getType() == AIUnit.UnitType.assault) {
+                assaultRequests--;
+            }
+        }
     }
 
     public UnitDef getNextFac() {
@@ -89,6 +107,15 @@ public class FactoryHandler extends UnitHandler {
     @Override
     public void reportSpam() {
         throw new RuntimeException("I spammed MoveTasks!");
+    }
+
+    @Override
+    public void troopIdle(AISquad s) {
+    }
+
+    @Override
+    public void update(int frame) {
+            requestAssault(6);
     }
 
 }

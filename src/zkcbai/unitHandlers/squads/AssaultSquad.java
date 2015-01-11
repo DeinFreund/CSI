@@ -6,7 +6,6 @@
 package zkcbai.unitHandlers.squads;
 
 import com.springrts.ai.oo.AIFloat3;
-import com.springrts.ai.oo.clb.Group;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.util.Collection;
@@ -15,6 +14,7 @@ import zkcbai.Command;
 import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.FighterHandler;
+import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.AttackTask;
@@ -27,15 +27,17 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
  *
  * @author User
  */
-public class AssaultSquad extends Squad implements TaskIssuer {
+public class AssaultSquad extends SquadHandler implements TaskIssuer {
 
-    private static final int maxDist = 150;
-    private static final int maxCombatDist = 350;
+    private static final int maxDist = 200;
+    private static final int maxCombatDist = 400;
+    private static final int maxWaitTime = 300;
 
     private AIFloat3 target;
-    private Group group;
+    private AISquad squad;
     private Collection<UnitDef> cheapDefenseTowers;
     private Collection<UnitDef> unimportantUnits;
+    private int notAccessibleSince = -1;
 
     public AssaultSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, AIFloat3 target) {
         super(fighterHandler, command, callback);
@@ -43,7 +45,7 @@ public class AssaultSquad extends Squad implements TaskIssuer {
 
         this.cheapDefenseTowers = new HashSet();
         this.unimportantUnits = new HashSet();
-        group = clbk.getGroups().get(0);
+        squad = new AISquad(this);
 
         String[] cheapDefenseTowers = new String[]{"corrl", "corllt"};
         String[] unimportantUnits = new String[]{"armsolar"};
@@ -59,9 +61,20 @@ public class AssaultSquad extends Squad implements TaskIssuer {
     @Override
     public void addUnit(AIUnit u) {
         super.addUnit(u);
-        u.addToGroup(group);
+        squad.addUnit(u);
+    }
+    
+    @Override
+    public void removeUnit(AIUnit u){
+        super.removeUnit(u);
+        squad.removeUnit(u, fighterHandler);
     }
 
+    @Override
+    public AIFloat3 getPos(){
+        return squad.getPos();
+    }
+    
     private AIUnit getUnit() {
         for (AIUnit au : units) {
             return au;
@@ -75,104 +88,90 @@ public class AssaultSquad extends Squad implements TaskIssuer {
     }
 
     @Override
-    public void unitIdle(final AIUnit u) {
+    public void troopIdle(final AISquad u) {
 
-        AreaChecker RAIDER_ACCESSIBLE_DISTANT = new AreaChecker() {
+        AreaChecker ASSAULT_ACCESSIBLE_DISTANT = new AreaChecker() {
             @Override
             public boolean checkArea(ZoneManager.Area a) {
-                return command.defenseManager.isRaiderAccessible(a.getPos()) && u.distanceTo(a.getPos()) > 250;
+                return command.defenseManager.isAssaultAccessible(a.getPos()) && u.distanceTo(a.getPos()) > 250;
             }
         };
 
-        if (target == null) {
+        if (target == null ||(notAccessibleSince > 0 && command.getCurrentFrame() - notAccessibleSince > maxWaitTime)) {
             target = fighterHandler.requestNewTarget(this);
         }
-
-        AIFloat3 target = command.areaManager.getArea(this.target).getNearestArea(command.areaManager.RAIDER_ACCESSIBLE).getPos();
+    
+        if (notAccessibleSince < 0 && !command.defenseManager.isAssaultAccessible(this.target)){
+            notAccessibleSince = command.getCurrentFrame();
+        }
+        if (notAccessibleSince > 0 && command.defenseManager.isAssaultAccessible(this.target)){
+            notAccessibleSince = -1;
+        }
+        
+        AIFloat3 target = command.areaManager.getArea(this.target).getNearestArea(command.areaManager.ASSAULT_ACCESSIBLE).getPos();
         //tactical field hiding
 
         Collection<Enemy> enemies = command.getEnemyUnitsIn(u.getPos(), 650);
 
-        //AVOID RIOTS
-        if (!command.defenseManager.isRaiderAccessible(u.getPos())) {
-            u.assignTask(new MoveTask(command.areaManager.getArea(target).getNearestArea(RAIDER_ACCESSIBLE_DISTANT).getPos(),
-                    command.getCurrentFrame() + 20, this, command.pathfinder.RAIDER_PATH, command));
+        //AVOID PORC
+        if (!command.defenseManager.isAssaultAccessible(u.getPos())) {
+            u.assignTask(new MoveTask(command.areaManager.getArea(target).getNearestArea(ASSAULT_ACCESSIBLE_DISTANT).getPos(),
+                    command.getCurrentFrame() + 20, this, command.pathfinder.ASSAULT_PATH, command));
 
             return;
         }
 
         //GATHER
         AIFloat3 fpos = getPos();
-        if (((u.distanceTo(fpos) > maxDist && enemies.isEmpty()) || (u.distanceTo(fpos) > maxCombatDist)) && isWinPossible(fpos)
-                && command.defenseManager.isRaiderAccessible(fpos) && command.pathfinder.findPath(u.getPos(), fpos,
-                        u.getUnit().getDef().getMoveData().getMaxSlope(), command.pathfinder.RAIDER_PATH).size() > 1) {
-            for (AIUnit au : units) {
+        if (((squad.getRadius() > maxDist && enemies.isEmpty()) || (squad.getRadius() > maxCombatDist)) && isWinPossible(fpos)
+                && command.defenseManager.isAssaultAccessible(fpos) && command.pathfinder.findPath(u.getPos(), fpos,
+                        u.getMaxSlope(), command.pathfinder.ASSAULT_PATH).size() > 1) {
                 //command.mark(au.getPos(), "gather");
-                au.assignTask(new MoveTask(fpos, command.getCurrentFrame() + 40, this, command.pathfinder.RAIDER_PATH, command));
-                au.getUnit().wait(AIUnit.OPTION_SHIFT_KEY, Integer.MAX_VALUE);
+                u.assignTask(new MoveTask(fpos, command.getCurrentFrame() + 40, this, command.pathfinder.ASSAULT_PATH, command));
+                
 
-            }
+            
             return;
         }
 
         Enemy best = null;
-        float minDist, minHealth;
+        float minDist, maxCost;
 
-        //KILL UNDEFENDED BUILDINGS
-        minHealth = Float.MAX_VALUE;
-        for (Enemy e : enemies) {
-            if (command.defenseManager.getImmediateDanger(e.getPos()) == 0 && !unimportantUnits.contains(e.getDef())
-                    && (e.getUnit().getHealth() > 0 ? e.getUnit().getHealth() : 1000) < minHealth && isWinPossible(e.getPos())) {
-                minHealth = e.getUnit().getHealth() > 0 ? e.getUnit().getHealth() : 1000;
-                best = e;
-            }
-        }
-        if (best != null) {
-            for (AIUnit au : units) {
-                au.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
-            }
-            return;
-        }
 
-        //KILL BASIC DEFENSE
+        //KILL DEFENSE
         minDist = Float.MAX_VALUE;
         for (Enemy e : enemies) {
-            if (cheapDefenseTowers.contains(e.getDef()) && command.defenseManager.isRaiderAccessible(e.getPos())
+            if (command.defenseManager.isAssaultAccessible(e.getPos())
                     && e.distanceTo(fpos) < minDist && isWinPossible(e.getPos())) {
                 minDist = e.distanceTo(fpos);
                 best = e;
             }
         }
         if (best != null) {
-            for (AIUnit au : units) {
-                au.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
-            }
+                u.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
             return;
 
         }
 
         //KILL FIGHTERS
-        minHealth = Float.MAX_VALUE;
+        maxCost = 0;
         for (Enemy e : enemies) {
-            if (e.getDef().isAbleToAttack() && (e.getUnit().getHealth() > 0 ? e.getUnit().getHealth() : 1000) < minHealth
-                    && command.defenseManager.isRaiderAccessible(e.getPos()) && isWinPossible(e.getPos())) {
-                minHealth = e.getUnit().getHealth() > 0 ? e.getUnit().getHealth() : 1000;
+            if (e.getDef().isAbleToAttack() && e.getMetalCost()< maxCost
+                    && command.defenseManager.isAssaultAccessible(e.getPos()) && isWinPossible(e.getPos())) {
+                maxCost = e.getMetalCost();
                 best = e;
             }
         }
         if (best != null) {
-            for (AIUnit au : units) {
-                au.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
-            }
+                u.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
             return;
         }
 
         //KILL OTHER ENEMIES
         for (Enemy e : enemies) {
-            if (command.defenseManager.isRaiderAccessible(e.getPos()) && isWinPossible(e.getPos())) {
-                for (AIUnit au : units) {
-                    au.assignTask(new FightTask(e.getPos(), command.getCurrentFrame() + 35, this));
-                }
+            if (command.defenseManager.isAssaultAccessible(e.getPos()) && isWinPossible(e.getPos())) {
+                    u.assignTask(new FightTask(e.getPos(), command.getCurrentFrame() + 35, this));
+                
                 return;
             }
         }
@@ -180,7 +179,7 @@ public class AssaultSquad extends Squad implements TaskIssuer {
         //CHECK IF REINFORCEMENTS NEEDED
         if (distanceTo(target) < 500) {
             for (Enemy e : enemies) {
-                if (command.defenseManager.isRaiderAccessible(e.getPos())) {
+                if (command.defenseManager.isAssaultAccessible(e.getPos())) {
                     //reinforcements needed
                     u.moveTo(command.getStartPos(), command.getCurrentFrame() + 25);
                     fighterHandler.requestReinforcements(this);
@@ -190,15 +189,15 @@ public class AssaultSquad extends Squad implements TaskIssuer {
         }
 
         if (u.distanceTo(target) < 100 //checks if target is unreachable
-                || command.pathfinder.findPath(u.getPos(), target, u.getUnit().getDef().getMoveData().getMaxSlope(),
-                        command.pathfinder.RAIDER_PATH).size() <= 1) {
+                || command.pathfinder.findPath(u.getPos(), target, u.getMaxSlope(),
+                        command.pathfinder.ASSAULT_PATH).size() <= 1) {
 
-            target = fighterHandler.requestNewTarget(this);
-            command.mark(target, "new target");
+            this.target = fighterHandler.requestNewTarget(this);
+            //command.mark(target, "new target");
             u.assignTask(new FightTask(target, command.getCurrentFrame() + 20, this));
             return;
         }
-        u.assignTask(new MoveTask(target, command.getCurrentFrame() + 40, this, command.pathfinder.RAIDER_PATH, command));
+        u.assignTask(new MoveTask(target, command.getCurrentFrame() + 40, this, command.pathfinder.ASSAULT_PATH, command));
 
     }
 
@@ -216,5 +215,17 @@ public class AssaultSquad extends Squad implements TaskIssuer {
     public void reportSpam() {
         throw new RuntimeException("I spammed MoveTasks!");
     }
+
+    @Override
+    public void troopIdle(AIUnit u) {
+        throw new RuntimeException("Wrong troopIdle called on AssaultSquad");
+    }
+
+    @Override
+    public AIUnit.UnitType getType() {
+        return AIUnit.UnitType.assault;
+    }
+
+
 
 }

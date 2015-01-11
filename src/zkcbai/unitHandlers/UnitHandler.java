@@ -11,15 +11,17 @@ import java.util.Map;
 import java.util.TreeMap;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
+import zkcbai.unitHandlers.units.AISquad;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
-import zkcbai.unitHandlers.units.Enemy;
+import zkcbai.unitHandlers.units.AIUnitHandler;
 import zkcbai.unitHandlers.units.tasks.TaskIssuer;
 
 /**
  *
  * @author User
  */
-public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener {
+public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, AIUnitHandler {
 
     Map<Integer, AIUnit> aiunits = new TreeMap();
     Command command;
@@ -37,7 +39,7 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener {
 
     public abstract void removeUnit(AIUnit u);
 
-
+    @Override
     public Command getCommand() {
         return command;
 
@@ -48,6 +50,20 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener {
         removeUnit(u);
     }
 
-    public abstract void unitIdle(AIUnit u);
+    public abstract void troopIdle(AIUnit u);
+
+    public abstract void troopIdle(AISquad s);
+
+    @Override
+    public void troopIdle(AITroop u) {
+        if (u instanceof AIUnit) {
+            troopIdle((AIUnit) u);
+        } else if (u instanceof AISquad) {
+            troopIdle((AISquad) u);
+        } else {
+            throw new RuntimeException("This should never be executed unless there are implementations of AITroop other than AISquad and AIUnit");
+        }
+
+    }
 
 }

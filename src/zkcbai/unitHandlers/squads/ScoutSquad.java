@@ -6,13 +6,11 @@
 package zkcbai.unitHandlers.squads;
 
 import com.springrts.ai.oo.AIFloat3;
-import com.springrts.ai.oo.clb.Group;
 import com.springrts.ai.oo.clb.OOAICallback;
-import java.util.Collection;
 import zkcbai.Command;
 import zkcbai.unitHandlers.FighterHandler;
+import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
-import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.FightTask;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -22,7 +20,7 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
  *
  * @author User
  */
-public class ScoutSquad extends Squad implements TaskIssuer {
+public class ScoutSquad extends SquadHandler implements TaskIssuer {
 
     public ScoutSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
         super(fighterHandler, command, callback);
@@ -41,7 +39,7 @@ public class ScoutSquad extends Squad implements TaskIssuer {
     }
 
     @Override
-    public void unitIdle(AIUnit u) {
+    public void troopIdle(AIUnit u) {
 
         //command.mark(u.getPos(),"unit idle");
         //Collection<Enemy> enemies = command.getEnemyUnitsIn(u.getPos(), 350);
@@ -53,6 +51,7 @@ public class ScoutSquad extends Squad implements TaskIssuer {
             if (i > 10){
                 command.debug("WARNING: No target for scout.");
                 u.assignTask(new FightTask(u.getPos(), command.getCurrentFrame() + 30, this));
+                return;
             }
             target = new AIFloat3((float) Math.random() * clbk.getMap().getWidth() * 8, 0, (float) Math.random() * clbk.getMap().getHeight() * 8);
         } while (command.losManager.isInLos(target) || command.radarManager.isInRadar(target)
@@ -76,6 +75,16 @@ public class ScoutSquad extends Squad implements TaskIssuer {
     @Override
     public void reportSpam() {
         throw new RuntimeException("I spammed MoveTasks!");
+    }
+
+    @Override
+    public void troopIdle(AISquad s) {
+        throw new RuntimeException("Wrong troopIdle called on ScoutSquad");
+    }
+
+    @Override
+    public AIUnit.UnitType getType() {
+        return AIUnit.UnitType.raider;
     }
 
 }

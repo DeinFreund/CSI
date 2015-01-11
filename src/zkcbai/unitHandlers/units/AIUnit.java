@@ -9,74 +9,23 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.Group;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
-import java.util.LinkedList;
-import java.util.Queue;
-import zkcbai.Command;
 import zkcbai.UpdateListener;
-import zkcbai.helpers.ZoneManager;
-import zkcbai.unitHandlers.DevNullHandler;
-import zkcbai.unitHandlers.UnitHandler;
-import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
  *
  * @author User
  */
-public class AIUnit implements UpdateListener {
+public class AIUnit extends AITroop implements UpdateListener {
 
     private Unit unit;
-    private Task task;
-    private Queue<Task> taskqueue = new LinkedList();
-    private UnitHandler handler;
     private int wakeUpFrame = -1;
+    private int lastCommandTime = -1;
     private boolean dead = false;
-    private ZoneManager areaManager = null;
 
-    public AIUnit(Unit u, UnitHandler handler) {
+    public AIUnit(Unit u, AIUnitHandler handler) {
+        super(handler);
         unit = u;
-        if (handler == null) {
-            handler = new DevNullHandler(null, null);
-        } else {
-            this.areaManager = handler.getCommand().areaManager;
-        }
-        this.handler = handler;
-    }
 
-    public void assignTask(Task t) {
-        task = t;
-        taskqueue.clear();
-        doTask();
-    }
-
-    public void queueTask(Task t) {
-        taskqueue.add(t);
-        doTask();
-    }
-
-    private int tasksThisFrame = 0;
-    private int thisFrame = 0;
-
-    private void doTask() {
-        if (getCommand().getCurrentFrame() != thisFrame) {
-            tasksThisFrame = 0;
-            thisFrame = getCommand().getCurrentFrame();
-        }
-        tasksThisFrame++;
-        if (tasksThisFrame > 120) {
-            throw new RuntimeException("Too many tasks!");
-        }
-        //getCommand().mark(getPos(), "doing task");
-        if (task == null || task.execute(this)) {
-            task = null;
-            if (!taskqueue.isEmpty()) {
-                task = taskqueue.poll();
-                doTask();
-            } else {
-
-                //handler.getCommand().mark(unit.getPos(), "unitidle");
-                handler.unitIdle(this);
-            }
-        }
     }
 
     public void destroyed() {
@@ -85,14 +34,35 @@ public class AIUnit implements UpdateListener {
         dead = true;
     }
 
+    public enum UnitType {
+
+        raider, assault;
+    }
+
+    public UnitType getType() {
+        if (unit.getDef().getName().equalsIgnoreCase("armpw")) {
+            return UnitType.raider;
+        }
+        if (unit.getDef().getName().equalsIgnoreCase("armzeus")) {
+            return UnitType.assault;
+        }
+        throw new RuntimeException("Unknown UnitType");
+    }
+
     @Override
     public void update(int frame) {
-        //handler.getCommand().debug("waken up");
         if (dead) {
             return;
         }
-        //handler.getCommand().mark(getPos(), "stop");
-        unit.stop(OPTION_NONE, frame);// timeout
+        idle();
+    }
+
+    public void checkIdle() {
+        if (handler.getCommand() != null && wakeUpFrame < 0 && handler.getCommand().getCurrentFrame() - lastCommandTime > 100
+                && unit.getCurrentCommands().isEmpty()) {
+            handler.getCommand().mark(getPos(), "reawaken");
+            idle();
+        }
     }
 
     private void clearUpdateListener() {
@@ -103,7 +73,14 @@ public class AIUnit implements UpdateListener {
         }
     }
 
+    int lastIdle = -10;
+
+    @Override
     public void idle() {
+        if (handler.getCommand() == null) {
+            return;
+        }
+        lastIdle = getCommand().getCurrentFrame();
         clearUpdateListener();
         doTask();
     }
@@ -112,11 +89,12 @@ public class AIUnit implements UpdateListener {
         if (task != null) {
             task.pathFindingError(this);
         } else {
-            handler.getCommand().mark(getPos(), "pathFindingError");
-            unit.wait(OPTION_NONE, Integer.MAX_VALUE);
+            handler.getCommand().debug("Warning: pathFindingError");
+            //unit.wait(OPTION_NONE, Integer.MAX_VALUE);
         }
     }
 
+    @Override
     public AIFloat3 getPos() {
         return new AIFloat3(unit.getPos());
     }
@@ -125,37 +103,22 @@ public class AIUnit implements UpdateListener {
         return unit;
     }
 
-    public Task getTask() {
-        return task;
-    }
-
-    public float distanceTo(AIFloat3 trg) {
-        AIFloat3 pos = new AIFloat3(getPos());
-        pos.sub(trg);
-        pos.y = 0;
-        return pos.length();
-    }
-
+    /**
+     *
+     * @param g
+     * @deprecated use AISquad instead
+     */
+    @Deprecated
     public void addToGroup(Group g) {
         unit.addToGroup(g, OPTION_NONE, Integer.MAX_VALUE);
     }
 
-    public Command getCommand() {
-        return handler.getCommand();
-    }
-
-    public static final short OPTION_NONE = 0;//   0
-    public static final short OPTION_DONT_REPEAT = (1 << 3);//   8
-    public static final short OPTION_RIGHT_MOUSE_KEY = (1 << 4); //  16
-    public static final short OPTION_SHIFT_KEY = (1 << 5); //  32
-    public static final short OPTION_CONTROL_KEY = (1 << 6);//  64
-    public static final short OPTION_ALT_KEY = (1 << 7); // 128
-
+    @Override
     public void moveTo(AIFloat3 trg, short options, int timeout) {
-        //handler.getCommand().mark(trg, "move");
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         unit.moveTo(trg, options, Integer.MAX_VALUE);
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
@@ -167,11 +130,13 @@ public class AIUnit implements UpdateListener {
         }
     }
 
+    @Override
     public void attack(Unit trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "move");
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         unit.attack(trg, options, Integer.MAX_VALUE);
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
@@ -183,10 +148,12 @@ public class AIUnit implements UpdateListener {
         }
     }
 
+    @Override
     public void patrolTo(AIFloat3 trg, short options, int timeout) {
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         unit.patrolTo(trg, options, Integer.MAX_VALUE);
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
@@ -199,11 +166,13 @@ public class AIUnit implements UpdateListener {
 
     private int lastCall = 0;
 
+    @Override
     public void fight(AIFloat3 trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "fight");
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
         if (handler.getCommand().getCurrentFrame() == lastCall) {
             //throw new RuntimeException("Double Call to Fight");
             //getCommand().debug("Warning: Double Call to Fight");
@@ -219,11 +188,13 @@ public class AIUnit implements UpdateListener {
         }
     }
 
+    @Override
     public void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "build " + building.getHumanName());
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         unit.build(building, trg, facing, options, Integer.MAX_VALUE);
 
@@ -235,28 +206,14 @@ public class AIUnit implements UpdateListener {
         }
     }
 
-    public void moveTo(AIFloat3 trg, int timeout) {
-        moveTo(trg, OPTION_NONE, timeout);
+    @Override
+    public float getMaxRange() {
+        return unit.getMaxRange();
     }
 
-    public void patrolTo(AIFloat3 trg, int timeout) {
-        patrolTo(trg, OPTION_NONE, timeout);
-    }
-
-    public void fight(AIFloat3 trg, int timeout) {
-        fight(trg, OPTION_NONE, timeout);
-    }
-
-    public void attack(Unit trg, int timeout) {
-        attack(trg, OPTION_NONE, timeout);
-    }
-
-    public void build(UnitDef building, int facing, AIFloat3 trg, int timeout) {
-        build(building, facing, trg, OPTION_NONE, timeout);
-    }
-
-    public int getHashCode() {
-        return unit.hashCode();
+    @Override
+    public float getMaxSlope() {
+        return unit.getDef().getMoveData().getMaxSlope();
     }
 
 }

@@ -42,6 +42,61 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     private final int mwidth;
     private final int mheight;
 
+    public enum Zone {
+
+        own, front, fortified, hostile, neutral
+    }
+
+    public enum Owner {
+
+        own, none, enemy
+    }
+
+    public final AreaChecker NOT_IN_LOS = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return !a.isVisible();
+        }
+    };
+    public final AreaChecker HOSTILE = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return a.getZone() == Zone.hostile;
+        }
+    };
+    public final AreaChecker HOSTILE_RAIDER_ACCESSIBLE = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return HOSTILE.checkArea(a) && RAIDER_ACCESSIBLE.checkArea(a);
+        }
+    };
+    public final AreaChecker FORTIFIED = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return a.getZone() == Zone.fortified;
+        }
+    };
+    public final AreaChecker FORTIFIED_ASSAULT_ACCESSIBLE = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return FORTIFIED.checkArea(a) && ASSAULT_ACCESSIBLE.checkArea(a);
+        }
+    };
+    public final AreaChecker RAIDER_ACCESSIBLE = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return command.defenseManager.isRaiderAccessible(a.getPos())
+                    && command.pathfinder.isReachable(a.getPos(), command.getStartPos(), clbk.getUnitDefByName("armpw").getMoveData().getMaxSlope());
+        }
+    };
+    public final AreaChecker ASSAULT_ACCESSIBLE = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return command.defenseManager.isAssaultAccessible(a.getPos())
+                    && command.pathfinder.isReachable(a.getPos(), command.getStartPos(), clbk.getUnitDefByName("armzeus").getMoveData().getMaxSlope());
+        }
+    };
+
     public ZoneManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         mwidth = clbk.getMap().getWidth() * 8;
@@ -194,39 +249,13 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         return tasks;
     }
 
-    public enum Zone {
-
-        own, front, noMansLand, hostile
-    }
-
-    public enum Owner {
-
-        own, none, enemy
-    }
-    public final AreaChecker NOT_IN_LOS = new AreaChecker() {
-        @Override
-        public boolean checkArea(Area a) {
-            return !a.isVisible();
-        }
-    };
-    public final AreaChecker HOSTILE = new AreaChecker() {
-        @Override
-        public boolean checkArea(Area a) {
-            return a.getZone() == Zone.hostile;
-        }
-    };
-    public final AreaChecker RAIDER_ACCESSIBLE = new AreaChecker() {
-        @Override
-        public boolean checkArea(Area a) {
-            return command.defenseManager.isRaiderAccessible(a.getPos());
-        }
-    };
-
     public class Area {
 
         public final int x, y;
         private AIFloat3 pos;
         private Owner owner;
+        private Zone zoneCache;
+        private int lastCache = -111;
 
         public Area(int x, int y) {
             this.x = x;
@@ -298,15 +327,26 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public Zone getZone() {
+            if (command.getCurrentFrame() - lastCache > 60) {
+                zoneCache = _getZone();
+                lastCache = command.getCurrentFrame();
+            }
+            return zoneCache;
+        }
+
+        private Zone _getZone() {
             if (!isVisible() && owner == Owner.enemy) {
                 return Zone.hostile;
             } else {
                 owner = Owner.none;
             }
+            if (command.defenseManager.isFortified(pos, Math.max(mwidth / map.length, mheight / map[0].length) / 2f)) {
+                return Zone.fortified;
+            }
             if (command.defenseManager.getDanger(pos, Math.max(mwidth / map.length, mheight / map[0].length) / 2f) > 0) {
                 return Zone.hostile;
             }
-            return Zone.noMansLand;
+            return Zone.neutral;
         }
     }
 
@@ -386,11 +426,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                             g.setColor(new Color(255, 0, 0));
                             stringcol = Color.white;
                             break;
+                        case fortified:
+                            g.setColor(new Color(100, 0, 0));
+                            stringcol = Color.white;
+                            break;
                         case front:
                             g.setColor(new Color(255, 255, 50));
                             stringcol = Color.black;
                             break;
-                        case noMansLand:
+                        case neutral:
                             g.setColor(new Color(200, 200, 200));
                             stringcol = Color.white;
                             break;

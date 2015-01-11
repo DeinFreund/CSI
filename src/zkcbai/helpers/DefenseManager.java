@@ -50,6 +50,11 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         return result;
     }
 
+    /**
+     * Use for mobile units only, as it adds a safety margin.
+     * @param pos
+     * @return
+     */
     public float getImmediateDanger(AIFloat3 pos) {
         float result = 0;
         for (Enemy e : fighters) {
@@ -80,6 +85,8 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     }
 
     public boolean isRaiderAccessible(AIFloat3 pos) {
+        if (isFortified(pos)) return false;
+        if (!command.pathfinder.isReachable(pos, command.getStartPos(), clbk.getUnitDefByName("armpw").getMoveData().getMaxSlope())) return false;
         for (Enemy e : riots) {
             if (e.distanceTo(pos) < e.getMaxRange() * 1.8 && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) {
                 return false;
@@ -87,13 +94,41 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         }
         return true;
     }
+    
+    public boolean isAssaultAccessible(AIFloat3 pos){
+        return true;//TODO recognize over the top porc
+    }
+    
+    public boolean isFortified(AIFloat3 pos, float radius) {
+        
+        return getDanger(pos,radius) >= 180;
+    }
+    public boolean isFortified(AIFloat3 pos) {
+        
+        return isFortified(pos, 0);
+    }
 
     public float getRaiderAccessibilityCost(AIFloat3 pos) {
         float res = 0;
+        if (isFortified(pos)) return 100;
         for (Enemy e : riots) {
             if (e.distanceTo(pos) < e.getMaxRange() * 1.8 && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) {
                 res += 1;
             } else if (e.distanceTo(pos) < e.getMaxRange() * 2.7 && riotDefs.contains(e.getDef()) && !e.getUnit().isBeingBuilt()) {
+                res += 0.3;
+            }
+        }
+        return res;
+    }
+
+
+    public float getAssaultAccessibilityCost(AIFloat3 pos) {
+        float res = 0;
+        for (Enemy e : defenses) {
+            if (e.getDef().getCost(command.metal) < 1000) continue;
+            if (e.distanceTo(pos) < e.getMaxRange() * 1.8 &&  !e.getUnit().isBeingBuilt()) {
+                res += 1;
+            } else if (e.distanceTo(pos) < e.getMaxRange() * 2.7 &&  !e.getUnit().isBeingBuilt()) {
                 res += 0.3;
             }
         }

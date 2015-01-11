@@ -18,12 +18,14 @@ import zkcbai.Command;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.squads.RaiderSquad;
 import zkcbai.unitHandlers.squads.ScoutSquad;
-import zkcbai.unitHandlers.squads.Squad;
+import zkcbai.unitHandlers.squads.SquadHandler;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
 import zkcbai.EnemyDiscoveredListener;
 import zkcbai.EnemyEnterLOSListener;
+import zkcbai.unitHandlers.squads.AssaultSquad;
+import zkcbai.unitHandlers.units.AISquad;
 
 /**
  *
@@ -31,25 +33,16 @@ import zkcbai.EnemyEnterLOSListener;
  */
 public class FighterHandler extends UnitHandler implements EnemyDiscoveredListener, EnemyEnterLOSListener {
 
-    private Collection<UnitDef> raiders;
-
     public FighterHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         cmd.addEnemyDiscoveredListener(this);
         cmd.addEnemyEnterLOSListener(this);
 
-        this.raiders = new HashSet();
-
-        String[] raiders = new String[]{"armpw"};
-
-        for (String s : raiders) {
-            this.raiders.add(clbk.getUnitDefByName(s));
-        }
     }
 
-    Set<Squad> squads = new HashSet();
+    Set<SquadHandler> squads = new HashSet();
 
-    Map<Integer, Squad> unitSquads = new TreeMap();
+    Map<Integer, SquadHandler> unitSquads = new TreeMap();
 
     @Override
     public AIUnit addUnit(Unit u) {
@@ -61,32 +54,54 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     }
 
     private void useUnit(AIUnit au) {
-        for (Squad s : squads) {
-            if (s.size() < 5 && s.timeTo(au) < 30 * 10) {
-                unitSquads.put(au.getUnit().getUnitId(), s);
-                s.addUnit(au);
-                return;
-            }
-        }
-        Area a = command.areaManager.getArea(au.getPos()).getNearestArea(command.areaManager.HOSTILE);
-        AIFloat3 target = null;
-        if (a != null) {
-            target = a.getPos();
-        }
+        Area a;
+        AIFloat3 target;
+        SquadHandler rs;
+        switch (au.getType()) {
+            case raider:
+                for (SquadHandler s : squads) {
+                    if (s instanceof RaiderSquad && s.size() < 5 && s.timeTo(au) < 30 * 10) {
+                        unitSquads.put(au.getUnit().getUnitId(), s);
+                        s.addUnit(au);
+                        return;
+                    }
+                }
+                a = command.areaManager.getArea(au.getPos()).getNearestArea(command.areaManager.HOSTILE);
+                target = null;
+                if (a != null) {
+                    target = a.getPos();
+                }
 
-        Squad rs = new RaiderSquad(this, command, clbk, target);
-        squads.add(rs);
-        unitSquads.put(au.getUnit().getUnitId(), rs);
-        rs.addUnit(au);
+                rs = new RaiderSquad(this, command, clbk, target);
+                squads.add(rs);
+                unitSquads.put(au.getUnit().getUnitId(), rs);
+                rs.addUnit(au);
+                break;
+            case assault:
+                for (SquadHandler s : squads) {
+                    if (s instanceof AssaultSquad && s.size() < 6 && s.timeTo(au) < 30 * 10) {
+                        unitSquads.put(au.getUnit().getUnitId(), s);
+                        s.addUnit(au);
+                        return;
+                    }
+                }
+                a = command.areaManager.getArea(au.getPos()).getNearestArea(command.areaManager.FORTIFIED);
+                target = null;
+                if (a != null) {
+                    target = a.getPos();
+                }
+
+                rs = new AssaultSquad(this, command, clbk, target);
+                squads.add(rs);
+                unitSquads.put(au.getUnit().getUnitId(), rs);
+                rs.addUnit(au);
+                break;
+        }
     }
 
     @Override
-    public void unitIdle(AIUnit u) {
-        if (!unitSquads.containsKey(u.getUnit().getUnitId())) {
-            return;
-        }
-        //command.mark(u.getPos(), "idle");
-        unitSquads.get(u.getUnit().getUnitId()).unitIdle(u);
+    public void troopIdle(AIUnit u) {
+        throw new RuntimeException("FighterHandler didn't dispatch unit to SquadHandler");
     }
 
     @Override
@@ -123,7 +138,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         Collection<Enemy> enemies = command.getEnemyUnitsIn(spos, 100000);
         float mindist = Float.MAX_VALUE;
         for (Enemy e : enemies) {
-            if (e.isBuilding() && e.distanceTo(spos) < mindist) {
+            if (e.isBuilding() && e.distanceTo(spos) < mindist && command.defenseManager.isRaiderAccessible(e.getPos())) {
                 mindist = e.distanceTo(spos);
                 best = e;
             }
@@ -131,9 +146,8 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         if (best != null) {
             return best.getPos();
         }
-
-        Area a = command.areaManager.getArea(s.getPos()).getNearestArea(command.areaManager.HOSTILE);
-
+        
+        Area a = command.areaManager.getArea(s.getPos()).getNearestArea(command.areaManager.HOSTILE_RAIDER_ACCESSIBLE);
         if (a != null) {
             return a.getPos();
         }
@@ -158,10 +172,58 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         }
         squads.add(ss);
 
+        command.getFactoryHandler().requestAssault(5);
+
         return new AIFloat3();
     }
 
-    public void squadDestroyed(Squad s) {
+    public AIFloat3 requestNewTarget(AssaultSquad s) {
+
+        Area a = command.areaManager.getArea(s.getPos()).getNearestArea(command.areaManager.FORTIFIED_ASSAULT_ACCESSIBLE);
+        if (a != null) {
+            return a.getPos();
+        }
+
+        Enemy best = null;
+        AIFloat3 spos = s.getPos();
+        Collection<Enemy> enemies = command.getEnemyUnitsIn(spos, 100000);
+        float mindist = Float.MAX_VALUE;
+        for (Enemy e : enemies) {
+            if (e.isBuilding() && e.distanceTo(spos) < mindist && command.defenseManager.isAssaultAccessible(e.getPos())
+                    && command.defenseManager.getImmediateDanger(e.getPos()) > 0) {
+                mindist = e.distanceTo(spos);
+                best = e;
+            }
+        }
+        if (best != null) {
+            return best.getPos();
+        }
+
+        int mintime = Integer.MAX_VALUE;
+        for (Enemy e : enemies) {
+            if (e.timeSinceLastSeen() < mintime && command.defenseManager.isAssaultAccessible(e.getPos())
+                    && command.defenseManager.getImmediateDanger(e.getPos()) > 0) {
+                mintime = e.timeSinceLastSeen();
+                best = e;
+            }
+        }
+        if (best != null) {
+            return best.getPos();
+        }
+
+        ScoutSquad ss = new ScoutSquad(this, command, clbk);
+        for (AIUnit u : s.disband()) {
+            ss.addUnit(u);
+            unitSquads.remove(u.getUnit().getUnitId());
+            unitSquads.put(u.getUnit().getUnitId(), ss);
+            u.getUnit().stop((short) 0, command.getCurrentFrame());
+        }
+        squads.add(ss);
+
+        return new AIFloat3();
+    }
+
+    public void squadDestroyed(SquadHandler s) {
         squads.remove(s);
     }
 
@@ -172,7 +234,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
     @Override
     public void enemyDiscovered(Enemy e) {
-        for (Squad s : squads) {
+        for (SquadHandler s : squads) {
             if (s instanceof ScoutSquad) {
                 for (AIUnit u : s.disband()) {
                     unitSquads.remove(u.getUnit().getUnitId());
@@ -182,14 +244,16 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         }
     }
 
-    public void requestReinforcements(RaiderSquad rs) {
+    public void requestReinforcements(SquadHandler rs) {
         float mindist = Float.MAX_VALUE;
         AIUnit best = null;
-        Squad bests = null;
-        for (Squad s : squads) {
-            if (s.equals(rs)) continue;
+        SquadHandler bests = null;
+        for (SquadHandler s : squads) {
+            if (s.equals(rs)) {
+                continue;
+            }
             for (AIUnit u : s.getUnits()) {
-                if (raiders.contains(u.getUnit().getDef()) && u.distanceTo(rs.getPos()) < mindist) {
+                if (u.getType() == rs.getType() && u.distanceTo(rs.getPos()) < mindist) {
                     mindist = u.distanceTo(rs.getPos());
                     best = u;
                     bests = s;
@@ -207,6 +271,10 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     @Override
     public void enemyEnterLOS(Enemy e) {
         enemyDiscovered(e);
+    }
+
+    @Override
+    public void troopIdle(AISquad s) {
     }
 
 }

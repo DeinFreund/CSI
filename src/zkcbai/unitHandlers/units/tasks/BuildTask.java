@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import zkcbai.Command;
 import zkcbai.UnitFinishedListener;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 
 /**
@@ -28,7 +29,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     int facing;
     OOAICallback clbk;
     TaskIssuer issuer;
-    List<AIUnit> assignedUnits;
+    List<AITroop> assignedUnits;
     Command command;
     
     
@@ -53,7 +54,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     }
     
     @Override
-    public boolean execute(AIUnit u) {
+    public boolean execute(AITroop u) {
         if (errors > 3){
             issuer.abortedTask(this);
             return true;
@@ -86,7 +87,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     int errors = 0;
     
     @Override
-    public void pathFindingError(AIUnit u) {
+    public void pathFindingError(AITroop u) {
         errors ++;
     }
 

@@ -33,6 +33,7 @@ public class Enemy implements UpdateListener {
     private float maxRange = 0;
     private boolean isBuilding;
     private int lastSeen = 0;
+    private float metalCost = 0;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         unit = u;
@@ -131,6 +132,10 @@ public class Enemy implements UpdateListener {
             isBuilding = unit.getDef().getSpeed() <= 0;
         }
         neverSeen = false;
+    }
+    
+    public float getMetalCost(){
+        return getDef().getCost(command.metal);
     }
     
     public boolean isBuilding(){

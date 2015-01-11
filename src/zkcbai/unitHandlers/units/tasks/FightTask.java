@@ -6,6 +6,7 @@
 package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 
 /**
@@ -17,7 +18,7 @@ public class FightTask extends Task {
     private AIFloat3 target;
     private int errors = 0;
     private TaskIssuer issuer;
-    private AIUnit lastUnit;
+    private AITroop lastUnit;
     private int timeout;
 
     public FightTask(AIFloat3 target, TaskIssuer issuer) {
@@ -30,12 +31,12 @@ public class FightTask extends Task {
         this.timeout = timeout;
     }
 
-    public AIUnit getLastExecutingUnit() {
+    public AITroop getLastExecutingUnit() {
         return lastUnit;
     }
 
     @Override
-    public boolean execute(AIUnit u) {
+    public boolean execute(AITroop u) {
         if (errors > 10) {
             issuer.abortedTask(this);
             return true;
@@ -56,7 +57,7 @@ public class FightTask extends Task {
     }
 
     @Override
-    public void pathFindingError(AIUnit u) {
+    public void pathFindingError(AITroop u) {
         errors++;
         target.x += Math.random() * 60 - 30;
         target.z += Math.random() * 60 - 30;

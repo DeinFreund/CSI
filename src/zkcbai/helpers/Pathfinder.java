@@ -35,7 +35,7 @@ public class Pathfinder extends Helper {
     float mwidth, mheight;
     int smwidth;
     float[] slopeMap;
-    private final static int mapCompression = 2;
+    private final static int mapCompression = 8;
     private final static int originalMapRes = 16;
     private final static int mapRes = originalMapRes * mapCompression;
 
@@ -68,6 +68,10 @@ public class Pathfinder extends Helper {
         return costs[pos];
     }
 
+    public boolean isReachable(AIFloat3 target, AIFloat3 start, float maxSlope){
+        return findPath(start, target, maxSlope, FAST_PATH).size() > 1;
+    }
+    
     /**
      * Finds the cheapest path between two arbitrary positions using the A*
      * algorithm.
@@ -80,8 +84,7 @@ public class Pathfinder extends Helper {
      * @return Path as List of AIFloat3. If list.size() &lt; 2 no valid path was
      * @see #FAST_PATH
      * @see #RAIDER_PATH
-     * @see #AVOID_ENEMIES
-     * found.
+     * @see #AVOID_ENEMIES found.
      *
      */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs) {
@@ -132,7 +135,7 @@ public class Pathfinder extends Helper {
 
             do {
                 if (pq.isEmpty()) {
-                    command.debug("pathfinder didn't find target");
+                    //command.mark(target,"pathfinder didn't find target");
                     result.add(target);
                     return result;
                 }
@@ -178,7 +181,8 @@ public class Pathfinder extends Helper {
     }
 
     private float getHeuristic(int start, int trg) {
-        return (float) Math.sqrt((start % smwidth - trg % smwidth) * (start % smwidth - trg % smwidth) + (start / smwidth - trg / smwidth) * (start / smwidth - trg / smwidth));
+        return Math.abs(start % smwidth - trg % smwidth) + Math.abs(start / smwidth - trg / smwidth);//manhattan distance only works without diagonal paths
+        //return (float) Math.sqrt((start % smwidth - trg % smwidth) * (start % smwidth - trg % smwidth) + (start / smwidth - trg / smwidth) * (start / smwidth - trg / smwidth));
     }
 
     private AIFloat3 toAIFloat3(int pos) {
@@ -218,6 +222,19 @@ public class Pathfinder extends Helper {
                 return Float.MAX_VALUE;
             }
             return 10 * slope / maxSlope + 200 * command.defenseManager.getRaiderAccessibilityCost(pos) + 1;
+        }
+    };
+    /**
+     * Fastest path to target while  TODO
+     */
+    public final CostSupplier ASSAULT_PATH = new CostSupplier() {
+
+        @Override
+        public float getCost(float slope, float maxSlope, AIFloat3 pos) {
+            if (slope > maxSlope) {
+                return Float.MAX_VALUE;
+            }
+            return 10 * slope / maxSlope + 200 * command.defenseManager.getAssaultAccessibilityCost(pos) + 1;
         }
     };
     /**

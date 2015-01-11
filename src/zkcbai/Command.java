@@ -133,6 +133,10 @@ public class Command implements AI {
     public int getCurrentFrame() {
         return frame;
     }
+    
+    public OOAICallback getCallback(){
+        return clbk;
+    }
 
     public void addEnemyEnterRadarListener(EnemyEnterRadarListener listener) {
         enemyEnterRadarListeners.add(listener);
@@ -190,10 +194,10 @@ public class Command implements AI {
         updateListeners.add(listener);
     }
 
-    public AIFloat3 getStartPos(){
-        return startPos;
+    public AIFloat3 getStartPos() {
+        return new AIFloat3(startPos);
     }
-    
+
     private void checkForMetal(String luamsg) {
         List<AIFloat3> availablemetalspots = new ArrayList();
         for (String spotDesc : luamsg.substring(13, luamsg.length() - 2).split("},\\{")) {
@@ -255,7 +259,8 @@ public class Command implements AI {
             }
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             aiEnemy.enterLOS();
-            for (EnemyEnterLOSListener listener : enemyEnterLOSListeners) {
+            Collection<EnemyEnterLOSListener> listenerc = new ArrayList(enemyEnterLOSListeners);
+            for (EnemyEnterLOSListener listener : listenerc) {
                 listener.enemyEnterLOS(aiEnemy);
             }
 //            debug("Health, Speed, Cost: ");
@@ -276,7 +281,8 @@ public class Command implements AI {
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             if (aiEnemy != null) {
                 aiEnemy.leaveLOS();
-                for (EnemyLeaveLOSListener listener : enemyLeaveLOSListeners) {
+                Collection<EnemyLeaveLOSListener> listenerc = new ArrayList(enemyLeaveLOSListeners);
+                for (EnemyLeaveLOSListener listener : listenerc) {
                     listener.enemyLeaveLOS(aiEnemy);
                 }
             }
@@ -297,7 +303,8 @@ public class Command implements AI {
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             debug("ai enemy is null " + (aiEnemy == null));
             aiEnemy.enterRadar();
-            for (EnemyEnterRadarListener listener : enemyEnterRadarListeners) {
+            Collection<EnemyEnterRadarListener> listenerc = new ArrayList(enemyEnterRadarListeners);
+            for (EnemyEnterRadarListener listener : listenerc) {
                 listener.enemyEnterRadar(aiEnemy);
             }
         } catch (Exception e) {
@@ -308,9 +315,9 @@ public class Command implements AI {
 
     public void enemyDiscovered(Enemy enemy) {
 
-           // debug("ai enemy is null " + (enemy == null));
+        // debug("ai enemy is null " + (enemy == null));
         enemies.put(enemy.getUnit().getUnitId(), enemy);
-        for (EnemyDiscoveredListener listener : enemyDiscoveredListeners) {
+        for (EnemyDiscoveredListener listener : new ArrayList<EnemyDiscoveredListener>(enemyDiscoveredListeners)) {
             listener.enemyDiscovered(enemy);
         }
     }
@@ -380,7 +387,11 @@ public class Command implements AI {
     @Override
     public int unitMoveFailed(Unit unit) {
         try {
-            units.get(unit.getUnitId()).pathFindingError();
+            if (units.containsKey(unit.getUnitId())) {
+                units.get(unit.getUnitId()).pathFindingError();
+            }else{
+                debug("avoided nullpointer exception in unit move failed");
+            }
         } catch (Exception e) {
             debug("Exception in unitMoveFailed: ", e);
         }
@@ -391,7 +402,7 @@ public class Command implements AI {
     public int unitIdle(Unit unit) {
         try {
             if (!units.containsKey(unit.getUnitId())) {
-                debug("IDLEBUG unknown unit " + unit.getUnitId());
+                debug("IDLEBUG Exception unknown unit " + unit.getUnitId());
                 return 0;
             }
             units.get(unit.getUnitId()).idle();
@@ -414,6 +425,13 @@ public class Command implements AI {
                 }
                 singleUpdateListeners.remove(singleUpdateListeners.firstKey());
             }
+            
+            //Check for forgotten units
+            if (frame % 242 == 0){
+                for (AIUnit u : units.values()){
+                    u.checkIdle();
+                }
+            }
         } catch (Exception e) {
             debug("Exception in update: ", e);
         }
@@ -433,7 +451,9 @@ public class Command implements AI {
     public int unitFinished(Unit unit) {
         try {
             debug("IDLEBUG finished " + unit.getUnitId());
-            if (startPos == null) startPos = unit.getPos();
+            if (startPos == null) {
+                startPos = unit.getPos();
+            }
             AIUnit aiunit;
             switch (unit.getDef().getName()) {
                 case "armcom1":
@@ -445,6 +465,7 @@ public class Command implements AI {
                     aiunit = facHandler.addUnit(unit);
                     break;
                 case "armpw":
+                case "armzeus":
                     aiunit = fighterHandler.addUnit(unit);
                     break;
                 default:
@@ -457,6 +478,8 @@ public class Command implements AI {
             for (UnitFinishedListener listener : unitFinishedListenersClone) {
                 listener.unitFinished(aiunit);
             }
+            debug("IDLEBUG calling idle after UnitFinished " + aiunit.getUnit().getUnitId());
+            units.get(unit.getUnitId()).idle();
         } catch (Exception e) {
             debug("Exception in unitFinished: ", e);
         }

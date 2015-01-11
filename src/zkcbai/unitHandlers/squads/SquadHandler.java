@@ -7,6 +7,7 @@ package zkcbai.unitHandlers.squads;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.Unit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -14,7 +15,10 @@ import java.util.List;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.unitHandlers.FighterHandler;
+import zkcbai.unitHandlers.UnitHandler;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.AIUnit.UnitType;
+import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.utility.Point;
 import zkcbai.utility.SmallestEnclosingCircle;
 
@@ -22,7 +26,7 @@ import zkcbai.utility.SmallestEnclosingCircle;
  *
  * @author User
  */
-public abstract class Squad {
+public abstract class SquadHandler extends UnitHandler{
     //not exactly a Task but really close
 
     Set<AIUnit> units = new HashSet();
@@ -30,7 +34,8 @@ public abstract class Squad {
     Command command;
     FighterHandler fighterHandler;
 
-    public Squad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
+    public SquadHandler(FighterHandler fighterHandler, Command command, OOAICallback callback) {
+        super(command, callback);
         this.command = command;
         this.clbk = callback;
         this.fighterHandler = fighterHandler;
@@ -56,6 +61,8 @@ public abstract class Squad {
     public float timeTo(AIUnit u) {
         return u.distanceTo(getPos()) / u.getUnit().getMaxSpeed();
     }
+    
+    public abstract UnitType getType();
 
     public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
@@ -65,14 +72,17 @@ public abstract class Squad {
 
     public void addUnit(AIUnit u) {
         units.add(u);
-        unitIdle(u);
+        u.assignAIUnitHandler(this);
     }
 
     public Collection<AIUnit> getUnits(){
         return new ArrayList(units);
     }
     
+    @Override
     public void removeUnit(AIUnit u) {
+        if (!units.contains(u)) return;
+        u.assignAIUnitHandler(fighterHandler);
         units.remove(u);
         if (units.isEmpty()) {
             fighterHandler.squadDestroyed(this);
@@ -99,6 +109,22 @@ public abstract class Squad {
 
     }
 
-    public abstract void unitIdle(AIUnit u);
+
+
+    @Override
+    public void unitDestroyed(AIUnit u) {
+        removeUnit(u);
+    }
+
+    @Override
+    public void unitDestroyed(Enemy e) {
+    }
+    
+    @Override
+    public AIUnit addUnit(Unit u) {
+        throw new RuntimeException("Tried to add a raw unit to a SquadHandler");
+    }
+
+
 
 }

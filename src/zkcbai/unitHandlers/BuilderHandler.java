@@ -5,6 +5,7 @@ import com.springrts.ai.oo.clb.Unit;
 import java.util.ArrayList;
 import java.util.List;
 import zkcbai.Command;
+import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -28,12 +29,11 @@ public class BuilderHandler extends UnitHandler {
     public AIUnit addUnit(Unit u) {
         AIUnit au = new AIUnit(u, this);
         aiunits.put(u.getUnitId(), au);
-        au.idle();
         return au;
     }
 
     @Override
-    public void unitIdle(AIUnit u) {
+    public void troopIdle(AIUnit u) {
     }
 
     @Override
@@ -61,6 +61,10 @@ public class BuilderHandler extends UnitHandler {
     @Override
     public void reportSpam() {
         throw new RuntimeException("I spammed MoveTasks!");
+    }
+
+    @Override
+    public void troopIdle(AISquad s) {
     }
 
 }

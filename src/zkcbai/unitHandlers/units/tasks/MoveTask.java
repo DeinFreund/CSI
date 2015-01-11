@@ -9,8 +9,7 @@ import com.springrts.ai.oo.AIFloat3;
 import java.util.Deque;
 import zkcbai.Command;
 import zkcbai.helpers.CostSupplier;
-import zkcbai.unitHandlers.units.AIUnit;
-import zkcbai.unitHandlers.units.Enemy;
+import zkcbai.unitHandlers.units.AITroop;
 
 /**
  *
@@ -21,7 +20,7 @@ public class MoveTask extends Task {
     private AIFloat3 target;
     private int errors = 0;
     private TaskIssuer issuer;
-    private AIUnit lastUnit;
+    private AITroop lastUnit;
     private int timeout;
     private Deque<AIFloat3> path;
     private CostSupplier costSupplier;
@@ -49,15 +48,15 @@ public class MoveTask extends Task {
         }
     }
 
-    public AIUnit getLastExecutingUnit() {
+    public AITroop getLastExecutingUnit() {
         return lastUnit;
     }
 
-    private void updatePath(AIUnit u) {
+    private void updatePath(AITroop u) {
         if (costSupplier == null) {
             costSupplier = u.getCommand().pathfinder.FAST_PATH;
         }
-        path = u.getCommand().pathfinder.findPath(u.getPos(), target, u.getUnit().getDef().getMoveData().getMaxSlope(), costSupplier);
+        path = u.getCommand().pathfinder.findPath(u.getPos(), target, u.getMaxSlope(), costSupplier);
         if (path.size() <= 1) {
             
             command.debug("path finder probably didnt find a path");
@@ -66,7 +65,7 @@ public class MoveTask extends Task {
     }
 
     @Override
-    public boolean execute(AIUnit u) {
+    public boolean execute(AITroop u) {
         
         command.areaManager.executedTask();
         if (command.areaManager.getExecutedTasks() > 100) {
@@ -89,12 +88,23 @@ public class MoveTask extends Task {
             issuer.finishedTask(this);
             return true;
         }
-        u.moveTo(path.getFirst(), (short) 0, u.getCommand().getCurrentFrame() + 20);
+        AIFloat3 first = new AIFloat3(path.pollFirst());
+        u.moveTo(first, (short) 0, u.getCommand().getCurrentFrame() + 20);
+        if (path.size() > 0 && distance(first, path.getFirst()) > 100){
+            u.moveTo(path.getFirst(), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 20);
+        }
+        path.addFirst(first);
         return false;
+    }
+    
+    private float distance(AIFloat3 a, AIFloat3 b){
+        AIFloat3 res = new AIFloat3(a);
+        res.sub(b);
+        return res.length();
     }
 
     @Override
-    public void pathFindingError(AIUnit u) {
+    public void pathFindingError(AITroop u) {
         command.debug("pathFindingError");
         errors++;
         target.x += Math.random() * 60 - 30;

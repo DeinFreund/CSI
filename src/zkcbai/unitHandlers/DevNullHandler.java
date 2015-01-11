@@ -11,6 +11,7 @@ import com.springrts.ai.oo.clb.Unit;
 import java.util.ArrayList;
 import java.util.List;
 import zkcbai.Command;
+import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -35,7 +36,7 @@ public class DevNullHandler extends UnitHandler{
     }
 
     @Override
-    public void unitIdle(AIUnit u) {
+    public void troopIdle(AIUnit u) {
         
     }
 
@@ -63,6 +64,10 @@ public class DevNullHandler extends UnitHandler{
     @Override
     public void reportSpam() {
         throw new RuntimeException("I spammed MoveTasks!");
+    }
+
+    @Override
+    public void troopIdle(AISquad s) {
     }
     
 }

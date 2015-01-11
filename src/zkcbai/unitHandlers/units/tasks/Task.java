@@ -5,7 +5,7 @@
  */
 package zkcbai.unitHandlers.units.tasks;
 
-import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.AITroop;
 
 /**
  *
@@ -13,9 +13,9 @@ import zkcbai.unitHandlers.units.AIUnit;
  */
 public abstract class Task {
 
-    public abstract boolean execute(AIUnit u);
+    public abstract boolean execute(AITroop u);
 
-    public abstract void pathFindingError(AIUnit u);
+    public abstract void pathFindingError(AITroop u);
 
     private String info = "";
 

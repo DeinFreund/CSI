@@ -5,10 +5,10 @@
  */
 package zkcbai.unitHandlers.units.tasks;
 
-import com.springrts.ai.oo.AIFloat3;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.helpers.CostSupplier;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 
@@ -43,7 +43,7 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
     }
 
     @Override
-    public boolean execute(AIUnit u) {
+    public boolean execute(AITroop u) {
         if (target == null || (u.getCommand().getCurrentFrame() >= timeout)) {
             issuer.finishedTask(this);
             command.removeUnitDestroyedListener(this);
@@ -54,7 +54,7 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
             issuer.abortedTask(this);
             return true;
         }
-        if (u.distanceTo(target.getPos()) > u.getUnit().getMaxRange() * 1.5) {
+        if (u.distanceTo(target.getPos()) > u.getMaxRange() * 1.5) {
             u.moveTo(target.getPos(), command.getCurrentFrame() + 80);
             return false;
         }/*
@@ -80,7 +80,7 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
     }
 
     @Override
-    public void pathFindingError(AIUnit u) {
+    public void pathFindingError(AITroop u) {
         command.debug("pathFindingError @AttackTask");
         errors++;
     }

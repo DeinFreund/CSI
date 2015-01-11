@@ -10,6 +10,7 @@ import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
+import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.AttackTask;
@@ -38,7 +39,6 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             com = new AIUnit(u, this);
             aiunits.put(u.getUnitId(), com);
             startPos = com.getPos();
-            com.idle();
             return com;
         } else {
             throw new UnsupportedOperationException("Assigned more than one com to CommanderHandler");
@@ -46,7 +46,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
     }
 
     @Override
-    public void unitIdle(AIUnit u) {
+    public void troopIdle(AIUnit u) {
         command.debug("Commander is idle");
         if (!plopped) {
             com.assignTask(new BuildTask(command.getFactoryHandler().getNextFac(), com.getPos(), this, clbk, command).setInfo("plop"));
@@ -94,6 +94,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             case "mex":
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win3"));
                 break;
+            default:
             case "win3":
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win4"));
                 break;
@@ -139,6 +140,10 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             com.queueTask(lastBuildTask);
         }
         command.addSingleUpdateListener(this, frame + 40);
+    }
+
+    @Override
+    public void troopIdle(AISquad s) {
     }
 
 }

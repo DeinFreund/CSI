@@ -15,6 +15,7 @@ import zkcbai.Command;
 import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.FighterHandler;
+import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.AttackTask;
@@ -27,15 +28,17 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
  *
  * @author User
  */
-public class RaiderSquad extends Squad implements TaskIssuer {
+public class RaiderSquad extends SquadHandler implements TaskIssuer {
 
-    private static final int maxDist = 150;
-    private static final int maxCombatDist = 350;
+    private static final int maxDist = 200;
+    private static final int maxCombatDist = 400;
+    private static final int maxWaitTime = 300;
 
     private AIFloat3 target;
-    private Group group;
+    private AISquad squad;
     private Collection<UnitDef> cheapDefenseTowers;
     private Collection<UnitDef> unimportantUnits;
+    private int notAccessibleSince = -1;
 
     public RaiderSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, AIFloat3 target) {
         super(fighterHandler, command, callback);
@@ -43,7 +46,7 @@ public class RaiderSquad extends Squad implements TaskIssuer {
 
         this.cheapDefenseTowers = new HashSet();
         this.unimportantUnits = new HashSet();
-        group = clbk.getGroups().get(0);
+        squad = new AISquad(this);
 
         String[] cheapDefenseTowers = new String[]{"corrl", "corllt"};
         String[] unimportantUnits = new String[]{"armsolar"};
@@ -59,9 +62,20 @@ public class RaiderSquad extends Squad implements TaskIssuer {
     @Override
     public void addUnit(AIUnit u) {
         super.addUnit(u);
-        u.addToGroup(group);
+        squad.addUnit(u);
+    }
+    
+    @Override
+    public void removeUnit(AIUnit u){
+        super.removeUnit(u);
+        squad.removeUnit(u, fighterHandler);
     }
 
+    @Override
+    public AIFloat3 getPos(){
+        return squad.getPos();
+    }
+    
     private AIUnit getUnit() {
         for (AIUnit au : units) {
             return au;
@@ -75,7 +89,7 @@ public class RaiderSquad extends Squad implements TaskIssuer {
     }
 
     @Override
-    public void unitIdle(final AIUnit u) {
+    public void troopIdle(final AISquad u) {
 
         AreaChecker RAIDER_ACCESSIBLE_DISTANT = new AreaChecker() {
             @Override
@@ -84,10 +98,17 @@ public class RaiderSquad extends Squad implements TaskIssuer {
             }
         };
 
-        if (target == null) {
+        if (target == null ||(notAccessibleSince > 0 && command.getCurrentFrame() - notAccessibleSince > maxWaitTime)) {
             target = fighterHandler.requestNewTarget(this);
         }
-
+    
+        if (notAccessibleSince < 0 && !command.defenseManager.isRaiderAccessible(this.target)){
+            notAccessibleSince = command.getCurrentFrame();
+        }
+        if (notAccessibleSince > 0 && command.defenseManager.isRaiderAccessible(this.target)){
+            notAccessibleSince = -1;
+        }
+        
         AIFloat3 target = command.areaManager.getArea(this.target).getNearestArea(command.areaManager.RAIDER_ACCESSIBLE).getPos();
         //tactical field hiding
 
@@ -103,15 +124,13 @@ public class RaiderSquad extends Squad implements TaskIssuer {
 
         //GATHER
         AIFloat3 fpos = getPos();
-        if (((u.distanceTo(fpos) > maxDist && enemies.isEmpty()) || (u.distanceTo(fpos) > maxCombatDist)) && isWinPossible(fpos)
+        if (((squad.getRadius() > maxDist && enemies.isEmpty()) || (squad.getRadius() > maxCombatDist)) && isWinPossible(fpos)
                 && command.defenseManager.isRaiderAccessible(fpos) && command.pathfinder.findPath(u.getPos(), fpos,
-                        u.getUnit().getDef().getMoveData().getMaxSlope(), command.pathfinder.RAIDER_PATH).size() > 1) {
-            for (AIUnit au : units) {
-                //command.mark(au.getPos(), "gather");
-                au.assignTask(new MoveTask(fpos, command.getCurrentFrame() + 40, this, command.pathfinder.RAIDER_PATH, command));
-                au.getUnit().wait(AIUnit.OPTION_SHIFT_KEY, Integer.MAX_VALUE);
+                        u.getMaxSlope(), command.pathfinder.RAIDER_PATH).size() > 1) {
+                u.assignTask(new MoveTask(fpos, command.getCurrentFrame() + 40, this, command.pathfinder.RAIDER_PATH, command));
+                
 
-            }
+            
             return;
         }
 
@@ -128,9 +147,7 @@ public class RaiderSquad extends Squad implements TaskIssuer {
             }
         }
         if (best != null) {
-            for (AIUnit au : units) {
-                au.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
-            }
+                u.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
             return;
         }
 
@@ -144,9 +161,7 @@ public class RaiderSquad extends Squad implements TaskIssuer {
             }
         }
         if (best != null) {
-            for (AIUnit au : units) {
-                au.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
-            }
+                u.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
             return;
 
         }
@@ -161,18 +176,15 @@ public class RaiderSquad extends Squad implements TaskIssuer {
             }
         }
         if (best != null) {
-            for (AIUnit au : units) {
-                au.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
-            }
+                u.assignTask(new AttackTask(best, command.getCurrentFrame() + 40, this, command));
             return;
         }
 
         //KILL OTHER ENEMIES
         for (Enemy e : enemies) {
             if (command.defenseManager.isRaiderAccessible(e.getPos()) && isWinPossible(e.getPos())) {
-                for (AIUnit au : units) {
-                    au.assignTask(new FightTask(e.getPos(), command.getCurrentFrame() + 35, this));
-                }
+                    u.assignTask(new FightTask(e.getPos(), command.getCurrentFrame() + 35, this));
+                
                 return;
             }
         }
@@ -190,11 +202,11 @@ public class RaiderSquad extends Squad implements TaskIssuer {
         }
 
         if (u.distanceTo(target) < 100 //checks if target is unreachable
-                || command.pathfinder.findPath(u.getPos(), target, u.getUnit().getDef().getMoveData().getMaxSlope(),
+                || command.pathfinder.findPath(u.getPos(), target, u.getMaxSlope(),
                         command.pathfinder.RAIDER_PATH).size() <= 1) {
 
-            target = fighterHandler.requestNewTarget(this);
-            command.mark(target, "new target");
+            this.target = fighterHandler.requestNewTarget(this);
+            //command.mark(target, "new target");
             u.assignTask(new FightTask(target, command.getCurrentFrame() + 20, this));
             return;
         }
@@ -215,6 +227,17 @@ public class RaiderSquad extends Squad implements TaskIssuer {
     @Override
     public void reportSpam() {
         throw new RuntimeException("I spammed MoveTasks!");
+    }
+
+    @Override
+    public void troopIdle(AIUnit u) {
+        throw new RuntimeException("Wrong troopIdle called on RaiderSquad");
+    }
+
+
+    @Override
+    public AIUnit.UnitType getType() {
+        return AIUnit.UnitType.raider;
     }
 
 }
