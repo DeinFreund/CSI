@@ -7,6 +7,7 @@ package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
 import java.util.Deque;
+import java.util.Random;
 import zkcbai.Command;
 import zkcbai.helpers.CostSupplier;
 import zkcbai.unitHandlers.units.AITroop;
@@ -27,6 +28,7 @@ public class MoveTask extends Task {
     private int lastPath = -1000;
     private int repathTime = 90;
     private Command command;
+    private static Random rnd = new Random();
 
     public MoveTask(AIFloat3 target, TaskIssuer issuer, Command cmd) {
         this(target, Integer.MAX_VALUE, issuer, cmd);
@@ -88,13 +90,18 @@ public class MoveTask extends Task {
             issuer.finishedTask(this);
             return true;
         }
-        AIFloat3 first = new AIFloat3(path.pollFirst());
-        u.moveTo(first, (short) 0, u.getCommand().getCurrentFrame() + 20);
+        AIFloat3 first = (path.pollFirst());
+        
+        u.moveTo(randomize(first,100), (short) 0, u.getCommand().getCurrentFrame() + 20);
         if (path.size() > 0 && distance(first, path.getFirst()) > 100){
-            u.moveTo(path.getFirst(), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 20);
+            u.moveTo(randomize(path.getFirst(),100), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 20);
         }
         path.addFirst(first);
         return false;
+    }
+    
+    private AIFloat3 randomize(AIFloat3 f, float amt){
+        return new AIFloat3(f.x+rnd.nextFloat()*amt-amt/2,f.y+rnd.nextFloat()*amt-amt/2,f.z+rnd.nextFloat()*amt-amt/2);
     }
     
     private float distance(AIFloat3 a, AIFloat3 b){
@@ -104,8 +111,8 @@ public class MoveTask extends Task {
     }
 
     @Override
-    public void pathFindingError(AITroop u) {
-        command.debug("pathFindingError");
+    public void moveFailed(AITroop u) {
+        command.debug("move Failed");
         errors++;
         target.x += Math.random() * 60 - 30;
         target.z += Math.random() * 60 - 30;

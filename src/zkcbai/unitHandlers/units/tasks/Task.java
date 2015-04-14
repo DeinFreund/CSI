@@ -15,7 +15,7 @@ public abstract class Task {
 
     public abstract boolean execute(AITroop u);
 
-    public abstract void pathFindingError(AITroop u);
+    public abstract void moveFailed(AITroop u);
 
     private String info = "";
 

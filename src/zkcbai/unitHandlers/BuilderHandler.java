@@ -50,12 +50,12 @@ public class BuilderHandler extends UnitHandler {
     }
 
     @Override
-    public void unitDestroyed(AIUnit u) {
+    public void unitDestroyed(AIUnit u, Enemy e) {
         removeUnit(u);
     }
 
     @Override
-    public void unitDestroyed(Enemy e) {
+    public void unitDestroyed(Enemy e, AIUnit killer) {
     }
 
     @Override

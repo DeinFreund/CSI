@@ -12,7 +12,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.UpdateListener;
 import zkcbai.utility.Point;
@@ -93,6 +95,26 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         AIFloat3 pos = new AIFloat3((float) p.x, 0, (float) p.y);
         pos.y = handler.getCommand().getCallback().getMap().getElevationAt(pos.x, pos.z);
         return pos;
+    }
+    
+    @Override
+    public UnitDef getDef(){
+        Map<UnitDef, Integer> cnt = new TreeMap();
+        for (AIUnit u : units){
+            if (!cnt.containsKey(u.getDef())) cnt.put(u.getDef(), 0);
+            cnt.put(u.getDef(), cnt.get(u.getDef()) + 1);
+        }
+        
+        int max = -1;
+        UnitDef res = null;
+        for (Map.Entry<UnitDef, Integer> e :  cnt.entrySet()){
+            if (e.getValue() > max){
+                max = e.getValue();
+                res = e.getKey();
+            }
+        }
+        if (res == null) throw new RuntimeException("Empty Squad -> no UnitDef");
+        return res;
     }
 
     @Override
@@ -212,6 +234,16 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             }
         }
     }
+    
+    @Override
+    public void setTarget(int targetUnitId) {
+        
+        areaManager.executedCommand();
+        for (AIUnit u : units) {
+            u.setTarget(targetUnitId);
+        }
+    }
+
 
     @Override
     public void troopIdle(AITroop u) {
@@ -233,12 +265,12 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     }
 
     @Override
-    public void unitDestroyed(AIUnit u) {
+    public void unitDestroyed(AIUnit u, Enemy e) {
         removeUnit(u, null);
     }
 
     @Override
-    public void unitDestroyed(Enemy e) {
+    public void unitDestroyed(Enemy e, AIUnit killer) {
     }
 
 }

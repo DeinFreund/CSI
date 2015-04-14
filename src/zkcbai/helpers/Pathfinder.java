@@ -7,6 +7,7 @@ package zkcbai.helpers;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.UnitDef;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.Enemy;
 
 /**
  *
@@ -135,8 +137,10 @@ public class Pathfinder extends Helper {
 
             do {
                 if (pq.isEmpty()) {
-                    //command.mark(target,"pathfinder didn't find target");
-                    result.add(target);
+                    command.debug("pathfinder didn't find path");
+                    /*clbk.getMap().getDrawer().addPoint(start, "start");
+                    clbk.getMap().getDrawer().addPoint(target, "target");
+                    clbk.getMap().getDrawer().addLine(start, target );*/
                     return result;
                 }
                 pos = pq.peek().pos;
@@ -195,7 +199,7 @@ public class Pathfinder extends Helper {
         if (slope > maxSlope) {
             return Float.MAX_VALUE;
         }
-        return 10 * slope / maxSlope + 1;
+        return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1000): (0))) + 1;
     }
 
     /**
@@ -208,7 +212,7 @@ public class Pathfinder extends Helper {
             if (slope > maxSlope) {
                 return Float.MAX_VALUE;
             }
-            return 10 * slope / maxSlope + 1;
+            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1000): (0))) + 1;
         }
     };
     /**
@@ -221,7 +225,7 @@ public class Pathfinder extends Helper {
             if (slope > maxSlope) {
                 return Float.MAX_VALUE;
             }
-            return 10 * slope / maxSlope + 200 * command.defenseManager.getRaiderAccessibilityCost(pos) + 1;
+            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1000): (0))) + 200 * command.defenseManager.getRaiderAccessibilityCost(pos) + 1;
         }
     };
     /**
@@ -234,7 +238,7 @@ public class Pathfinder extends Helper {
             if (slope > maxSlope) {
                 return Float.MAX_VALUE;
             }
-            return 10 * slope / maxSlope + 200 * command.defenseManager.getAssaultAccessibilityCost(pos) + 1;
+            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1000): (0))) + 200 * command.defenseManager.getAssaultAccessibilityCost(pos) + 1;
         }
     };
     /**
@@ -247,7 +251,7 @@ public class Pathfinder extends Helper {
             if (slope > maxSlope) {
                 return Float.MAX_VALUE;
             }
-            return 10 * slope / maxSlope + 0.04f * command.defenseManager.getGeneralDanger(pos) + 1;
+            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1000): (0))) + 0.04f * command.defenseManager.getGeneralDanger(pos) + 1;
         }
     };
 
@@ -336,11 +340,15 @@ public class Pathfinder extends Helper {
         float cost;
 
         while (true) {
-            if (pq.isEmpty()) {
-                command.debug("pathfinder didn't find target");
-                return new ArrayList();
-            }
+            
             do {
+                if (pq.isEmpty()) {
+                    command.debug("pathfinder didn't find path");
+                    /*clbk.getMap().getDrawer().addPoint(start, "start");
+                    clbk.getMap().getDrawer().addPoint(target, "target");
+                    clbk.getMap().getDrawer().addLine(start, target );*/
+                    return new ArrayList();
+                }
                 pos = pq.peek().pos;
                 cost = pq.poll().realCost;
             } while (cost > minCost[pos]);
@@ -379,5 +387,7 @@ public class Pathfinder extends Helper {
         return result;
 
     }
+    
+    
 
 }

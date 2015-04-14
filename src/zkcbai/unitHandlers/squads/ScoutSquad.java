@@ -48,7 +48,7 @@ public class ScoutSquad extends SquadHandler implements TaskIssuer {
         int i = 0;
         do {
             i++;
-            if (i > 10){
+            if (i > 15){
                 command.debug("WARNING: No target for scout.");
                 u.assignTask(new FightTask(u.getPos(), command.getCurrentFrame() + 30, this));
                 return;

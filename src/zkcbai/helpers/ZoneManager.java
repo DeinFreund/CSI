@@ -14,13 +14,16 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.BuildTask;
@@ -33,6 +36,7 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
 public class ZoneManager extends Helper implements UnitDestroyedListener {
 
     private Area[][] map;
+    private List<Area> areas;//for simplified iterating
 
     private JFrame frm;
     private JPanel pnl;
@@ -41,6 +45,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
     private final int mwidth;
     private final int mheight;
+
+    private Set<AreaZoneChangeListener> zoneChangeListeners = new HashSet();
 
     public enum Zone {
 
@@ -102,9 +108,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         mwidth = clbk.getMap().getWidth() * 8;
         mheight = clbk.getMap().getHeight() * 8;
         map = new Area[50][50];
+        areas = new ArrayList();
         for (int x = 0; x < map.length; x++) {
             for (int y = 0; y < map[x].length; y++) {
                 map[x][y] = new Area(x, y);
+                areas.add(map[x][y]);
             }
         }
         mexes = new ArrayList();
@@ -116,6 +124,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         frm.add(pnl);
         frm.setVisible(true);
         frm.setSize(500, 500 * clbk.getMap().getHeight() / clbk.getMap().getWidth());
+    }
+
+    public void addAreaZoneChangeListener(AreaZoneChangeListener listener) {
+        zoneChangeListeners.add(listener);
+    }
+
+    public void removeAreaZoneChangeListener(AreaZoneChangeListener listener) {
+        zoneChangeListeners.remove(listener);
     }
 
     //code by Anarchid: https://github.com/Anarchid/zkgbai/blob/master/src/zkgbai/ZKGraphBasedAI.java
@@ -200,6 +216,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         return best;
     }
 
+    public final List<Area> getAreas(){
+        return areas;
+    }
+    
     public Area getArea(AIFloat3 pos) {
         return map[map.length * (int) pos.x / mwidth][map[0].length * (int) pos.z / mheight];
     }
@@ -219,12 +239,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     }
 
     @Override
-    public void unitDestroyed(AIUnit u) {
+    public void unitDestroyed(AIUnit u, Enemy e) {
 
     }
 
     @Override
-    public void unitDestroyed(Enemy e) {
+    public void unitDestroyed(Enemy e, AIUnit killer) {
         if (e.getDef().getName().equals("cormex")) {
             for (Mex m : mexes) {
                 m.removeEnemyMex(e);
@@ -264,6 +284,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             this.pos.y = clbk.getMap().getElevationAt(pos.x, pos.z);
         }
 
+        public boolean equals(Area a){
+            return x == a.x && y == a.y;
+        }
+        
         private void setOwner(Owner o) {
             owner = o;
         }
@@ -274,8 +298,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             float h, maxh = 0;
             Area best = null;
 
-            for (int x = this.x - rw; x <= this.x + rw; x++) {
-                for (int y = this.y - rh; y <= this.y + rh; y++) {
+            for (int x = Math.max(0,this.x - rw); x <= Math.min(map.length-1,this.x + rw); x++) {
+                for (int y = Math.max(0,this.y - rh); y <= Math.min(map[0].length-1,this.y + rh); y++) {
                     h = clbk.getMap().getElevationAt(map[x][y].getPos().x, map[x][y].getPos().z);
                     if (h > maxh && clbk.getMap().isPossibleToBuildAt(building, map[x][y].getPos(), 0)) {
                         maxh = h;
@@ -321,6 +345,50 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public boolean isVisible() {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
         }
+        
+        List<Enemy> enemies;
+        
+        public final List<Enemy> getEnemies(){
+            return enemies;
+        }
+        
+        int lastDangerCache = -100;
+        float dangerCache = 0;
+        
+        public float getDanger(){
+            if (command.getCurrentFrame() - lastDangerCache > 60){
+                enemies = new ArrayList();
+                lastDangerCache = command.getCurrentFrame();
+                dangerCache = 0;
+                for (Enemy e : command.getEnemyUnits(false)){
+                    float speed =  3*Math.max(30,e.getDef().getSpeed());
+                    dangerCache += e.getDPS() * e.getHealth() /speed / Math.sqrt(2*Math.PI)
+                            * Math.exp(-e.distanceTo(pos)*e.distanceTo(pos)/(speed*speed) );
+                    if (getArea(e.getPos()).equals(this)){
+                        enemies.add(e);
+                    }
+                }
+            }
+            return dangerCache;
+        }
+        
+        int lastValueCache = -100;
+        float valueCache = 0;
+        
+        public float getValue(){
+            if (command.getCurrentFrame() - lastValueCache > 60){
+                lastValueCache = command.getCurrentFrame();
+                valueCache = 0;
+                for (AIUnit u : command.getUnits()){
+                    float speed =  8*Math.max(40,u.getUnit().getDef().getSpeed());
+                    float val = u.getUnit().getDef().getCost(command.metal);
+                    float dist = Math.max(0,u.distanceTo(pos));
+                    valueCache +=  val/speed / Math.sqrt(2*Math.PI)
+                            * Math.exp(-dist*dist/(speed*speed) );
+                }
+            }
+            return valueCache;
+        }
 
         public AIFloat3 getPos() {
             return new AIFloat3(pos);
@@ -328,7 +396,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         public Zone getZone() {
             if (command.getCurrentFrame() - lastCache > 60) {
+                Zone old = zoneCache;
                 zoneCache = _getZone();
+                if (old != zoneCache) 
+                    for (AreaZoneChangeListener listener : zoneChangeListeners){
+                        listener.areaZoneChange(this, old, zoneCache);
+                    }
                 lastCache = command.getCurrentFrame();
             }
             return zoneCache;
@@ -343,7 +416,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             if (command.defenseManager.isFortified(pos, Math.max(mwidth / map.length, mheight / map[0].length) / 2f)) {
                 return Zone.fortified;
             }
-            if (command.defenseManager.getDanger(pos, Math.max(mwidth / map.length, mheight / map[0].length) / 2f) > 0) {
+            if (command.defenseManager.getDanger(pos, Math.max(mwidth / map.length, mheight / map[0].length) / 2f + 50) > 0) {
                 return Zone.hostile;
             }
             return Zone.neutral;
@@ -407,12 +480,20 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         protected void paintComponent(Graphics g) {
 
             float[][] val = new float[getWidth()][getHeight()];
-            float min = Float.MAX_VALUE;
-            float max = Float.MIN_VALUE;
 
             float w = getWidth() / (float) map.length;
             float h = getHeight() / (float) map[0].length;
 
+            float maxDanger = Float.MIN_VALUE;
+            float maxValue = Float.MIN_VALUE;
+            float maxImportance = Float.MIN_VALUE;
+            for (int x = 0; x < map.length; x++) {
+                for (int y = 0; y < map[x].length; y++) {
+                    maxDanger = Math.max(maxDanger,map[x][y].getDanger());
+                    maxValue = Math.max(maxValue,map[x][y].getValue());
+                    maxImportance = Math.max(maxImportance,map[x][y].getValue()*map[x][y].getDanger());
+                }
+            }
             for (int x = 0; x < map.length; x++) {
                 for (int y = 0; y < map[x].length; y++) {
                     Color stringcol = Color.black;
@@ -423,11 +504,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                             stringcol = Color.white;
                             break;
                         case hostile:
-                            g.setColor(new Color(255, 0, 0));
+                            g.setColor(new Color(100, 100, 100));
                             stringcol = Color.white;
                             break;
                         case fortified:
-                            g.setColor(new Color(100, 0, 0));
+                            g.setColor(new Color(50, 50, 50));
                             stringcol = Color.white;
                             break;
                         case front:
@@ -439,7 +520,18 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                             stringcol = Color.white;
                             break;
                     }
-                    g.fillRect((int) Math.round(x * w), (int) Math.round(y * h), (int) Math.round(w), (int) Math.round(h));
+                    if (!command.losManager.isInLos(map[x][y].getPos())) {
+                        g.setColor(g.getColor().darker());
+                        if (!command.radarManager.isInRadar(map[x][y].getPos())) g.setColor(g.getColor().darker());
+                    }
+                    float[] hsb = new float[3];
+                    Color.RGBtoHSB(g.getColor().getRed(), g.getColor().getGreen(), g.getColor().getBlue(),hsb );
+                    float danger = map[x][y].getDanger() / maxDanger;
+                    float value = map[x][y].getValue() / maxValue;
+                    hsb[0] = 0;
+                    hsb[1] = map[x][y].getDanger()*map[x][y].getValue()/maxImportance;
+                    g.setColor(new Color(Color.HSBtoRGB(hsb[0], hsb[1], hsb[2])));
+                    g.fillRect((int) Math.round(x * w), (int) Math.round(y * h), (int)w+1, (int) h+1);
                     //g.setColor(Color.darkGray);
                     //g.drawRect((int)Math.round(x * w), (int)Math.round(y * h), (int)Math.round(w), (int)Math.round(h));
                     g.setColor(stringcol);

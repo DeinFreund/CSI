@@ -57,10 +57,10 @@ public class FightTask extends Task {
     }
 
     @Override
-    public void pathFindingError(AITroop u) {
+    public void moveFailed(AITroop u) {
         errors++;
-        target.x += Math.random() * 60 - 30;
-        target.z += Math.random() * 60 - 30;
+        target.x += Math.random() * 200 - 100;
+        target.z += Math.random() * 200 - 100;
     }
 
     @Override

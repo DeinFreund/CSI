@@ -156,11 +156,11 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     }
 
     @Override
-    public void unitDestroyed(AIUnit u) {
+    public void unitDestroyed(AIUnit u, Enemy e) {
     }
 
     @Override
-    public void unitDestroyed(Enemy e) {
+    public void unitDestroyed(Enemy e, AIUnit killer) {
         defenses.remove(e);
         riots.remove(e);
         fighters.remove(e);

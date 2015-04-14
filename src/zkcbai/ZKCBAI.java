@@ -21,6 +21,7 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI{
     
     @Override
     public int init(int teamId, OOAICallback callback) {
+        callback.getGame().sendTextMessage("ZKCBAI initializing...", 0);
         ai = new Command(teamId, callback);
         return 0;
     }

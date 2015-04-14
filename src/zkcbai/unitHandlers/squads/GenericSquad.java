@@ -28,7 +28,7 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
  *
  * @author User
  */
-public class RaiderSquad extends SquadHandler implements TaskIssuer {
+public class GenericSquad extends SquadHandler implements TaskIssuer {
 
     private static final int maxDist = 200;
     private static final int maxCombatDist = 400;
@@ -40,7 +40,7 @@ public class RaiderSquad extends SquadHandler implements TaskIssuer {
     private Collection<UnitDef> unimportantUnits;
     private int notAccessibleSince = -1;
 
-    public RaiderSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, AIFloat3 target) {
+    public GenericSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, AIFloat3 target) {
         super(fighterHandler, command, callback);
         this.target = target;
 
@@ -75,6 +75,7 @@ public class RaiderSquad extends SquadHandler implements TaskIssuer {
     public AIFloat3 getPos(){
         return squad.getPos();
     }
+    
     
     private AIUnit getUnit() {
         for (AIUnit au : units) {

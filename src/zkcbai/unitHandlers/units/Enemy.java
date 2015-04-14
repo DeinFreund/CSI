@@ -9,6 +9,7 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import com.springrts.ai.oo.clb.WeaponDef;
 import com.springrts.ai.oo.clb.WeaponMount;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
@@ -21,10 +22,10 @@ import zkcbai.helpers.ZoneManager;
  */
 public class Enemy implements UpdateListener {
 
-    private Unit unit;
-    private int unitId;
-    private OOAICallback clbk;
-    private Command command;
+    private final Unit unit;
+    private final int unitId;
+    private final OOAICallback clbk;
+    private final Command command;
     private UnitDef unitDef;
     private boolean neverSeen = true;
     private float maxVelocity = 0.5f;
@@ -66,9 +67,28 @@ public class Enemy implements UpdateListener {
         if (unitDef == null ) identify();
         return unitDef;
     }
+    
+    public float getHealth(){
+        return unit.getHealth() > 0 ? unit.getHealth() : getDef().getHealth();
+    }
+    
+    public float getDPS(){
+        float dps = 0;
+        for (WeaponMount wm : getDef().getWeaponMounts()) {
+            for (Float f : wm.getWeaponDef().getDamage().getTypes()) {
+                dps += f / wm.getWeaponDef().getReload();
+            }
+        }
+        return dps;
+    }
+    
 
     public Unit getUnit() {
         return unit;
+    }
+    
+    public int getUnitId() {
+        return unitId;
     }
 
     public float getMaxRange() {
@@ -102,6 +122,10 @@ public class Enemy implements UpdateListener {
     public int timeSinceLastSeen(){
         if (isBuilding) return 0;
         return command.getCurrentFrame() - lastSeen;
+    }
+    
+    public boolean isTimedOut(){
+        return timeSinceLastSeen() > 900 * 100 / Math.max(getDef().getSpeed(),0.1);
     }
 
     @Override

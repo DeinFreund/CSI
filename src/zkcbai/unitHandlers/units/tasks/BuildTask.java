@@ -43,6 +43,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     }
 
     public BuildTask(UnitDef building, AIFloat3 pos, int facing, TaskIssuer issuer, OOAICallback clbk, Command command){
+        //command.mark(pos, building.getHumanName() +  clbk.getMap().isPossibleToBuildAt(building, pos, facing));
         this.building = building;
         this.pos = pos;
         this.facing = facing;
@@ -60,7 +61,9 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             return true;
         }
         if (result != null) return true;
-        if (building.getSpeed() <= 0 && !clbk.getMap().isPossibleToBuildAt(building, pos, facing)){
+        
+        if (building.getSpeed() <= 0 && !clbk.getMap().isPossibleToBuildAt(building,pos, facing)){
+            
             issuer.abortedTask(this);
             command.removeUnitFinishedListener(this);
             List<AIUnit> auc = new ArrayList();
@@ -72,6 +75,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             return true;
         }
         if (!assignedUnits.contains(u))assignedUnits.add(u);
+        
         if (u.distanceTo(pos)> 440){
             AIFloat3 trg = new AIFloat3();
             trg.interpolate( pos,u.getPos(),100f/u.distanceTo(pos));
@@ -80,14 +84,16 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             u.queueTask(this);
             return false;
         }
+        
         u.build(building, facing, pos, (short)0, Integer.MAX_VALUE);
+        
         return false;
     }
 
     int errors = 0;
     
     @Override
-    public void pathFindingError(AITroop u) {
+    public void moveFailed(AITroop u) {
         errors ++;
     }
 
@@ -112,8 +118,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     @Override
     public void unitFinished(AIUnit u) {
         //command.mark(u.getPos(), u.getUnit().getDef().getHumanName() + " finished");
-        if (u.getUnit().getDef().equals(building) && u.distanceTo(pos)<20){
-            //command.mark(pos, "task finished");
+        if (u.getUnit().getDef().equals(building) && u.distanceTo(pos)<50){
+        //    command.mark(pos, "task finished");
             issuer.finishedTask(this);
             result = u;
             command.removeUnitFinishedListener(this);

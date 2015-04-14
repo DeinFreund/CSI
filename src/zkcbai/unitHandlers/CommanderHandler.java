@@ -49,7 +49,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
     public void troopIdle(AIUnit u) {
         command.debug("Commander is idle");
         if (!plopped) {
-            com.assignTask(new BuildTask(command.getFactoryHandler().getNextFac(), com.getPos(), this, clbk, command).setInfo("plop"));
+            com.assignTask(new BuildTask(command.getFactoryHandler().getNextFac(),com.getPos(), this, clbk, command,0).setInfo("plop"));
 
             lastBuildTask = com.getTask();
         } else {
@@ -112,7 +112,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
     }
 
     @Override
-    public void unitDestroyed(Enemy e) {
+    public void unitDestroyed(Enemy e, AIUnit killer) {
     }
 
     @Override

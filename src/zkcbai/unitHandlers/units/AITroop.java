@@ -42,6 +42,8 @@ public abstract class AITroop {
     public abstract AIFloat3 getPos();
     
     public abstract void idle();
+    
+    public abstract UnitDef getDef();
 
     public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
@@ -73,6 +75,7 @@ public abstract class AITroop {
     private int thisFrame = 0;
 
     protected void doTask() {
+        
         if (getCommand().getCurrentFrame() != thisFrame) {
             tasksThisFrame = 0;
             thisFrame = getCommand().getCurrentFrame();
@@ -92,6 +95,7 @@ public abstract class AITroop {
                 handler.troopIdle(this);
             }
         }
+        
     }
 
     public AITroop(AIUnitHandler handler) {
@@ -136,4 +140,7 @@ public abstract class AITroop {
     public abstract void attack(Unit trg, short options, int timeout);
 
     public abstract void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout);
+    
+    
+    public abstract void setTarget(int targetUnitId);
 }

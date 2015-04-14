@@ -9,6 +9,8 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.Group;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import java.util.ArrayList;
+import java.util.List;
 import zkcbai.UpdateListener;
 
 /**
@@ -37,6 +39,11 @@ public class AIUnit extends AITroop implements UpdateListener {
     public enum UnitType {
 
         raider, assault;
+    }
+    
+    @Override
+    public UnitDef getDef(){
+        return unit.getDef();
     }
 
     public UnitType getType() {
@@ -85,13 +92,21 @@ public class AIUnit extends AITroop implements UpdateListener {
         doTask();
     }
 
-    public void pathFindingError() {
+    public void moveFailed() {
         if (task != null) {
-            task.pathFindingError(this);
+            task.moveFailed(this);
         } else {
-            handler.getCommand().debug("Warning: pathFindingError");
+            handler.getCommand().debug("Warning: move failed");
             //unit.wait(OPTION_NONE, Integer.MAX_VALUE);
         }
+    }
+    
+    public float getEfficiencyAgainst(Enemy e){
+        return getEfficiencyAgainst(e.getDef());
+    }
+    
+    public float getEfficiencyAgainst(UnitDef ud){
+        return handler.getCommand().killCounter.getEfficiency(unit.getDef(),ud);
     }
 
     @Override
@@ -204,6 +219,13 @@ public class AIUnit extends AITroop implements UpdateListener {
                 wakeUpFrame = timeout;
             }
         }
+    }
+    
+    @Override
+    public void setTarget(int targetUnitId){
+        List<Float> list = new ArrayList();
+        list.add((float)targetUnitId);
+        unit.executeCustomCommand( 34923, list , OPTION_NONE, lastIdle);
     }
 
     @Override

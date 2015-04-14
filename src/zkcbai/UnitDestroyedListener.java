@@ -15,7 +15,7 @@ import zkcbai.unitHandlers.units.Enemy;
  */
 public interface UnitDestroyedListener {
     
-    public void unitDestroyed(AIUnit u);
+    public void unitDestroyed(AIUnit u, Enemy killer);
     
-    public void unitDestroyed(Enemy e);
+    public void unitDestroyed(Enemy e, AIUnit killer);
 }

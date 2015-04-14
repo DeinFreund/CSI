@@ -46,15 +46,39 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void troopIdle(AIUnit u) {  
-        switch (u.getUnit().getDef().getName()) {
-            case "factorycloak":
-                if (assaultRequests > 0) {
-                    u.assignTask(new BuildTask(clbk.getUnitDefByName("armzeus"), u.getPos(), 0, this, clbk, command));
-                } else {
-                    u.assignTask(new BuildTask(clbk.getUnitDefByName("armpw"), u.getPos(), 0, this, clbk, command));
-                }
-                break;
+        Enemy worst = null;
+        float mi = Float.MAX_VALUE;
+        for (Enemy e : command.getEnemyUnits(false)){
+            float counter = 0;
+            for (AIUnit au : command.getFighterHandler().getFighters()){
+                counter += au.getEfficiencyAgainst(e)*au.getUnit().getDef().getCost(command.metal);
+            }
+            counter /= e.getDef().getCost(command.metal);
+            if (counter < mi){
+                mi = counter;
+                worst = e;
+            }
         }
+        if (worst != null){
+            command.debug("Worst enemy is " + worst.getDef().getHumanName());
+        }else{
+            command.debug("No enemies found yet");
+        }
+        UnitDef best = null;
+        for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
+            if (ud.isAbleToRepair()) continue;
+            if (best == null
+                    || (worst != null && command.killCounter.getEfficiency(ud, worst.getDef()) > command.killCounter.getEfficiency(best, worst.getDef()))
+                    || (worst == null && ud.getCost(command.metal) < best.getCost(command.metal))) {
+                
+                best = ud;
+            }
+        }
+        if (best != null){
+            command.debug("Best counter is " + best.getHumanName());
+            u.assignTask(new BuildTask(best, u.getPos(), 0, this, clbk, command));
+        }
+                
     }
 
     public void requestAssault(int amt) {
@@ -96,12 +120,12 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     }
 
     @Override
-    public void unitDestroyed(AIUnit u) {
+    public void unitDestroyed(AIUnit u, Enemy e) {
         removeUnit(u);
     }
 
     @Override
-    public void unitDestroyed(Enemy e) {
+    public void unitDestroyed(Enemy e, AIUnit killer) {
     }
 
     @Override

@@ -15,6 +15,7 @@ import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.AIUnitHandler;
+import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.TaskIssuer;
 
 /**
@@ -46,7 +47,7 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
     }
 
     @Override
-    public void unitDestroyed(AIUnit u) {
+    public void unitDestroyed(AIUnit u, Enemy e) {
         removeUnit(u);
     }
 
@@ -56,6 +57,9 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
 
     @Override
     public void troopIdle(AITroop u) {
+        if (u == null){
+            throw new RuntimeException("AITroop is null!");
+        }
         if (u instanceof AIUnit) {
             troopIdle((AIUnit) u);
         } else if (u instanceof AISquad) {
