@@ -17,7 +17,6 @@ public class FightTask extends Task {
 
     private AIFloat3 target;
     private int errors = 0;
-    private TaskIssuer issuer;
     private AITroop lastUnit;
     private int timeout;
 
@@ -26,8 +25,8 @@ public class FightTask extends Task {
     }
 
     public FightTask(AIFloat3 target, int timeout, TaskIssuer issuer) {
+        super(issuer);
         this.target = target;
-        this.issuer = issuer;
         this.timeout = timeout;
     }
 
@@ -38,11 +37,13 @@ public class FightTask extends Task {
     @Override
     public boolean execute(AITroop u) {
         if (errors > 10) {
+            completed(u);
             issuer.abortedTask(this);
             return true;
         }
         lastUnit = u;
         if ((u.distanceTo(target) < 40 && timeout < 0) || (u.getCommand().getCurrentFrame() >= timeout)) {
+            completed(u);
             issuer.finishedTask(this);
             return true;
         }
@@ -63,6 +64,13 @@ public class FightTask extends Task {
         target.z += Math.random() * 200 - 100;
     }
 
+    @Override
+    public FightTask clone(){
+        FightTask as = new FightTask(target, timeout, issuer);
+        as.queued = this.queued;
+        return as;
+    }
+    
     @Override
     public Object getResult() {
         return null;

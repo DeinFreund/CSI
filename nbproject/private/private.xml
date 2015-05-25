@@ -2,19 +2,6 @@
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
-        <group>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/CommanderHandler.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/FightTask.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/ZKCBAI.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/RaiderSquad.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AIUnit.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/BuildTask.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/KillCounter.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/ScoutSquad.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/ZoneManager.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AITroop.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/MoveTask.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/Pathfinder.java</file>
-        </group>
+        <group/>
     </open-files>
 </project-private>

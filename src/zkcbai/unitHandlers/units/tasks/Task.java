@@ -5,6 +5,8 @@
  */
 package zkcbai.unitHandlers.units.tasks;
 
+import java.util.ArrayList;
+import java.util.List;
 import zkcbai.unitHandlers.units.AITroop;
 
 /**
@@ -13,6 +15,14 @@ import zkcbai.unitHandlers.units.AITroop;
  */
 public abstract class Task {
 
+    protected TaskIssuer issuer;
+    protected List<Task> queued;
+    
+    public Task(TaskIssuer issuer){
+        this.issuer = issuer;
+        queued = new ArrayList();
+    }
+    
     public abstract boolean execute(AITroop u);
 
     public abstract void moveFailed(AITroop u);
@@ -22,6 +32,20 @@ public abstract class Task {
     public Task setInfo(String info) {
         this.info = info;
         return this;
+    }
+    
+    public Task queue(Task t) {
+        queued.add(t);
+        return this;
+    }
+    
+    public abstract Task clone();
+    
+    protected void completed(AITroop t){
+        
+        for (Task ta : queued){
+            t.queueTask(ta, false);
+        }
     }
 
     public String getInfo() {

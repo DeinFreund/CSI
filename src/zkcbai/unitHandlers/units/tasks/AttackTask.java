@@ -5,10 +5,9 @@
  */
 package zkcbai.unitHandlers.units.tasks;
 
+import com.springrts.ai.oo.AIFloat3;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
-import zkcbai.helpers.CostSupplier;
-import zkcbai.helpers.CounterAvoidance;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -21,49 +20,61 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
 
     private Enemy target;
     private int errors = 0;
-    private TaskIssuer issuer;
     private int timeout;
-    private CostSupplier costSupplier;
     private Command command;
+    private boolean ignoreTimeOut;
 
     public AttackTask(Enemy target, TaskIssuer issuer, Command cmd) {
         this(target, Integer.MAX_VALUE, issuer, cmd);
     }
 
     public AttackTask(Enemy target, int timeout, TaskIssuer issuer, Command cmd) {
-        this(target, timeout, issuer, null, cmd);
+        this(target, timeout, issuer, false, cmd);
     }
 
-    public AttackTask(Enemy target, int timeout, TaskIssuer issuer, CostSupplier costSupplier, Command cmd) {
+    /**
+     *
+     * @param target
+     * @param timeout
+     * @param issuer
+     * @param ignoreTimeOut ignore when then target.isTimedOut()
+     * @param cmd
+     */
+    public AttackTask(Enemy target, int timeout, TaskIssuer issuer, boolean ignoreTimeOut, Command cmd) {
+        super(issuer);
         this.target = target;
-        this.issuer = issuer;
         this.timeout = timeout;
-        this.costSupplier = costSupplier;
+        this.ignoreTimeOut = ignoreTimeOut;
         this.command = cmd;
         command.addUnitDestroyedListener(this);
     }
 
     @Override
     public boolean execute(AITroop u) {
-        if (target == null || (u.getCommand().getCurrentFrame() >= timeout)) {
+        if (target == null || (u.getCommand().getCurrentFrame() >= timeout) || (!ignoreTimeOut && target.isTimedOut())) {
+            //command.mark(u.getPos(), "attack finished");
+            if (target!= null && target.isTimedOut()){
+                command.debug("finished attacktask because target is timed out");
+            }
+            completed(u);
             issuer.finishedTask(this);
             command.removeUnitDestroyedListener(this);
             return true;
         }
         if (errors > 15) {
             command.removeUnitDestroyedListener(this);
+            //command.mark(u.getPos(), "attack aborted");
+            completed(u);
             issuer.abortedTask(this);
             return true;
         }
-        if (u.distanceTo(target.getPos()) > u.getMaxRange() * 1.5) {
-            if (u.distanceTo(target.getPos()) > u.getMaxRange() * 2.5) {
-                u.assignTask(new MoveTask(target.getPos(), command.getCurrentFrame()+80, this, new CounterAvoidance(u.getDef(),command), command));
-                u.queueTask(this);
-            }else{
-                u.moveTo(target.getPos(), command.getCurrentFrame()+50);
-            }
+        //if (u.distanceTo(target.getPos()) > u.getMaxRange() * 1.5) {
+        if (u.distanceTo(target.getPos()) > Math.max(u.getMaxRange() * 1.7, 70)) {
+            u.assignTask(new MoveTask(target.getPos(), command.getCurrentFrame() + 80, this,u.getDef(),command).queue(this));
+
             return false;
-        }/*
+        }
+        /*
          AIFloat3 tpos = target.getPos();
          AIFloat3 vel = new AIFloat3(target.getUnit().getVel());
          vel.scale(10);
@@ -76,15 +87,30 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
          npos.add(tpos);
          */
 
-        u.setTarget(target.getUnitId());
-        
-        //if (target.isBuilding()) {
-        //    u.attack(target.getUnit(), command.getCurrentFrame() + 25);
-        //} else {
-            u.fight(target.getPos(), command.getCurrentFrame() + 25);
-        //}
+        //u.setTarget(target.getUnitId());
+        //command.mark(u.getPos(), "attack");
+        if (target.isBuilding() && u.getDef().isAbleToCloak() && u.distanceTo(target.getPos()) < u.getMaxRange() /2){
+            AIFloat3 pos  = new AIFloat3(target.getPos());
+            pos.sub(u.getPos());
+            pos.normalize();
+            pos.scale(-70);
+            pos.add(u.getPos());
+            u.moveTo(pos, command.getCurrentFrame() + 25);
+        }
+        if (u.getMaxRange() < 400 && u.getDef().getSpeed()<  110) {
+            u.attack(target.getUnit(), command.getCurrentFrame() + 30);
+        } else {
+            u.fight(target.getPos(), command.getCurrentFrame() + 70);
+        }
         //u.moveTo(npos, Integer.MAX_VALUE);
         return false;
+    }
+    
+    @Override
+    public AttackTask clone(){
+        AttackTask as = new AttackTask(target, timeout, issuer, ignoreTimeOut, command);
+        as.queued = this.queued;
+        return as;
     }
 
     @Override
@@ -116,6 +142,7 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
 
     @Override
     public void finishedTask(Task t) {
+        
     }
 
     @Override

@@ -6,10 +6,12 @@
 package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
+import com.springrts.ai.oo.clb.UnitDef;
 import java.util.Deque;
 import java.util.Random;
 import zkcbai.Command;
 import zkcbai.helpers.CostSupplier;
+import zkcbai.helpers.CounterAvoidance;
 import zkcbai.unitHandlers.units.AITroop;
 
 /**
@@ -20,7 +22,6 @@ public class MoveTask extends Task {
 
     private AIFloat3 target;
     private int errors = 0;
-    private TaskIssuer issuer;
     private AITroop lastUnit;
     private int timeout;
     private Deque<AIFloat3> path;
@@ -35,12 +36,25 @@ public class MoveTask extends Task {
     }
 
     public MoveTask(AIFloat3 target, int timeout, TaskIssuer issuer, Command cmd) {
-        this(target, timeout, issuer, null, cmd);
+        this(target, timeout, issuer, cmd.pathfinder.FAST_PATH, cmd);
     }
 
+    /**
+     * Generates CounterAvoidance using UnitDef
+     * @param target
+     * @param timeout
+     * @param issuer
+     * @param ud
+     * @param cmd
+     */
+    public MoveTask(AIFloat3 target, int timeout, TaskIssuer issuer, UnitDef ud ,Command cmd) {
+        this(target, timeout, issuer, new CounterAvoidance(ud, cmd, (ud.isAbleToCloak()) ? (150 * ud.getSpeed() / 80) : 0), cmd);
+    }
+    
     public MoveTask(AIFloat3 target, int timeout, TaskIssuer issuer, CostSupplier costSupplier, Command cmd) {
+        super(issuer);
+        
         this.target = target;
-        this.issuer = issuer;
         this.timeout = timeout;
         this.costSupplier = costSupplier;
         this.command = cmd;
@@ -61,8 +75,18 @@ public class MoveTask extends Task {
         path = u.getCommand().pathfinder.findPath(u.getPos(), target, u.getMaxSlope(), costSupplier);
         if (path.size() <= 1) {
             
-            command.debug("path finder probably didnt find a path");
-            //errors = 20;
+            target.x = Math.max(0,Math.min( command.getCallback().getMap().getWidth()*8-1, target.x + (float)Math.random() * 150 - 75));
+            target.z = Math.max(0,Math.min( command.getCallback().getMap().getHeight()*8-1, target.z +(float)Math.random() * 150 - 75));
+            
+            path = u.getCommand().pathfinder.findPath(u.getPos(), target, u.getMaxSlope(), costSupplier);
+            
+            if (path.size() <= 1) {
+                command.debug("pathfinder didnt find path for movetask");
+                for (AIFloat3 pos : path){
+                    //command.mark(pos, "path");
+                }
+                //errors = 20;
+            }
         }
     }
 
@@ -79,6 +103,8 @@ public class MoveTask extends Task {
             updatePath(u);
         }
         if (errors > 15) {
+            command.debug("MoveTask aborted because of too many errors");
+            completed(u);
             issuer.abortedTask(this);
             return true;
         }
@@ -87,14 +113,15 @@ public class MoveTask extends Task {
             path.pollFirst();
         }
         if (path.isEmpty() || (u.getCommand().getCurrentFrame() >= timeout)) {
+            completed(u);
             issuer.finishedTask(this);
             return true;
         }
         AIFloat3 first = (path.pollFirst());
         
-        u.moveTo(randomize(first,100), (short) 0, u.getCommand().getCurrentFrame() + 20);
+        u.moveTo(randomize(first,70), (short) 0, u.getCommand().getCurrentFrame() + 45);
         if (path.size() > 0 && distance(first, path.getFirst()) > 100){
-            u.moveTo(randomize(path.getFirst(),100), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 20);
+            u.moveTo(randomize(path.getFirst(),100), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 45);
         }
         path.addFirst(first);
         return false;
@@ -116,6 +143,13 @@ public class MoveTask extends Task {
         errors++;
         target.x += Math.random() * 60 - 30;
         target.z += Math.random() * 60 - 30;
+    }
+    
+    @Override
+    public MoveTask clone(){
+        MoveTask as = new MoveTask(target, timeout, issuer, costSupplier, command);
+        as.queued = this.queued;
+        return as;
     }
 
     @Override

@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.UpdateListener;
+import zkcbai.unitHandlers.units.tasks.Task;
 import zkcbai.utility.Point;
 import zkcbai.utility.SmallestEnclosingCircle;
 
@@ -32,9 +33,15 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     private float minSlope = Float.MAX_VALUE;
     private Set<AIUnit> idlers = new HashSet();
     private boolean dead = false;
+    private int timeCreated;
+    
+    private static List<AISquad> squads = new ArrayList();
 
     public AISquad(AIUnitHandler handler) {
         super(handler);
+        handler.getCommand().addUnitDestroyedListener(this);
+        squads.add(this);
+        timeCreated = handler.getCommand().getCurrentFrame();
     }
 
     public void addUnit(AIUnit u) {
@@ -58,6 +65,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         }
         if (units.isEmpty()) {
             dead = true;
+            squads.remove(this);
             if (getCommand() != null) {
                 getCommand().removeUnitDestroyedListener(this);
             }
@@ -69,7 +77,8 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
         pos.y = 0;
-        return pos.length() + getRadius();
+        //if (getRadius() > 40) handler.getCommand().mark(getPos(), "regrouping");
+        return pos.length() + Math.max(0,getRadius()-50);
     }
 
     /**
@@ -132,6 +141,71 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         }
     }
 
+    @Override
+    protected void doTask() {
+        if (handler.getCommand().getCurrentFrame() - timeCreated > 150) {
+            Map<Integer, List<AIUnit>> unittypes = new TreeMap();
+            int squadcount = 0;
+            List<Task> tasks = new ArrayList();
+            List<AIUnit> units = new ArrayList();
+            AIFloat3 pos = getPos();
+            for (AISquad s : squads.toArray(new AISquad[squads.size()])) {
+                if (handler.getCommand().getCurrentFrame() - s.timeCreated > 150 && s.distanceTo(pos) < 600 && handler.equals(s.handler)) {
+                    squadcount++;
+                    if (s.getTask() != null) {
+                        tasks.add(s.getTask());
+                    }
+                    for (AIUnit u : s.getUnits().toArray(new AIUnit[s.getUnits().size()])) {
+                        units.add(u);
+                        s.removeUnit(u, null);
+                        if (!unittypes.containsKey(u.getDef().getUnitDefId())) {
+                            unittypes.put(u.getDef().getUnitDefId(), new ArrayList());
+                        }
+                        unittypes.get(u.getDef().getUnitDefId()).add(u);
+                    }
+                }
+            }
+            while (!unittypes.isEmpty()) {
+                squadcount--;
+                List<AIUnit> big = null;
+                if (squadcount > 0) {
+                    int bigi = 0;
+                    for (Map.Entry<Integer, List<AIUnit>> e : unittypes.entrySet()) {
+                        if (big == null || e.getValue().size() > big.size()) {
+                            big = e.getValue();
+                            bigi = e.getKey();
+                        }
+                    }
+                    unittypes.remove(bigi);
+                } else {
+                    big = new ArrayList();
+                    for (List<AIUnit> l : unittypes.values()) {
+                        big.addAll(l);
+                    }
+                    unittypes.clear();
+                }
+                AISquad ns = new AISquad(handler);
+                for (AIUnit au : big) {
+                    ns.addUnit(au);
+                }
+                if (!tasks.isEmpty()) {
+                    Task task = tasks.get(0).clone();
+                    for (int i = 1; i < tasks.size(); i++) {
+                        task.queue(tasks.get(i).clone());
+                    }
+                    ns.assignTask(task);
+                }
+            }
+            for ( AIUnit au : units ) {
+                if (au.handler == null) throw new RuntimeException("No AIUnitHandler");
+            }
+        }
+        
+        if (dead) return;
+        
+        super.doTask();
+    }
+
     /**
      * Will only be called if all units of squad are idle
      */
@@ -142,6 +216,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         doTask();
     }
 
+    @Override
     public Collection<AIUnit> getUnits() {
         return units;
     }
@@ -271,6 +346,22 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
 
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
+    }
+
+    @Override
+    public float getEfficiencyAgainst(Enemy e) {
+        return getEfficiencyAgainst(e.getDef());
+    }
+
+    @Override
+    public float getEfficiencyAgainst(UnitDef ud) {
+        float tot = 0.1f;
+        float div = 0.1f;
+        for (AIUnit u : units){
+            tot += u.getEfficiencyAgainst(ud)*u.getDef().getCost(handler.getCommand().metal);
+            div += u.getDef().getCost(handler.getCommand().metal);
+        }
+        return tot/div;
     }
 
 }

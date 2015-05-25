@@ -28,7 +28,6 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     AIFloat3 pos;
     int facing;
     OOAICallback clbk;
-    TaskIssuer issuer;
     List<AITroop> assignedUnits;
     Command command;
     
@@ -43,11 +42,11 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     }
 
     public BuildTask(UnitDef building, AIFloat3 pos, int facing, TaskIssuer issuer, OOAICallback clbk, Command command){
+        super(issuer);
         //command.mark(pos, building.getHumanName() +  clbk.getMap().isPossibleToBuildAt(building, pos, facing));
         this.building = building;
         this.pos = pos;
         this.facing = facing;
-        this.issuer = issuer;
         this.clbk = clbk;
         this.command = command;
         assignedUnits = new ArrayList();
@@ -57,6 +56,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     @Override
     public boolean execute(AITroop u) {
         if (errors > 3){
+            completed(u);
             issuer.abortedTask(this);
             return true;
         }
@@ -64,6 +64,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         
         if (building.getSpeed() <= 0 && !clbk.getMap().isPossibleToBuildAt(building,pos, facing)){
             
+            completed(u);
             issuer.abortedTask(this);
             command.removeUnitFinishedListener(this);
             List<AIUnit> auc = new ArrayList();
@@ -80,8 +81,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             AIFloat3 trg = new AIFloat3();
             trg.interpolate( pos,u.getPos(),100f/u.distanceTo(pos));
             
-            u.assignTask(new MoveTask(trg,this,command));
-            u.queueTask(this);
+            u.assignTask(new MoveTask(trg,this,command).queue(this));
             return false;
         }
         
@@ -107,6 +107,14 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     }
 
     @Override
+    public BuildTask clone(){
+        BuildTask as = new BuildTask(building, pos, facing, issuer, clbk, command);
+        as.result = this.result;
+        as.queued = this.queued;
+        return as;
+    }
+    
+    @Override
     public Object getResult() {
         return result;
     }
@@ -120,6 +128,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         //command.mark(u.getPos(), u.getUnit().getDef().getHumanName() + " finished");
         if (u.getUnit().getDef().equals(building) && u.distanceTo(pos)<50){
         //    command.mark(pos, "task finished");
+            completed(u);
             issuer.finishedTask(this);
             result = u;
             command.removeUnitFinishedListener(this);

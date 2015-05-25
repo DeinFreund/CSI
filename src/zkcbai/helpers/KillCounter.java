@@ -72,6 +72,7 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
     }
 
     public float getEfficiency(UnitDef attacker, UnitDef enemy) {
+        if (attacker == null || enemy == null) return 1;
         int a = attacker.getUnitDefId();
         int b = enemy.getUnitDefId();
         if (!kills.containsKey(a))kills.put(a, new HashMap());

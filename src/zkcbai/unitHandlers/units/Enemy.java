@@ -22,6 +22,7 @@ import zkcbai.helpers.ZoneManager;
  */
 public class Enemy implements UpdateListener {
 
+    private static final float regen = 0.01f;
     private final Unit unit;
     private final int unitId;
     private final OOAICallback clbk;
@@ -35,6 +36,7 @@ public class Enemy implements UpdateListener {
     private boolean isBuilding;
     private int lastSeen = 0;
     private float metalCost = 0;
+    private float health = 0;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         unit = u;
@@ -44,6 +46,7 @@ public class Enemy implements UpdateListener {
         lastPos = u.getPos();
         isBuilding = false;
         lastSeen = cmd.getCurrentFrame();
+        health = getDef().getHealth();
         
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
     }
@@ -69,7 +72,10 @@ public class Enemy implements UpdateListener {
     }
     
     public float getHealth(){
-        return unit.getHealth() > 0 ? unit.getHealth() : getDef().getHealth();
+        return health;
+    }
+    public float getRelativeHealth(){
+        return health / getDef().getHealth();
     }
     
     public float getDPS(){
@@ -130,7 +136,13 @@ public class Enemy implements UpdateListener {
 
     @Override
     public void update(int frame) {
+        health = Math.min(getDef().getHealth(),health + regen*getDef().getHealth());
+        if (unit.getHealth() > 0){
+            //in LOS
+            health = unit.getHealth();
+        }
         if (unit.getPos().length() > 0) {
+            //in Radar
             lastPos = unit.getPos();
             lastSeen = command.getCurrentFrame();
         } else if (shouldBeVisible(lastPos)) {
@@ -148,6 +160,7 @@ public class Enemy implements UpdateListener {
 
     public void enterLOS() {
         if (neverSeen) {
+            health = unit.getHealth();
             unitDef = unit.getDef();
             maxRange = unit.getMaxRange();
             if (unitDef.getName().equals("cormex")) {
@@ -185,6 +198,7 @@ public class Enemy implements UpdateListener {
             maxRange = Math.max(wm.getWeaponDef().getRange(), maxRange);
         }
         command.debug(unitDef.getHumanName() + " identified by Radar");
+        health = unitDef.getHealth();
     }
 
     public void enterRadar() {

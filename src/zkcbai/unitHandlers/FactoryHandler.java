@@ -54,6 +54,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 counter += au.getEfficiencyAgainst(e)*au.getUnit().getDef().getCost(command.metal);
             }
             counter /= e.getDef().getCost(command.metal);
+            counter *= Math.random() /2 + 0.75; // +- 25% randomness
             if (counter < mi){
                 mi = counter;
                 worst = e;
@@ -66,12 +67,25 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
         UnitDef best = null;
         for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
+                command.debug(ud.getTooltip());
             if (ud.isAbleToRepair()) continue;
             if (best == null
                     || (worst != null && command.killCounter.getEfficiency(ud, worst.getDef()) > command.killCounter.getEfficiency(best, worst.getDef()))
-                    || (worst == null && ud.getCost(command.metal) < best.getCost(command.metal))) {
+                    || (worst == null && (ud.getCost(command.metal) < best.getCost(command.metal) && ud.getTooltip().contains("aider")))) {
                 
                 best = ud;
+            }
+        }
+        if (best == null){
+                for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
+                    command.debug(ud.getTooltip());
+                if (ud.isAbleToRepair()) continue;
+                if (best == null
+                        || (worst != null && command.killCounter.getEfficiency(ud, worst.getDef()) > command.killCounter.getEfficiency(best, worst.getDef()))
+                        || (worst == null && (ud.getCost(command.metal) < best.getCost(command.metal)))) {
+
+                    best = ud;
+                }
             }
         }
         if (best != null){

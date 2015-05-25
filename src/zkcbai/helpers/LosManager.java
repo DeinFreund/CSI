@@ -102,9 +102,9 @@ public class LosManager extends Helper {
 
         int index =gridX + gridZ * gridWidth;
 
-        /*if (index > losMap.size()) { // exception helps debug
+        if (index >= losMap.size() || index < 0) { // exception helps debug
             return false;
-        }*/
+        }
         return (losMap.get(index) > level);
     }
 

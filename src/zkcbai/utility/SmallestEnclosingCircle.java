@@ -39,6 +39,7 @@ public class SmallestEnclosingCircle {
 		List<Point> shuffled = new ArrayList(points);
 		Collections.shuffle(shuffled, new Random());
 		
+                if (points.isEmpty()) throw new RuntimeException("No points given. (Empty Squad)");
 		// Progressively add points to circle or recompute circle
 		Circle c = null;
 		for (int i = 0; i < shuffled.size(); i++) {

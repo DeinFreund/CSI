@@ -36,6 +36,13 @@ public class AIUnit extends AITroop implements UpdateListener {
         dead = true;
     }
 
+    @Override
+    public List<AIUnit> getUnits() {
+        List<AIUnit> res = new ArrayList();
+        res.add(this);
+        return res;
+    }
+
     public enum UnitType {
 
         raider, assault;

@@ -397,7 +397,8 @@ public class Command implements AI {
                 if (attacker != null && enemies.containsKey(attacker.getUnitId())) {
                     enemy = enemies.get(attacker.getUnitId());
                 }
-                for (UnitDestroyedListener listener : unitDestroyedListeners) {
+                Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
+                for (UnitDestroyedListener listener : unitDestroyedListenersc) {
                     listener.unitDestroyed(aiunit, enemy);
                 }
                 units.remove(unit.getUnitId());
@@ -505,10 +506,11 @@ public class Command implements AI {
                     comHandlers.add(comHandler);
                     aiunit = comHandler.addUnit(unit);
                     break;
-                case "factorycloak":
-                    aiunit = facHandler.addUnit(unit);
-                    break;
                 default:
+                    if (unit.getDef().getBuildOptions().size() > 0 && unit.getDef().getSpeed() < 0.1){
+                        aiunit = facHandler.addUnit(unit);
+                        break;
+                    }
                     if (!unit.getDef().isAbleToRepair() && unit.getDef().getSpeed() > 0) {
                         aiunit = fighterHandler.addUnit(unit);
                         break;

@@ -91,9 +91,9 @@ public class Pathfinder extends Helper {
      */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs) {
 
-//        command.debug("starting pathfinder");
+        //command.debug("starting pathfinder to " + target.toString());
 //        command.mark(start, "start");
-//        command.mark(target, "target");
+        //command.mark(target, "target");
         long time = System.currentTimeMillis();
         int startPos = (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes); //reverse to return in right order when traversing backwards
         int targetPos = (int) (start.z / mapRes) * smwidth + (int) (start.x / mapRes);
@@ -141,6 +141,7 @@ public class Pathfinder extends Helper {
                     /*clbk.getMap().getDrawer().addPoint(start, "start");
                     clbk.getMap().getDrawer().addPoint(target, "target");
                     clbk.getMap().getDrawer().addLine(start, target );*/
+                    result.add(target);
                     return result;
                 }
                 pos = pq.peek().pos;
