@@ -244,5 +244,9 @@ public class AIUnit extends AITroop implements UpdateListener {
     public float getMaxSlope() {
         return unit.getDef().getMoveData().getMaxSlope();
     }
+    
+    public boolean equals(AIUnit u){
+        return u.getUnit().getUnitId() == getUnit().getUnitId();
+    }
 
 }

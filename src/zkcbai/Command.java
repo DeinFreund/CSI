@@ -11,7 +11,6 @@ import com.springrts.ai.oo.clb.Resource;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import com.springrts.ai.oo.clb.WeaponDef;
-import com.springrts.ai.oo.clb.WeaponMount;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -31,6 +30,8 @@ import zkcbai.helpers.LosManager;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.PlaceholderEnemies;
 import zkcbai.helpers.RadarManager;
+import zkcbai.neural.NeuralHandler;
+import zkcbai.unitHandlers.DevNullHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.Enemy;
 
@@ -61,9 +62,11 @@ public class Command implements AI {
     private final Collection<UnitFinishedListener> unitFinishedListeners = new HashSet();
     private final Collection<UnitDestroyedListener> unitDestroyedListeners = new HashSet();
     private final Collection<UpdateListener> updateListeners = new HashSet();
+    private final Collection<UnitDamagedListener> unitDamagedListeners = new HashSet();
     private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap();
 
     private final Collection<CommanderHandler> comHandlers = new HashSet();
+    private final Collection<NeuralHandler> neuralHandlers = new HashSet();
     private final FactoryHandler facHandler;
     private final FighterHandler fighterHandler;
 
@@ -91,6 +94,7 @@ public class Command implements AI {
             pathfinder = new Pathfinder(this, clbk);
             killCounter = new KillCounter(this, clbk);
             placeholderEnemies = new PlaceholderEnemies(this, clbk);
+            
 
             String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw"};
             for (String s : importantSpeedDefs) {
@@ -205,6 +209,14 @@ public class Command implements AI {
     public void removeUnitDestroyedListener(UnitDestroyedListener listener) {
         unitDestroyedListeners.remove(listener);
     }
+    
+    public void addUnitDamagedListener(UnitDamagedListener listener) {
+        unitDamagedListeners.add(listener);
+    }
+    
+    public void removeUnitDamagedListener(UnitDamagedListener listener) {
+        unitDamagedListeners.remove(listener);
+    }
 
     public boolean addSingleUpdateListener(UpdateListener listener, int frame) {
         if (frame >= 1000000000) {
@@ -270,6 +282,13 @@ public class Command implements AI {
     @Override
     public int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
+            debug("unitdamaged");
+            Enemy att = null;
+            if (attacker != null) att = enemies.get(attacker.getUnitId());
+            AIUnit def = units.get(unit.getUnitId());
+            for (UnitDamagedListener listener : unitDamagedListeners){
+                listener.unitDamaged(def, att, damage);
+            }
             if (unit.getHealth() <=0){
                 unitDestroyed(unit, attacker);
             }
@@ -377,6 +396,13 @@ public class Command implements AI {
     @Override
     public int enemyDamaged(Unit enemy, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
+            
+            AIUnit att = null;
+            if (attacker != null) att = units.get(attacker.getUnitId());
+            Enemy def = enemies.get(enemy.getUnitId());
+            for (UnitDamagedListener listener : unitDamagedListeners){
+                listener.unitDamaged(def, att, damage);
+            }
             if (enemy.getHealth() <= 0) {
                 unitDestroyed(enemy, attacker);
             }
@@ -502,13 +528,19 @@ public class Command implements AI {
             AIUnit aiunit;
             switch (unit.getDef().getName()) {
                 case "armcom1":
-                    CommanderHandler comHandler = new CommanderHandler(this, clbk);
-                    comHandlers.add(comHandler);
-                    aiunit = comHandler.addUnit(unit);
+                    /*CommanderHandler comHandler = new CommanderHandler(this, clbk);
+                    comHandlers.add(comHandler); //TODO FOR DEBUG ONLY
+                    aiunit = comHandler.addUnit(unit);*/
+                    aiunit = new DevNullHandler(this, clbk).addUnit(unit);
                     break;
                 default:
                     if (unit.getDef().getBuildOptions().size() > 0 && unit.getDef().getSpeed() < 0.1){
                         aiunit = facHandler.addUnit(unit);
+                        break;
+                    }
+                    if (unit.getDef().getName().contains("armpw")){
+                        aiunit = new DevNullHandler(this, clbk).addUnit(unit);
+                        neuralHandlers.add(new NeuralHandler(aiunit, this));
                         break;
                     }
                     if (!unit.getDef().isAbleToRepair() && unit.getDef().getSpeed() > 0) {
