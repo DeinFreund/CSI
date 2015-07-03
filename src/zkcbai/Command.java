@@ -30,7 +30,6 @@ import zkcbai.helpers.LosManager;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.PlaceholderEnemies;
 import zkcbai.helpers.RadarManager;
-import zkcbai.neural.NeuralHandler;
 import zkcbai.unitHandlers.DevNullHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.Enemy;
@@ -66,7 +65,6 @@ public class Command implements AI {
     private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap();
 
     private final Collection<CommanderHandler> comHandlers = new HashSet();
-    private final Collection<NeuralHandler> neuralHandlers = new HashSet();
     private final FactoryHandler facHandler;
     private final FighterHandler fighterHandler;
 
@@ -528,19 +526,13 @@ public class Command implements AI {
             AIUnit aiunit;
             switch (unit.getDef().getName()) {
                 case "armcom1":
-                    /*CommanderHandler comHandler = new CommanderHandler(this, clbk);
-                    comHandlers.add(comHandler); //TODO FOR DEBUG ONLY
-                    aiunit = comHandler.addUnit(unit);*/
-                    aiunit = new DevNullHandler(this, clbk).addUnit(unit);
+                    CommanderHandler comHandler = new CommanderHandler(this, clbk);
+                    comHandlers.add(comHandler);
+                    aiunit = comHandler.addUnit(unit);
                     break;
                 default:
                     if (unit.getDef().getBuildOptions().size() > 0 && unit.getDef().getSpeed() < 0.1){
                         aiunit = facHandler.addUnit(unit);
-                        break;
-                    }
-                    if (unit.getDef().getName().contains("armpw")){
-                        aiunit = new DevNullHandler(this, clbk).addUnit(unit);
-                        neuralHandlers.add(new NeuralHandler(aiunit, this));
                         break;
                     }
                     if (!unit.getDef().isAbleToRepair() && unit.getDef().getSpeed() > 0) {
