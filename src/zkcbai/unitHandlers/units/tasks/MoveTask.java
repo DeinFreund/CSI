@@ -90,6 +90,8 @@ public class MoveTask extends Task {
         }
     }
 
+    float randomizeFirst = 60;
+    
     @Override
     public boolean execute(AITroop u) {
         
@@ -119,7 +121,7 @@ public class MoveTask extends Task {
         }
         AIFloat3 first = (path.pollFirst());
         
-        u.moveTo(randomize(first,70), (short) 0, u.getCommand().getCurrentFrame() + 45);
+        u.moveTo(randomize(first,randomizeFirst), (short) 0, u.getCommand().getCurrentFrame() + 45);
         if (path.size() > 0 && distance(first, path.getFirst()) > 100){
             u.moveTo(randomize(path.getFirst(),100), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 45);
         }
@@ -143,6 +145,7 @@ public class MoveTask extends Task {
         errors++;
         target.x += Math.random() * 60 - 30;
         target.z += Math.random() * 60 - 30;
+        randomizeFirst *= 1.5;
     }
     
     @Override

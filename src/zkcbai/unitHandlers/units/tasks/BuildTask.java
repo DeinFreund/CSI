@@ -8,11 +8,14 @@ package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import zkcbai.Command;
+import zkcbai.UnitCreatedListener;
 import zkcbai.UnitFinishedListener;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -21,10 +24,12 @@ import zkcbai.unitHandlers.units.AIUnit;
  *
  * @author User
  */
-public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
+public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener, UnitCreatedListener{
 
     UnitDef building;
-    AIUnit result;
+    Unit result;
+    boolean resultFinished = false;
+    boolean aborted = false;
     AIFloat3 pos;
     int facing;
     OOAICallback clbk;
@@ -49,31 +54,72 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         this.facing = facing;
         this.clbk = clbk;
         this.command = command;
+        this.lastExecution = command.getCurrentFrame();
+        if (building.getSpeed() <= 0 && !command.isPossibleToBuildAt(building, pos, facing)) {
+            //throw new RuntimeException("Invalid BuildTask parameters: Unable to build at location");
+        }
         assignedUnits = new ArrayList();
         command.addUnitFinishedListener(this);
+        command.addUnitCreatedListener(this);
     }
     
+    private void cleanup() {
+
+        command.removeUnitFinishedListener(this);
+        command.removeUnitCreatedListener(this);
+        List<AIUnit> auc = new ArrayList();
+        Collections.copy(assignedUnits, auc);
+        assignedUnits.clear();
+        for (AIUnit au : auc) {
+            if (au.getTask().equals(this)) {
+                au.idle();
+            }
+        }
+    }
+    
+    List<String> errorMessages = new ArrayList();
+    
+    public boolean isDone(){
+        return resultFinished;
+    }
+    
+    public boolean isAborted(){
+        return aborted;
+    }
+    
+    /**
+     * 
+     * @param u AITroop to use for task
+     * @return true if task has been finished, false otherwise
+     */
     @Override
     public boolean execute(AITroop u) {
-        if (errors > 3){
+        lastExecution = command.getCurrentFrame();
+        if (errors >5 + 3* assignedUnits.size()){
+            aborted = true;
             completed(u);
+            command.debug("aborted task execution because of errors");
+            for (String s : errorMessages){
+                command.debug(s);
+            }
             issuer.abortedTask(this);
+            cleanup();
             return true;
         }
-        if (result != null) return true;
-        
-        if (building.getSpeed() <= 0 && !clbk.getMap().isPossibleToBuildAt(building,pos, facing)){
-            
+        if (result != null && resultFinished) {
+            command.debug("aborted task execution because of finished");
             completed(u);
-            issuer.abortedTask(this);
-            command.removeUnitFinishedListener(this);
-            List<AIUnit> auc = new ArrayList();
-            Collections.copy(assignedUnits, auc);
-            assignedUnits.clear();
-            for (AIUnit au : auc){
-                if (au.getTask().equals(this)) au.idle();
-            }
             return true;
+        }
+        
+        
+        if ((building.getSpeed() <= 0 && !command.isPossibleToBuildAt(building,pos, facing)) && result == null){
+            errors ++;
+            errorMessages.add("Impossible to build at location");
+            u.fight(pos, command.getCurrentFrame()+ 20);
+            
+            
+            return false;
         }
         if (!assignedUnits.contains(u))assignedUnits.add(u);
         
@@ -81,11 +127,14 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
             AIFloat3 trg = new AIFloat3();
             trg.interpolate( pos,u.getPos(),100f/u.distanceTo(pos));
             
-            u.assignTask(new MoveTask(trg,this,command).queue(this));
+            u.assignTask(new MoveTask(trg,command.getCurrentFrame() + 250,this,command).queue(this));
             return false;
         }
-        
-        u.build(building, facing, pos, (short)0, Integer.MAX_VALUE);
+        if (result != null){
+            u.repair(result, command.getCurrentFrame() + 100);
+        }else{
+            u.build(building, facing, pos, (short)0, command.getCurrentFrame() + 100);
+        }
         
         return false;
     }
@@ -95,11 +144,14 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
     @Override
     public void moveFailed(AITroop u) {
         errors ++;
+            errorMessages.add("MoveFailed");
     }
 
     @Override
     public void abortedTask(Task t) {
         errors ++;
+        
+        errorMessages.add("Aborted MoveTask");
         /*
         try{
             pathFindingError(((MoveTask)t).getLastExecutingUnit());
@@ -114,9 +166,21 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
         return as;
     }
     
+    public UnitDef getBuilding(){
+        return building;
+    }
+    
+    public AIFloat3 getPos(){
+        return pos;
+    }
+    
+    public Collection<AITroop> getWorkers(){
+        return assignedUnits;
+    }
+    
     @Override
     public Object getResult() {
-        return result;
+        return command.getAIUnit(result);
     }
 
     @Override
@@ -125,19 +189,26 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener{
 
     @Override
     public void unitFinished(AIUnit u) {
-        //command.mark(u.getPos(), u.getUnit().getDef().getHumanName() + " finished");
         if (u.getUnit().getDef().equals(building) && u.distanceTo(pos)<50){
-        //    command.mark(pos, "task finished");
+            command.debug("finished " + building.getHumanName());
             completed(u);
+            result = u.getUnit();
             issuer.finishedTask(this);
-            result = u;
-            command.removeUnitFinishedListener(this);
+            resultFinished = true;
+            cleanup();
         }
     }
 
     @Override
     public void reportSpam() {
         throw new RuntimeException("I spammed MoveTasks!");
+    }
+
+    @Override
+    public void unitCreated(Unit u, AIUnit builder) {
+        if (u.getDef().equals(building) && Command.distance2D(pos, u.getPos())<40){
+            result = u;
+        }
     }
     
 }

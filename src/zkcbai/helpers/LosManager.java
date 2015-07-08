@@ -45,10 +45,10 @@ public class LosManager extends Helper {
 
     @Override
     public void update(int frame) {
-        this.losMap = map.getLosMap();
 
         try {
             if (frame % 5 == 0) {
+                this.losMap = map.getLosMap();
                 updateLosImage();
             }
         } catch (Exception e) {

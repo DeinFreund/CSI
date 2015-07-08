@@ -160,6 +160,10 @@ public abstract class AITroop {
     public void attack(Unit trg, int timeout) {
         attack(trg, OPTION_NONE, timeout);
     }
+    
+    public void repair(Unit trg, int timeout) {
+        repair(trg, OPTION_NONE, timeout);
+    }
 
     public void build(UnitDef building, int facing, AIFloat3 trg, int timeout) {
         build(building, facing, trg, OPTION_NONE, timeout);
@@ -172,8 +176,11 @@ public abstract class AITroop {
     public abstract void fight(AIFloat3 trg, short options, int timeout);
 
     public abstract void attack(Unit trg, short options, int timeout);
+    
+    public abstract void repair(Unit trg, short options, int timeout);
 
     public abstract void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout);
+    
     
     
     public abstract void setTarget(int targetUnitId);

@@ -255,6 +255,23 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             }
         }
     }
+    
+    @Override
+    public void repair(Unit trg, short options, int timeout) {
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        areaManager.executedCommand();
+        for (AIUnit u : units) {
+            u.repair(trg, options, Integer.MAX_VALUE);
+        }
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
+        }
+    }
 
     @Override
     public void patrolTo(AIFloat3 trg, short options, int timeout) {

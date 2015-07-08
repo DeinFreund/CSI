@@ -11,6 +11,8 @@ import com.springrts.ai.oo.clb.Resource;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import com.springrts.ai.oo.clb.WeaponDef;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -20,7 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import javax.swing.Timer;
 import zkcbai.helpers.DefenseManager;
+import zkcbai.helpers.EconomyManager;
 import zkcbai.helpers.KillCounter;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.CommanderHandler;
@@ -30,7 +34,8 @@ import zkcbai.helpers.LosManager;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.PlaceholderEnemies;
 import zkcbai.helpers.RadarManager;
-import zkcbai.unitHandlers.DevNullHandler;
+import zkcbai.helpers.ZoneManager.Mex;
+import zkcbai.unitHandlers.BuilderHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.Enemy;
 
@@ -52,6 +57,7 @@ public class Command implements AI {
     public final Pathfinder pathfinder;
     public final KillCounter killCounter;
     public final PlaceholderEnemies placeholderEnemies;
+    public final EconomyManager economyManager;
 
     private final Collection<EnemyEnterRadarListener> enemyEnterRadarListeners = new HashSet();
     private final Collection<EnemyEnterLOSListener> enemyEnterLOSListeners = new HashSet();
@@ -59,6 +65,7 @@ public class Command implements AI {
     private final Collection<EnemyLeaveLOSListener> enemyLeaveLOSListeners = new HashSet();
     private final Collection<EnemyDiscoveredListener> enemyDiscoveredListeners = new HashSet();
     private final Collection<UnitFinishedListener> unitFinishedListeners = new HashSet();
+    private final Collection<UnitCreatedListener> unitCreatedListeners = new HashSet();
     private final Collection<UnitDestroyedListener> unitDestroyedListeners = new HashSet();
     private final Collection<UpdateListener> updateListeners = new HashSet();
     private final Collection<UnitDamagedListener> unitDamagedListeners = new HashSet();
@@ -67,6 +74,7 @@ public class Command implements AI {
     private final Collection<CommanderHandler> comHandlers = new HashSet();
     private final FactoryHandler facHandler;
     private final FighterHandler fighterHandler;
+    private final BuilderHandler builderHandler;
 
     private final Map<Integer, AIUnit> units = new TreeMap();
     private final Map<Integer, Enemy> enemies = new TreeMap();
@@ -81,10 +89,11 @@ public class Command implements AI {
             
             this.clbk = callback;
             ownTeamId = teamId;
-            facHandler = new FactoryHandler(this, callback);
-            fighterHandler = new FighterHandler(this, clbk);
             metal = clbk.getResources().get(0);
             energy = clbk.getResources().get(1);
+            economyManager = new EconomyManager(this, clbk);
+            facHandler = new FactoryHandler(this, callback);
+            fighterHandler = new FighterHandler(this, clbk);
             losManager = new LosManager(this, clbk);
             areaManager = new ZoneManager(this, clbk);
             radarManager = new RadarManager(this, clbk);
@@ -92,6 +101,7 @@ public class Command implements AI {
             pathfinder = new Pathfinder(this, clbk);
             killCounter = new KillCounter(this, clbk);
             placeholderEnemies = new PlaceholderEnemies(this, clbk);
+            builderHandler = new BuilderHandler(this, clbk);
             
 
             String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw"};
@@ -101,7 +111,7 @@ public class Command implements AI {
             debug(clbk.getUnitDefByName("armcom1").getSpeed());
             debug("ZKCBAI successfully initialized.");
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in init:", e);
             throw new RuntimeException();// no point in continuing execution
         }
@@ -110,6 +120,9 @@ public class Command implements AI {
     public FactoryHandler getFactoryHandler() {
         return facHandler;
     }
+    public BuilderHandler getBuilderHandler() {
+        return builderHandler;
+    }
     
     public FighterHandler getFighterHandler() {
         return fighterHandler;
@@ -117,6 +130,17 @@ public class Command implements AI {
 
     public TreeMap<Float, UnitDef> getEnemyUnitDefSpeedMap() {
         return defSpeedMap;
+    }
+    
+    
+    /**
+     * 
+     * @param u
+     * @return aiunit which contains u or null if such an aiunit doesnt exist
+     */
+    public AIUnit getAIUnit(Unit u){
+        if (u == null) return null;
+        return units.get(u.getUnitId());
     }
 
     /**
@@ -199,6 +223,15 @@ public class Command implements AI {
     public void removeUnitFinishedListener(UnitFinishedListener listener) {
         unitFinishedListeners.remove(listener);
     }
+    
+    public void addUnitCreatedListener(UnitCreatedListener listener) {
+        unitCreatedListeners.add(listener);
+    }
+
+    public void removeUnitCreatedListener(UnitCreatedListener listener) {
+        unitCreatedListeners.remove(listener);
+    }
+
 
     public void addUnitDestroyedListener(UnitDestroyedListener listener) {
         unitDestroyedListeners.add(listener);
@@ -261,7 +294,7 @@ public class Command implements AI {
                 checkForMetal(inData);
             }
             return 0;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in luaMessage: ", e);
         }
         return 0;
@@ -271,7 +304,7 @@ public class Command implements AI {
     public int unitGiven(Unit unit, int oldTeamId, int newTeamId) {
         try {
             unitFinished(unit);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in unitGiven: ", e);
         }
         return 0;
@@ -290,7 +323,7 @@ public class Command implements AI {
             if (unit.getHealth() <=0){
                 unitDestroyed(unit, attacker);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in unitDamaged: ", e);
         }
         return 0;
@@ -321,7 +354,7 @@ public class Command implements AI {
 //            debug(enemy.getVel().length());
 //            debug(enemy.getDef().getCost(metal));
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in enemyEnterLOS: ", e);
         }
         return 0;
@@ -338,7 +371,7 @@ public class Command implements AI {
                     listener.enemyLeaveLOS(aiEnemy);
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in enemyLeaveLOS: ", e);
         }
         return 0;
@@ -359,7 +392,7 @@ public class Command implements AI {
             for (EnemyEnterRadarListener listener : listenerc) {
                 listener.enemyEnterRadar(aiEnemy);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in enemyEnterRadar: ", e);
         }
         return 0;
@@ -385,7 +418,7 @@ public class Command implements AI {
                     listener.enemyLeaveRadar(aiEnemy);
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in enemyLeaveRadar: ", e);
         }
         return 0;
@@ -404,7 +437,7 @@ public class Command implements AI {
             if (enemy.getHealth() <= 0) {
                 unitDestroyed(enemy, attacker);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in enemyDamaged: ", e);
         }
         return 0;
@@ -415,7 +448,6 @@ public class Command implements AI {
         try {
             AIUnit aiunit = units.get(unit.getUnitId());
             if (aiunit != null) {
-                aiunit.destroyed();
 
                 Enemy enemy = null;
                 if (attacker != null && enemies.containsKey(attacker.getUnitId())) {
@@ -425,26 +457,28 @@ public class Command implements AI {
                 for (UnitDestroyedListener listener : unitDestroyedListenersc) {
                     listener.unitDestroyed(aiunit, enemy);
                 }
+                aiunit.destroyed();
                 units.remove(unit.getUnitId());
 
             }
             Enemy e = enemies.get(unit.getUnitId());
             if (e != null) {
-                e.destroyed();
 
                 Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
                 AIUnit frenemy = null;
                 if (attacker != null && units.containsKey(attacker.getUnitId())) {
                     frenemy = units.get(attacker.getUnitId());
                 }
+                debug("informing " + unitDestroyedListenersc.size() + " unitdestroyedlisteners");
                 for (UnitDestroyedListener listener : unitDestroyedListenersc) {
                     listener.unitDestroyed(e, frenemy);
                 }
+                e.destroyed();
                 enemies.remove(unit.getUnitId());
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in unitDestroyed: ", e);
-        }
+        } 
         return 0;
     }
 
@@ -461,7 +495,7 @@ public class Command implements AI {
             } else {
                 debug("avoided nullpointer exception in unit move failed");
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in unitMoveFailed: ", e);
         }
         return 0;
@@ -475,15 +509,30 @@ public class Command implements AI {
                 return 0;
             }
             units.get(unit.getUnitId()).idle();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in unitIdle: ", e);
         }
         return 0;
     }
+    
 
     @Override
     public int update(int frame) {
         try {
+            final Thread mainThread = Thread.currentThread();
+            Timer timer = new Timer(5000, null);
+            timer.setRepeats(false);
+            timer.addActionListener(new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    for (StackTraceElement ste : mainThread.getStackTrace()){
+                        debug(ste.toString());
+                    }
+                    mainThread.stop(new RuntimeException("Lockup"));
+                }
+            });
+            timer.start();
             this.frame = frame;
             for (UpdateListener listener : updateListeners) {
                 listener.update(frame);
@@ -501,17 +550,27 @@ public class Command implements AI {
                     u.checkIdle();
                 }
             }
-        } catch (Exception e) {
+            timer.stop();
+        } catch (Throwable e) {
             debug("Exception in update: ", e);
+        } finally {
         }
         return 0;
     }
 
     @Override
-    public int unitCreated(Unit unit, Unit builder) {
+    public int unitCreated(Unit unit, Unit builderunit) {
         try {
-        } catch (Exception e) {
+            AIUnit builder = builderunit == null ? null : units.get(builderunit.getUnitId());
+
+            Collection<UnitCreatedListener> unitCreatedListenersClone = new ArrayList(unitCreatedListeners);
+            for (UnitCreatedListener listener : unitCreatedListenersClone) {
+                listener.unitCreated(unit, builder);
+            }
+
+        } catch (Throwable e) {
             debug("Exception in unitCreated: ", e);
+           
         }
         return 0;
     }
@@ -531,15 +590,19 @@ public class Command implements AI {
                     aiunit = comHandler.addUnit(unit);
                     break;
                 default:
-                    if (unit.getDef().getBuildOptions().size() > 0 && unit.getDef().getSpeed() < 0.1){
-                        aiunit = facHandler.addUnit(unit);
+                    if (unit.getDef().getBuildOptions().size() > 0 ){
+                        if (unit.getDef().getSpeed() < 0.1){
+                            aiunit = facHandler.addUnit(unit);
+                        } else {
+                            aiunit = builderHandler.addUnit(unit);
+                        }
                         break;
                     }
                     if (!unit.getDef().isAbleToRepair() && unit.getDef().getSpeed() > 0) {
                         aiunit = fighterHandler.addUnit(unit);
                         break;
                     }
-                    debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");
+                    //debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");
                     aiunit = new AIUnit(unit, null);
             }
 //            debug("IDLEBUG registering " + aiunit.getUnit().getUnitId());
@@ -550,14 +613,14 @@ public class Command implements AI {
             }
 //            debug("IDLEBUG calling idle after UnitFinished " + aiunit.getUnit().getUnitId());
             units.get(unit.getUnitId()).idle();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             debug("Exception in unitFinished: ", e);
         }
         return 0;
 
     }
 
-    public void debug(String s, Exception e) {
+    public void debug(String s, Throwable e) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         e.printStackTrace(pw);
@@ -574,9 +637,35 @@ public class Command implements AI {
 
     public void debug(String s) {
         clbk.getGame().sendTextMessage(s, 0);
+        //mark(new AIFloat3(), s); // if debug doesnt echo
     }
 
     public void mark(AIFloat3 pos, String s) {
         clbk.getMap().getDrawer().addPoint(pos, s);
+    }
+    
+    public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing){
+        boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
+        if (!ret || building.getName().equalsIgnoreCase("cormex")) return ret;
+        for (Mex m : areaManager.getMexes()){
+            if (m.distanceTo(pos) < 90){
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    
+    public static float distance(AIFloat3 a, AIFloat3 b) {
+        AIFloat3 delta = new AIFloat3(a);
+        delta.sub(b);
+        return delta.length();
+    }
+    
+    public static float distance2D(AIFloat3 a, AIFloat3 b) {
+        AIFloat3 delta = new AIFloat3(a);
+        delta.sub(b);
+        delta.y = 0;
+        return delta.length();
     }
 }

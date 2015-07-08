@@ -5,6 +5,7 @@
  */
 package zkcbai.unitHandlers;
 
+import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
@@ -27,9 +28,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     private static final String[] facs = new String[]{"factorycloak", "factoryplane"};
 
     private Set<UnitDef> builtFacs = new HashSet();
-    private int assaultRequests = 0;
-
-    private final int assaultFrame = 10000;
+    private int constructorRequests = 0;
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
@@ -41,62 +40,96 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         AIUnit au = new AIUnit(u, this);
         aiunits.put(u.getUnitId(), au);
         builtFacs.add(u.getDef());
+        
+        
+        for (UnitDef ud : u.getDef().getBuildOptions()) {
+            if (!ud.getBuildOptions().isEmpty()){
+                command.pathfinder.findPath(u.getPos(), u.getPos(), ud.getMoveData().getMaxSlope(), command.pathfinder.FAST_PATH, true);
+                break;
+            }
+        }
         return au;
     }
 
+    BuildTask lastCaretakerRequest;
+    
     @Override
-    public void troopIdle(AIUnit u) {  
-        Enemy worst = null;
-        float mi = Float.MAX_VALUE;
-        for (Enemy e : command.getEnemyUnits(false)){
-            float counter = 0;
-            for (AIUnit au : command.getFighterHandler().getFighters()){
-                counter += au.getEfficiencyAgainst(e)*au.getUnit().getDef().getCost(command.metal);
-            }
-            counter /= e.getDef().getCost(command.metal);
-            counter *= Math.random() /2 + 0.75; // +- 25% randomness
-            if (counter < mi){
-                mi = counter;
-                worst = e;
+    public void troopIdle(AIUnit u) {
+        if (constructorRequests > 0) {
+
+            for (UnitDef ud : u.getDef().getBuildOptions()) {
+                if (!ud.getBuildOptions().isEmpty()) {
+                    u.assignTask(new BuildTask(ud, u.getPos(), 0, this, clbk, command));
+                    constructorRequests--;
+                    return;
+                }
             }
         }
-        if (worst != null){
-            command.debug("Worst enemy is " + worst.getDef().getHumanName());
-        }else{
-            command.debug("No enemies found yet");
-        }
-        UnitDef best = null;
-        for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
-                command.debug(ud.getTooltip());
-            if (ud.isAbleToRepair()) continue;
-            if (best == null
-                    || (worst != null && command.killCounter.getEfficiency(ud, worst.getDef()) > command.killCounter.getEfficiency(best, worst.getDef()))
-                    || (worst == null && (ud.getCost(command.metal) < best.getCost(command.metal) && ud.getTooltip().contains("aider")))) {
-                
-                best = ud;
+
+        if (command.economyManager.getRemainingOffenseBudget() > 0) {
+
+            if (command.economyManager.getRemainingOffenseBudget() > 500 && (lastCaretakerRequest == null || lastCaretakerRequest.getResult() != null)
+                    && command.getCurrentFrame() > 1000) {
+                lastCaretakerRequest = command.getBuilderHandler().requestCaretaker(u.getPos());
             }
-        }
-        if (best == null){
-                for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
-                    command.debug(ud.getTooltip());
-                if (ud.isAbleToRepair()) continue;
+            Enemy worst = null;
+            float mi = Float.MAX_VALUE;
+            for (Enemy e : command.getEnemyUnits(false)) {
+                float counter = 0;
+                for (AIUnit au : command.getFighterHandler().getFighters()) {
+                    counter += au.getEfficiencyAgainst(e) * au.getUnit().getDef().getCost(command.metal);
+                }
+                counter /= e.getDef().getCost(command.metal);
+                counter *= Math.random() / 2 + 0.75; // +- 25% randomness
+                if (counter < mi) {
+                    mi = counter;
+                    worst = e;
+                }
+            }
+            if (worst != null) {
+                command.debug("Worst enemy is " + worst.getDef().getHumanName());
+            } else {
+                command.debug("No enemies found yet");
+            }
+            UnitDef best = null;
+            for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
+                //command.debug(ud.getTooltip());
+                if (ud.isAbleToRepair()) {
+                    continue;
+                }
                 if (best == null
                         || (worst != null && command.killCounter.getEfficiency(ud, worst.getDef()) > command.killCounter.getEfficiency(best, worst.getDef()))
-                        || (worst == null && (ud.getCost(command.metal) < best.getCost(command.metal)))) {
+                        || (worst == null && (ud.getCost(command.metal) < best.getCost(command.metal) && ud.getTooltip().contains("aider")))) {
 
                     best = ud;
                 }
             }
-        }
-        if (best != null){
-            command.debug("Best counter is " + best.getHumanName());
-            u.assignTask(new BuildTask(best, u.getPos(), 0, this, clbk, command));
+            if (best == null) {
+                for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
+                    //command.debug(ud.getTooltip());
+                    if (ud.isAbleToRepair()) {
+                        continue;
+                    }
+                    if (best == null
+                            || (worst != null && command.killCounter.getEfficiency(ud, worst.getDef()) > command.killCounter.getEfficiency(best, worst.getDef()))
+                            || (worst == null && (ud.getCost(command.metal) < best.getCost(command.metal)))) {
+
+                        best = ud;
+                    }
+                }
+            }
+            if (best != null) {
+                command.debug("Best counter is " + best.getHumanName());
+                u.assignTask(new BuildTask(best, u.getPos(), 0, this, clbk, command));
+                command.economyManager.useOffenseBudget(best.getCost(command.metal));
+                return;
+            }
         }
                 
     }
 
-    public void requestAssault(int amt) {
-        assaultRequests += amt;
+    public void requestConstructor() {
+        constructorRequests = 1;
     }
 
     @Override
@@ -105,11 +138,6 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void finishedTask(Task t) {
-        if (t.getResult() instanceof AIUnit) {
-            if (((AIUnit) t.getResult()).getType() == AIUnit.UnitType.assault) {
-                assaultRequests--;
-            }
-        }
     }
 
     public UnitDef getNextFac() {
@@ -153,7 +181,6 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void update(int frame) {
-            requestAssault(6);
     }
 
 }

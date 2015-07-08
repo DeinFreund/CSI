@@ -17,6 +17,10 @@ public abstract class Task {
 
     protected TaskIssuer issuer;
     protected List<Task> queued;
+    public final int taskID = taskIDCounter++;
+    int lastExecution = -1;
+    
+    private static int taskIDCounter = 0;
     
     public Task(TaskIssuer issuer){
         this.issuer = issuer;
@@ -39,6 +43,14 @@ public abstract class Task {
         return this;
     }
     
+    public int getTaskId(){
+        return taskID;
+    }
+    
+    public TaskIssuer getIssuer(){
+        return issuer;
+    }
+    
     public abstract Task clone();
     
     protected void completed(AITroop t){
@@ -50,6 +62,16 @@ public abstract class Task {
 
     public String getInfo() {
         return this.info;
+    }
+    
+    /**
+     * Checks whether there has been any work(execution) done on the task since frame
+     * @param frame
+     * @return 
+     */
+    public boolean isBeingWorkedOn(int frame){
+        if (lastExecution < 0) throw new UnsupportedOperationException("IsBeingWorkedOnNotImplemented");
+        return lastExecution > frame;
     }
 
     public abstract Object getResult();

@@ -8,8 +8,11 @@ package zkcbai.unitHandlers;
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
+import com.springrts.ai.oo.clb.UnitDef;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
+import zkcbai.helpers.AreaChecker;
+import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -47,15 +50,24 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void troopIdle(AIUnit u) {
-        command.debug("Commander is idle");
+        //command.debug("Commander is idle");
         if (!plopped) {
-            com.assignTask(new BuildTask(command.getFactoryHandler().getNextFac(),com.getPos(), this, clbk, command,0).setInfo("plop"));
+            final UnitDef fac = command.getFactoryHandler().getNextFac();
+            com.assignTask(new BuildTask(fac,command.areaManager.getArea(com.getPos()).getNearestArea(new AreaChecker() {
+
+                @Override
+                public boolean checkArea(ZoneManager.Area a) {
+                    AIFloat3 bpos = clbk.getMap().findClosestBuildSite(fac, a.getPos(), 1000, 0, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0);
+                    return command.isPossibleToBuildAt(fac, bpos, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0);
+                }
+            }).getPos(), this, clbk, command,0).setInfo("plop"));
 
             lastBuildTask = com.getTask();
         } else {
-            if (lastBuildTask.getResult() != null) {
+            if (((BuildTask)lastBuildTask).isDone() || ((BuildTask)lastBuildTask).isAborted()){
                 finishedTask(lastBuildTask);
             } else {
+                command.debug(((BuildTask)lastBuildTask).isDone() + " || " +((BuildTask)lastBuildTask).isAborted());
                 com.assignTask(lastBuildTask);
             }
         }
@@ -63,24 +75,21 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void abortedTask(Task t) {
-        command.debug("Commander aborted a task");
+        //command.debug("Commander aborted a task");
         finishedTask(t);
     }
 
     @Override
     public void finishedTask(Task t) {
-        command.debug("Commander finished a task");
+        //command.debug("Commander finished a task");
         switch (t.getInfo()) {
             case "plop":
                 command.debug("Commander plopped fac");
-                plopped = true;
+                plopped = t.getResult() != null;
                 lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
                 break;
-            case "startmex":
-                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win1"));
-                break;
             case "win1":
-                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win2"));
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win2"));
                 break;
             case "win2":
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("corrad"),
@@ -89,18 +98,23 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
                 break;
             case "win4":
             case "radar":
+                if (command.areaManager.getNearestBuildableMex(startPos) == null) return;
                 lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("mex"));
                 break;
+                
+            case "startmex":
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win1"));
+                break;
             case "mex":
-                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win3"));
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win3"));
                 break;
             default:
             case "win3":
-                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armwin"), com.getPos(), this, clbk, command).setInfo("win4"));
+                lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win4"));
                 break;
         }
         com.assignTask(lastBuildTask);
-        command.debug("New task has info " + lastBuildTask.getInfo());
+        //command.debug("New task has info " + lastBuildTask.getInfo());
 
     }
 

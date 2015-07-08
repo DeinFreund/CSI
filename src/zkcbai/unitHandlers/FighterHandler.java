@@ -161,7 +161,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
             for (Enemy e: a.getEnemies()){
                 random -= Math.max(imp,0.000001) * au.getEfficiencyAgainst(e) / au.distanceTo(e.getPos());
                 if (random < 0){
-                    au.assignTask(new AttackTask(e,command.getCurrentFrame() + 60, this, command));
+                    au.assignTask(new AttackTask(e,command.getCurrentFrame() + 60, this, true, command));
                     return;
                 }
             }
@@ -319,7 +319,6 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         }
         squads.add(ss);
 
-        command.getFactoryHandler().requestAssault(5);
 
         return new AIFloat3();
     }
@@ -365,7 +364,6 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         }
         squads.add(ss);
 
-        command.getFactoryHandler().requestAssault(5);
 
         return new AIFloat3();
     }
@@ -482,9 +480,6 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
     @Override
     public void areaZoneChange(Area area, ZoneManager.Zone prev, ZoneManager.Zone next) {
-        if (next == ZoneManager.Zone.fortified) {
-            command.getFactoryHandler().requestAssault(2);
-        }
     }
 
     private void counter(Enemy e){

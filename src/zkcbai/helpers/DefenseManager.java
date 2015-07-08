@@ -23,24 +23,25 @@ import zkcbai.unitHandlers.units.Enemy;
  */
 public class DefenseManager extends Helper implements EnemyEnterLOSListener, UnitDestroyedListener, EnemyDiscoveredListener {
 
+    private Set<Enemy> defenses = new HashSet();
+    private Set<Enemy> riots = new HashSet();
+    private Set<Enemy> fighters = new HashSet();
+
+    private final Set<UnitDef> riotDefs = new HashSet();
+
     public DefenseManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
-        cmd.addEnemyEnterLOSListener(this);
-        cmd.addUnitDestroyedListener(this);
-        cmd.addEnemyDiscoveredListener(this);
 
         for (UnitDef ud : clbk.getUnitDefs()) {
             if (ud.getTooltip().toLowerCase().contains("riot") || ud.getTooltip().toLowerCase().contains("anti-swarm")) {
                 riotDefs.add(ud);
             }
         }
+        
+            command.addEnemyEnterLOSListener(this);
+            command.addUnitDestroyedListener(this);
+            command.addEnemyDiscoveredListener(this);
     }
-
-    private Set<Enemy> defenses = new HashSet();
-    private Set<Enemy> riots = new HashSet();
-    private Set<Enemy> fighters = new HashSet();
-
-    private final Set<UnitDef> riotDefs = new HashSet();
 
     public float getDanger(AIFloat3 pos) {
         float result = 0;
@@ -153,6 +154,9 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
 
     @Override
     public void update(int frame) {
+        if (frame == 0){
+            
+        }
     }
 
     @Override
@@ -161,6 +165,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
 
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
+        command.debug("removed enemy " + e.hashCode());
         defenses.remove(e);
         riots.remove(e);
         fighters.remove(e);
