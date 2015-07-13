@@ -64,6 +64,8 @@ public abstract class Task {
         return this.info;
     }
     
+    public abstract void cancel();
+    
     /**
      * Checks whether there has been any work(execution) done on the task since frame
      * @param frame

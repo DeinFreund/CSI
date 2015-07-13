@@ -38,6 +38,11 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
     }
 
     public abstract AIUnit addUnit(Unit u);
+    
+    public void addUnit(AIUnit au){
+        aiunits.put(au.hashCode(), au);
+        au.assignAIUnitHandler(this);
+    }
 
     public abstract void removeUnit(AIUnit u);
 

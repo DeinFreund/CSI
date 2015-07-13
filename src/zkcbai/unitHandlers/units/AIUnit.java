@@ -79,11 +79,17 @@ public class AIUnit extends AITroop implements UpdateListener {
 
     public void checkIdle() {
         if (dead) throw new RuntimeException("polled dead aiunit " + unitId);
-        if (handler.getCommand() != null && wakeUpFrame < 0 && handler.getCommand().getCurrentFrame() - lastCommandTime > 100
+        if (handler.getCommand() == null) return;
+        if ((wakeUpFrame < 0 || wakeUpFrame > 1000000) && handler.getCommand().getCurrentFrame() - lastCommandTime > 100
                 && unit.getCurrentCommands().isEmpty()) {
             handler.getCommand().mark(getPos(), "reawaken");
             idle();
         }
+        String tname = "";
+        if (task != null) tname = task.getClass().getName();
+        getCommand().debug("not idle doing " + tname + " because "  + (wakeUpFrame < 0 || wakeUpFrame > 1000000) + 
+                "&&" + (handler.getCommand().getCurrentFrame() - lastCommandTime > 100) +
+                "&&" + unit.getCurrentCommands().isEmpty());
     }
 
     private void clearUpdateListener() {
@@ -220,6 +226,24 @@ public class AIUnit extends AITroop implements UpdateListener {
         }
     }
 
+    @Override
+    public void wait(int timeout) {
+        if (dead) {
+            throw new RuntimeException("polled dead aiunit " + unitId);
+        }
+        //handler.getCommand().mark(trg, "fight");
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
+        }
+    }
+    
     private int lastCall = 0;
 
     @Override

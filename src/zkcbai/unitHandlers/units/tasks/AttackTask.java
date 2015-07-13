@@ -58,20 +58,20 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
             }
             completed(u);
             issuer.finishedTask(this);
-            command.removeUnitDestroyedListener(this);
+            cleanup();
             return true;
         }
         if (errors > 15) {
-            command.removeUnitDestroyedListener(this);
             //command.mark(u.getPos(), "attack aborted");
             completed(u);
+            cleanup();
             issuer.abortedTask(this);
             return true;
         }
         //if (u.distanceTo(target.getPos()) > u.getMaxRange() * 1.5) {
-        if (u.distanceTo(target.getPos()) > Math.max(u.getMaxRange() * 1.7, 70)) {
+        if (u.distanceTo(target.getPos()) > Math.max(u.getMaxRange() * 1.7, 70) || (!target.isVisible() && u.distanceTo(target.getPos()) > 60)) {
             u.assignTask(new MoveTask(target.getPos(), command.getCurrentFrame() + 80, this,u.getDef(),command).queue(this));
-
+            command.mark(u.getPos(), "approaching");
             return false;
         }
         /*
@@ -150,4 +150,14 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
         throw new RuntimeException("I spammed MoveTasks!");
     }
 
+    protected void cleanup() {
+
+        command.removeUnitDestroyedListener(this);
+    }
+    
+    @Override
+    public void cancel(){
+        cleanup();
+    }
+    
 }

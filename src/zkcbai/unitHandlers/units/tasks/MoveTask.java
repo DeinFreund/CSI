@@ -114,6 +114,10 @@ public class MoveTask extends Task {
         while (!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 220 && path.size() > 1) || (u.distanceTo(path.getFirst()) < 50))) {
             path.pollFirst();
         }
+        if (path.isEmpty() && u.distanceTo(target) > 50){
+            u.moveTo(target, u.getCommand().getCurrentFrame() + 20);
+            return false;
+        }
         if (path.isEmpty() || (u.getCommand().getCurrentFrame() >= timeout)) {
             completed(u);
             issuer.finishedTask(this);
@@ -121,9 +125,9 @@ public class MoveTask extends Task {
         }
         AIFloat3 first = (path.pollFirst());
         
-        u.moveTo(randomize(first,randomizeFirst), (short) 0, u.getCommand().getCurrentFrame() + 45);
+        u.moveTo(randomize(first,randomizeFirst), (short) 0, u.getCommand().getCurrentFrame() + 20);
         if (path.size() > 0 && distance(first, path.getFirst()) > 100){
-            u.moveTo(randomize(path.getFirst(),100), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 45);
+            u.moveTo(randomize(path.getFirst(),100), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + 20);
         }
         path.addFirst(first);
         return false;
@@ -158,6 +162,12 @@ public class MoveTask extends Task {
     @Override
     public Object getResult() {
         return null;
+    }
+    
+    
+    @Override
+    public void cancel(){
+        
     }
 
 }

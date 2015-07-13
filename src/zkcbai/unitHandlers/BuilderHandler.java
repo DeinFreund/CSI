@@ -4,6 +4,7 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import com.springrts.ai.oo.clb.WeaponMount;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.ArrayDeque;
@@ -26,6 +27,7 @@ import zkcbai.helpers.AreaZoneChangeListener;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
+import zkcbai.helpers.ZoneManager.Owner;
 import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -54,11 +56,21 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     protected float HEURISTIC = 0;
     protected float MAX_HEURISTIC = 0.7f;
     
+    protected final UnitDef llt;
     
-    protected Set<BuildTask> energyConstructions = new HashSet<>();
+    
+    protected Set<BuildTask> constructions = new HashSet<>();
+    
+    
     
     protected Map<GridNode, Map<Float, GridNode> > connections = new HashMap();
 
+    protected Map<Integer, GridNode> unitGridNodeFinder = new HashMap<>();
+    protected Map<Integer, GridNode> taskGridNodeFinder = new HashMap<>();
+    protected Map<Integer, GridNode> unitDefenseNodeFinder = new HashMap<>();
+    protected Map<Integer, GridNode> taskDefenseNodeFinder = new HashMap<>();
+    
+    protected Set<GridNode> defenseNodes = new HashSet<>();
     protected Set<GridNode> gridNodes = new HashSet<GridNode>(){
         @Override
         public boolean add(GridNode gn){
@@ -84,17 +96,25 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             connections.remove(gn);
             return retval;
         }
+        
+        @Override
+        public boolean removeAll(Collection<?> obj){
+            boolean ret = false;
+            for (Object o : obj){
+                if (remove(o)) ret = true;
+            }
+            return ret;
+        }
     };
 
-    protected Map<Integer, GridNode> unitGridNodeFinder = new TreeMap<>();
-    protected Map<Integer, GridNode> taskGridNodeFinder = new TreeMap<>();
-    
 
     public BuilderHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         cmd.addUpdateListener(this);
         cmd.addUnitFinishedListener(this);
         cmd.areaManager.addAreaZoneChangeListener(this);
+        llt = command.getCallback().getUnitDefByName("corllt");
+        if (llt == null) throw new AssertionError("llt not found!");
     }
 
     @Override
@@ -112,34 +132,67 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     public void troopIdle(AIUnit u) {
         BuildTask best = null;
         float bestscore = -1e9f;
-        for (BuildTask bt : energyConstructions){
-            float score = -u.distanceTo(bt.getPos()) - bt.getWorkers().size() * 500;
+        for (BuildTask bt : constructions){
+            if (command.areaManager.getArea(bt.getPos()).getZone() != Zone.own) continue;
+            float score = -u.distanceTo(bt.getPos()) - bt.getWorkers().size() * 500 - command.areaManager.getArea(bt.getPos()).getDanger()* 1000;
+            if (bt.getBuilding().getName().equals("cormex") && avgMetalIncome < energyIncome) score *= 2;
             if (best == null || score > bestscore){
                 bestscore = score;
                 best = bt;
             }
         }
         if (best != null){
-            if (best.isDone() || best.isAborted()) throw new RuntimeException("Didn't clean task from energyConstructions");
+            if (best.isDone() || best.isAborted()) throw new RuntimeException("Didn't clean task from constructions");
+            best.setInfo(best.getInfo() + " - queued by BuilderHandler");
             u.queueTask(best);
         }
+    }
+    
+    public Collection<AIUnit> getBuilders(){
+        return aiunits.values();
     }
 
     protected void endedTask(final Task t) {
 
         if (t instanceof BuildTask) {
+            command.debug("ended task " + t.getTaskId());
             
             //command.mark(((BuildTask)t).getPos(), "removed grid");
-            energyConstructions.remove((BuildTask) t);
-            command.addSingleUpdateListener(new UpdateListener() {
+            boolean known = constructions.remove((BuildTask) t);
+            if (taskGridNodeFinder.containsKey(t.getTaskId())) {
+                command.addSingleUpdateListener(new UpdateListener() {
 
-                @Override
-                public void update(int frame) {
+                    @Override
+                    public void update(int frame) {
 
-                    gridNodes.remove(taskGridNodeFinder.get(t.getTaskId()));
-                    taskGridNodeFinder.remove(t.getTaskId());
-                }
-            }, command.getCurrentFrame() + 10);
+                        gridNodes.remove(taskGridNodeFinder.get(t.getTaskId()));
+                        taskGridNodeFinder.remove(t.getTaskId());
+                    }
+                }, command.getCurrentFrame() + 10);
+            }else if(taskDefenseNodeFinder.containsKey(t.getTaskId())){
+                command.addSingleUpdateListener(new UpdateListener() {
+
+                    @Override
+                    public void update(int frame) {
+
+                        defenseNodes.remove(taskDefenseNodeFinder.get(t.getTaskId()));
+                        taskDefenseNodeFinder.remove(t.getTaskId());
+                    }
+                }, command.getCurrentFrame() + 10);
+            }else if(t.getInfo().contains("radar")){
+                command.addSingleUpdateListener(new UpdateListener() {
+
+                    @Override
+                    public void update(int frame) {
+
+                        buildingRadar = false;
+                    }
+                }, command.getCurrentFrame() + 10);
+            }
+            else{
+                if (!(t.getInfo().contains("nano") || t.getInfo().contains("mex") || t.getInfo().contains("radar")))
+                    throw new AssertionError("Unknown task " + ((BuildTask)t).getBuilding().getHumanName() + " info: " + t.getInfo() +" known: " + known + " id: "  + t.getTaskId());
+            }
         }
     }
 
@@ -169,6 +222,10 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         if (unitGridNodeFinder.containsKey(u.getUnit().getUnitId())) {
             gridNodes.remove(unitGridNodeFinder.get(u.getUnit().getUnitId()));
             unitGridNodeFinder.remove(u.getUnit().getUnitId());
+        }
+        if (unitDefenseNodeFinder.containsKey(u.getUnit().getUnitId())) {
+            defenseNodes.remove(unitDefenseNodeFinder.get(u.getUnit().getUnitId()));
+            unitDefenseNodeFinder.remove(u.getUnit().getUnitId());
         }
     }
 
@@ -219,7 +276,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 float dist = dists.firstKey();
                 dists.remove(dists.firstKey());
                 
-                if (dist > best.get(node)) {
+                if (dist > best.get(node) || !gridNodes.contains(node)) {
                     //if (dists.isEmpty()) command.debug("ERROR: node was never added to dists");
                     continue;
                 }
@@ -363,6 +420,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             //command.debug("building " + best.building.getHumanName() + " @ " + best.pos.toString() + " for " + best.cost);
             if (!command.isPossibleToBuildAt(best.building, best.pos, 0))command.debug("HONK!");
             buildTask = new BuildTask(best.building, best.pos, 0, this, clbk, command);
+            buildTask.setInfo("new");
         } else {
             //command.debug("No build possibility found for energy!");
         }
@@ -378,9 +436,13 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         return gridNodes;
     }
 
+    public Collection<GridNode> getDefenseNodes() {
+        return defenseNodes;
+    }
+
     public float getEnergyUnderConstruction() {
         float res = 0;
-        for (BuildTask bt : energyConstructions) {
+        for (BuildTask bt : constructions) {
             res += (bt.getBuilding().getCustomParams().containsKey("income_energy") ? Float.valueOf(bt.getBuilding().getCustomParams().get("income_energy")) : 0f);
         }
         return res;
@@ -392,7 +454,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
      */
     public float getMetalUnderConstruction() {
         float res = 0;
-        for (BuildTask bt : energyConstructions) {
+        for (BuildTask bt : constructions) {
             res += (bt.getBuilding().getName().equalsIgnoreCase("cormex") ? 1.5 : 0f);
         }
         return res;
@@ -449,7 +511,30 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     
     public BuildTask requestCaretaker(AIFloat3 pos){
         BuildTask bt = new BuildTask(command.getCallback().getUnitDefByName("armnanotc"), pos, this, clbk, command, 4);
-        energyConstructions.add(bt);
+        bt.setInfo("nano");
+        constructions.add(bt);
+        return bt;
+    }
+    
+    protected boolean buildingRadar = false;
+    
+    public BuildTask requestRadarCoverage(AIFloat3 pos){
+        if (buildingRadar) return null;
+        Area area =  command.areaManager.getArea(pos).getNearestArea(new AreaChecker() {
+
+            @Override
+            public boolean checkArea(Area a) {
+                return command.radarManager.isInRadar(a.getPos());
+            }
+        });
+        if (area == null){
+            if (aiunits.isEmpty()) return null;
+            area = command.areaManager.getArea(aiunits.values().iterator().next().getPos());
+        }
+        BuildTask bt = new BuildTask(command.getCallback().getUnitDefByName("corrad"),area.getPos(), this, clbk, command, 4);
+        bt.setInfo("radar");
+        constructions.add(bt);
+        buildingRadar = true;
         return bt;
     }
     
@@ -465,6 +550,33 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         neighbours.remove(neighbours.size() - 1);
         return neighbours.isEmpty() || !isConnected(last, new HashSet(neighbours), new HashSet<>(Arrays.asList(gridNode)));
     }
+    
+    public void buildDefense(){
+        Set<Mex> unprotectedMexes = new HashSet<>();
+        for (Mex m : command.areaManager.getMexes()){
+            if (m.getOwner() != Owner.own) continue;
+            boolean safe = false;
+            for (GridNode gn : defenseNodes){
+                if (m.distanceTo(gn.pos) < gn.range){
+                    safe = true;
+                }
+            }
+            if (!safe) {
+                unprotectedMexes.add(m);
+            }
+        }
+        for (Mex mex : unprotectedMexes){
+            BuildTask bt = new BuildTask(llt, mex.pos, this, clbk, command,5);
+            GridNode gn = new GridNode(bt);
+            bt.setInfo("mex llt");
+            constructions.add(bt);
+            this.defenseNodes.add(gn);
+            taskDefenseNodeFinder.put(bt.getTaskId(),gn);
+            command.economyManager.useDefenseBudget(bt.getBuilding().getCost(command.metal));
+            return;
+        }
+    }
+    
     int imgscale = 10;
     Graphics2D gbefore;
     
@@ -472,6 +584,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     int lastQueueSize = 0;
     
     int lastMexCheck = -600;
+    int lastDefenseCheck = -600;
     
     @Override
     public void update(int frame) {
@@ -480,9 +593,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         
         if (frame - lastConCheck > 600){
             lastConCheck = frame;
-            if (energyConstructions.size() - lastQueueSize > 0 && energyConstructions.size() > aiunits.size() || aiunits.isEmpty()){
+            if (constructions.size() - lastQueueSize > 0 && constructions.size() > aiunits.size() || aiunits.isEmpty()){
                 command.getFactoryHandler().requestConstructor();
-                lastQueueSize = energyConstructions.size();
+                lastQueueSize = constructions.size();
             }
                 
         }
@@ -495,17 +608,26 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
             for (Mex m : dists.values()){
                 if (m.getBuildTask() != null || command.areaManager.getArea(m.pos).getZone() != Zone.own) continue;
+                if (!command.radarManager.isInRadar(m.pos)){
+                    if (constructions.size() < aiunits.size() * 0.6) requestRadarCoverage(m.pos);
+                    continue;
+                }
                 toBuild -= m.getIncome();
                 BuildTask bt = m.createBuildTask(this);
                 GridNode gn = new GridNode(bt);
-                energyConstructions.add(bt);
+                bt.setInfo("mextask");
+                constructions.add(bt);
                 gridNodes.add(gn);
                 taskGridNodeFinder.put(bt.getTaskId(), gn);
                 if (toBuild < 0) break;
             }
         }
+        if (frame - lastDefenseCheck > 60 && command.economyManager.getRemainingDefenseBudget() > 0) {
+            buildDefense();
+            lastDefenseCheck = frame;
+        }
 
-        if ((1.1 * command.getCallback().getEconomy().getUsage(command.energy) > energyIncome + getEnergyUnderConstruction())
+        if ((1.1 * avgMetalIncome > energyIncome + getEnergyUnderConstruction() || command.getCallback().getEconomy().getCurrent(command.energy) < 90)
                 && frame - lastEnergyCheck > 60 && command.economyManager.getRemainingEnergyBudget() > 0) {
             long time = System.currentTimeMillis();
             lastEnergyCheck = frame;    
@@ -583,15 +705,21 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 //            }
             
             for (int i = 0; i < planning; i++){
-                if (useless[i]) continue;
-                energyConstructions.add(buildTasks.get(i));
+                if (useless[i]) {
+                    buildTasks.get(i).cancel();
+                    continue;
+                }
+                buildTasks.get(i).setInfo("gridplan");
+                constructions.add(buildTasks.get(i));
                 this.gridNodes.add(gridNodes.get(i));
                 taskGridNodeFinder.put(buildTasks.get(i).getTaskId(), gridNodes.get(i));
                 command.economyManager.useEnergyBudget(buildTasks.get(i).getBuilding().getCost(command.metal));
 //                if (buildTasks.get(i).getBuilding().getName().equals("armestor")){
 //                    command.mark(buildTasks.get(i).getPos(), "building "+ buildTasks.get(i).getBuilding().getHumanName());
 //                }
-                break;
+                for (int ii = i; ii < planning; ii++){
+                    useless[ii] = true;
+                }
             }
             long time2 = System.currentTimeMillis();
             if (time2 - time > 100) {
@@ -625,6 +753,11 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             unitGridNodeFinder.put(u.getUnit().getUnitId(), gridNode);
             //command.mark(u.getPos(), "added grid");
         }
+        if (u.getDef().isAbleToAttack() && u.getDef().getBuildOptions().isEmpty()) {
+            GridNode    gridNode = new GridNode(u.getUnit());
+            defenseNodes.add(gridNode);
+            unitDefenseNodeFinder.put(u.getUnit().getUnitId(), gridNode);
+        }
     }
 
     protected static float distance(AIFloat3 a, AIFloat3 b) {
@@ -646,7 +779,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         if (prev == ZoneManager.Zone.own){
             for (Mex m : area.getMexes()){
                 if (m.getBuildTask() != null){
-                    energyConstructions.remove(m.getBuildTask());
+                    constructions.remove(m.getBuildTask());
                     gridNodes.remove(taskGridNodeFinder.get(m.getBuildTask().getTaskId()));
                     taskGridNodeFinder.remove(m.getBuildTask().getTaskId());
                 }
@@ -654,6 +787,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
     }
         
+    
     public class GridNode implements Comparable {
 
         public final AIFloat3 pos;
@@ -667,14 +801,26 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             pos = bt.getPos();
             building = bt.getBuilding();
             energy = building.getCustomParams().containsKey("income_energy") ? Float.valueOf(building.getCustomParams().get("income_energy")) : 0f;
-            range = Float.valueOf(building.getCustomParams().get("pylonrange"));
+            if (bt.getBuilding().isAbleToAttack()) {
+                float max = 0;
+                for (WeaponMount wm : bt.getBuilding().getWeaponMounts()){
+                    max = Math.max(max,wm.getWeaponDef().getRange());
+                }
+                range = max;
+            } else {
+                range = Float.valueOf(building.getCustomParams().get("pylonrange"));
+            }
         }
 
         public GridNode(Unit u) {
             pos = u.getPos();
             building = u.getDef();
             energy = building.getCustomParams().containsKey("income_energy") ? Float.valueOf(building.getCustomParams().get("income_energy")) : 0f;
-            range = Float.valueOf(building.getCustomParams().get("pylonrange"));
+            if (u.getDef().isAbleToAttack()) {
+                range = u.getMaxRange();
+            } else {
+                range = Float.valueOf(building.getCustomParams().get("pylonrange"));
+            }
         }
 
         public float distanceTo(GridNode g2) {

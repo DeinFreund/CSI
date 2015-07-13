@@ -26,7 +26,7 @@ import zkcbai.unitHandlers.units.Enemy;
  */
 public class KillCounter extends Helper implements UnitDestroyedListener {
 
-    Map<Integer, Map<Integer, Integer>> kills;
+    Map<String, Map<String, Integer>> kills;
 
     String path = "unitStats";
 
@@ -40,10 +40,16 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
             path = new File(".").getCanonicalPath().replaceAll("pring.*", "pring").replace('\\', '/') + "/unitStats";
             FileInputStream fileIn = new FileInputStream(path);
             ObjectInputStream in = new ObjectInputStream(fileIn);
-            kills = (Map<Integer, Map<Integer, Integer>>) in.readObject();
+            kills = (Map<String, Map<String, Integer>>) in.readObject();
             in.close();
             fileIn.close();
             command.debug("Loaded unitStats for " + kills.size() + " units.");
+            for (Map.Entry<String, Map<String, Integer>> a : kills.entrySet()){
+                command.debug("-- " + a.getKey());
+                for (Map.Entry<String, Integer> b : a.getValue().entrySet()){
+                    command.debug(a.getKey() + " -> " + b.getKey() + " = " + b.getValue());
+                }
+            }
         } catch (Exception e) {
             command.debug("Loading unitStats failed!\n",e);
         }
@@ -73,8 +79,8 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
 
     public float getEfficiency(UnitDef attacker, UnitDef enemy) {
         if (attacker == null || enemy == null) return 1;
-        int a = attacker.getUnitDefId();
-        int b = enemy.getUnitDefId();
+        String a = attacker.getName();
+        String b = enemy.getName();
         if (!kills.containsKey(a))kills.put(a, new HashMap());
         if (!kills.containsKey(b))kills.put(b, new HashMap());
         if (!kills.get(a).containsKey(b))kills.get(a).put(b, 1);
@@ -97,19 +103,32 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
             command.debug("Unknown hostile killer.");
             return;
         }
-        unitDestroyed(u.getUnit().getDef(), e.getDef());
+        if (!u.getUnit().isParalyzed()) {
+            unitDestroyed(u.getUnit().getDef(), e.getDef());
+        }
     }
 
     private void unitDestroyed(UnitDef attacker, UnitDef killer) {
-        if (!kills.containsKey(killer.getUnitDefId())) {
-            kills.put(killer.getUnitDefId(), new HashMap());
+        //counter
+        /*
+        if (!kills.containsKey(-1)) {
+            kills.put(-1, new HashMap());
         }
-        if (!kills.get(killer.getUnitDefId()).containsKey(attacker.getUnitDefId())) {
-            kills.get(killer.getUnitDefId()).put(attacker.getUnitDefId(), 1);
+        if (!kills.get(-1).containsKey(-1)) {
+            kills.get(-1).put(-1, 0);
         }
-        kills.get(killer.getUnitDefId()).put(attacker.getUnitDefId(),
-                kills.get(killer.getUnitDefId()).get(attacker.getUnitDefId()) + (int) attacker.getCost(command.metal));
-        command.debug("Efficiency of " + killer.getHumanName() + " against " + attacker.getHumanName() + ": " + getEfficiency(killer, attacker));
+        kills.get(-1).put(-1, kills.get(-1).get(-1) + 1);*/
+        //actual stuff:
+        if (!kills.containsKey(killer.getName())) {
+            kills.put(killer.getName(), new HashMap());
+        }
+        if (!kills.get(killer.getName()).containsKey(attacker.getName())) {
+            kills.get(killer.getName()).put(attacker.getName(), 1);
+        }
+        kills.get(killer.getName()).put(attacker.getName(),
+                kills.get(killer.getName()).get(attacker.getName()) + (int) attacker.getCost(command.metal));
+        command.debug( ": Efficiency of " + killer.getHumanName() + " against " + attacker.getHumanName() + 
+                ": " + getEfficiency(killer, attacker));
     }
 
 }

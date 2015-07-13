@@ -59,9 +59,18 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             //throw new RuntimeException("Invalid BuildTask parameters: Unable to build at location");
         }
         assignedUnits = new ArrayList();
+        
+        /*try{
+            throw new AssertionError("");
+        }catch(Throwable t){
+            command.debug("started task " + getTaskId(), t);
+        }*/
+        
         command.addUnitFinishedListener(this);
         command.addUnitCreatedListener(this);
     }
+    
+    
     
     private void cleanup() {
 
@@ -96,14 +105,16 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     public boolean execute(AITroop u) {
         lastExecution = command.getCurrentFrame();
         if (errors >5 + 3* assignedUnits.size()){
-            aborted = true;
             completed(u);
             command.debug("aborted task execution because of errors");
             for (String s : errorMessages){
                 command.debug(s);
             }
-            issuer.abortedTask(this);
-            cleanup();
+            if (!isAborted()) {
+                aborted = true;
+                issuer.abortedTask(this);
+                cleanup();
+            }
             return true;
         }
         if (result != null && resultFinished) {
@@ -189,7 +200,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void unitFinished(AIUnit u) {
-        if (u.getUnit().getDef().equals(building) && u.distanceTo(pos)<50){
+        if (u.getUnit().getDef().equals(building) && u.distanceTo(pos)<65){
             command.debug("finished " + building.getHumanName());
             completed(u);
             result = u.getUnit();
@@ -206,9 +217,14 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void unitCreated(Unit u, AIUnit builder) {
-        if (u.getDef().equals(building) && Command.distance2D(pos, u.getPos())<40){
+        if (u.getDef().equals(building) && Command.distance2D(pos, u.getPos())<65){
             result = u;
         }
+    }
+
+    @Override
+    public void cancel() {
+        cleanup();
     }
     
 }

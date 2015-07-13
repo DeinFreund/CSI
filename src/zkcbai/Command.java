@@ -17,6 +17,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,12 +33,13 @@ import zkcbai.unitHandlers.FactoryHandler;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.helpers.LosManager;
 import zkcbai.helpers.Pathfinder;
-import zkcbai.helpers.PlaceholderEnemies;
 import zkcbai.helpers.RadarManager;
 import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.unitHandlers.BuilderHandler;
 import zkcbai.unitHandlers.FighterHandler;
+import zkcbai.unitHandlers.NanoHandler;
 import zkcbai.unitHandlers.units.Enemy;
+import zkcbai.unitHandlers.units.FakeEnemy;
 
 /**
  *
@@ -56,30 +58,31 @@ public class Command implements AI {
     public final DefenseManager defenseManager;
     public final Pathfinder pathfinder;
     public final KillCounter killCounter;
-    public final PlaceholderEnemies placeholderEnemies;
     public final EconomyManager economyManager;
 
-    private final Collection<EnemyEnterRadarListener> enemyEnterRadarListeners = new HashSet();
-    private final Collection<EnemyEnterLOSListener> enemyEnterLOSListeners = new HashSet();
-    private final Collection<EnemyLeaveRadarListener> enemyLeaveRadarListeners = new HashSet();
-    private final Collection<EnemyLeaveLOSListener> enemyLeaveLOSListeners = new HashSet();
-    private final Collection<EnemyDiscoveredListener> enemyDiscoveredListeners = new HashSet();
-    private final Collection<UnitFinishedListener> unitFinishedListeners = new HashSet();
-    private final Collection<UnitCreatedListener> unitCreatedListeners = new HashSet();
-    private final Collection<UnitDestroyedListener> unitDestroyedListeners = new HashSet();
-    private final Collection<UpdateListener> updateListeners = new HashSet();
-    private final Collection<UnitDamagedListener> unitDamagedListeners = new HashSet();
-    private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap();
+    private final Collection<EnemyEnterRadarListener> enemyEnterRadarListeners = new HashSet<>();
+    private final Collection<EnemyEnterLOSListener> enemyEnterLOSListeners = new HashSet<>();
+    private final Collection<EnemyLeaveRadarListener> enemyLeaveRadarListeners = new HashSet<>();
+    private final Collection<EnemyLeaveLOSListener> enemyLeaveLOSListeners = new HashSet<>();
+    private final Collection<EnemyDiscoveredListener> enemyDiscoveredListeners = new HashSet<>();
+    private final Collection<UnitFinishedListener> unitFinishedListeners = new HashSet<>();
+    private final Collection<UnitCreatedListener> unitCreatedListeners = new HashSet<>();
+    private final Collection<UnitDestroyedListener> unitDestroyedListeners = new HashSet<>();
+    private final Collection<UpdateListener> updateListeners = new HashSet<>();
+    private final Collection<UnitDamagedListener> unitDamagedListeners = new HashSet<>();
+    private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap<>();
 
-    private final Collection<CommanderHandler> comHandlers = new HashSet();
+    private final Collection<CommanderHandler> comHandlers = new HashSet<>();
     private final FactoryHandler facHandler;
     private final FighterHandler fighterHandler;
     private final BuilderHandler builderHandler;
+    private final NanoHandler nanoHandler;
 
-    private final Map<Integer, AIUnit> units = new TreeMap();
-    private final Map<Integer, Enemy> enemies = new TreeMap();
-    private final Set<UnitDef> enemyDefs = new HashSet();
-    private final TreeMap<Float, UnitDef> defSpeedMap = new TreeMap();
+    private final Map<Integer, AIUnit> units = new HashMap<>();
+    private final Map<Integer, Enemy> enemies = new HashMap<>();
+    private final Set<UnitDef> enemyDefs = new HashSet<>();
+    private final Set<FakeEnemy> fakeEnemies = new HashSet<>();
+    private final TreeMap<Float, UnitDef> defSpeedMap = new TreeMap<>();
 
     private int frame;
     private AIFloat3 startPos = null;
@@ -100,11 +103,11 @@ public class Command implements AI {
             defenseManager = new DefenseManager(this, clbk);
             pathfinder = new Pathfinder(this, clbk);
             killCounter = new KillCounter(this, clbk);
-            placeholderEnemies = new PlaceholderEnemies(this, clbk);
             builderHandler = new BuilderHandler(this, clbk);
+            nanoHandler = new NanoHandler(this, clbk);
             
 
-            String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw"};
+            String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw", "armflea", "corak"};
             for (String s : importantSpeedDefs) {
                 defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
             }
@@ -196,6 +199,11 @@ public class Command implements AI {
         return clbk;
     }
 
+    public void addFakeEnemy(FakeEnemy e){
+        fakeEnemies.add(e);
+        enemyDiscovered(e);
+    }
+    
     public void addEnemyEnterRadarListener(EnemyEnterRadarListener listener) {
         enemyEnterRadarListeners.add(listener);
     }
@@ -313,7 +321,6 @@ public class Command implements AI {
     @Override
     public int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
-            debug("unitdamaged");
             Enemy att = null;
             if (attacker != null) att = enemies.get(attacker.getUnitId());
             AIUnit def = units.get(unit.getUnitId());
@@ -335,6 +342,22 @@ public class Command implements AI {
             if (!enemies.containsKey(enemy.getUnitId())) {
                 enemyDiscovered(new Enemy(enemy, this, clbk));
             }
+            Enemy aiEnemy = enemies.get(enemy.getUnitId());
+            FakeEnemy closest = null;
+            for (FakeEnemy fe : fakeEnemies){
+                if (fe.isUnit(enemy) && (closest == null || closest.distanceTo(enemy.getPos()) > fe.distanceTo(enemy.getPos()))){
+                    closest = fe;
+                }
+            }
+            if (closest != null){
+                unitDestroyed(enemy, null);
+                aiEnemy = closest;
+                closest.setUnitId(enemy.getUnitId());
+                closest.setUnit(enemy);
+                enemies.remove(closest.hashCode());
+                enemies.put(closest.getUnitId(), closest);
+                fakeEnemies.remove(closest);
+            }
             if (!enemyDefs.contains(enemy.getDef())) {
                 enemyDefs.add(enemy.getDef());
                 debug("New enemy UnitDef: " + enemy.getDef().getHumanName());
@@ -342,7 +365,6 @@ public class Command implements AI {
                     defSpeedMap.put(enemy.getMaxSpeed(), enemy.getDef());
                 }
             }
-            Enemy aiEnemy = enemies.get(enemy.getUnitId());
             aiEnemy.enterLOS();
             Collection<EnemyEnterLOSListener> listenerc = new ArrayList(enemyEnterLOSListeners);
             for (EnemyEnterLOSListener listener : listenerc) {
@@ -401,8 +423,7 @@ public class Command implements AI {
     public void enemyDiscovered(Enemy enemy) {
 
         // debug("ai enemy is null " + (enemy == null));
-        if (enemy.getUnit() != null)
-            enemies.put(enemy.getUnit().getUnitId(), enemy);
+        enemies.put(enemy.getUnitId(), enemy);
         for (EnemyDiscoveredListener listener : new ArrayList<EnemyDiscoveredListener>(enemyDiscoveredListeners)) {
             listener.enemyDiscovered(enemy);
         }
@@ -469,12 +490,11 @@ public class Command implements AI {
                 if (attacker != null && units.containsKey(attacker.getUnitId())) {
                     frenemy = units.get(attacker.getUnitId());
                 }
-                debug("informing " + unitDestroyedListenersc.size() + " unitdestroyedlisteners");
                 for (UnitDestroyedListener listener : unitDestroyedListenersc) {
                     listener.unitDestroyed(e, frenemy);
                 }
                 e.destroyed();
-                enemies.remove(unit.getUnitId());
+                if (enemies.remove(unit.getUnitId()) == null) throw new AssertionError("Enemy not in enemy map");
             }
         } catch (Throwable e) {
             debug("Exception in unitDestroyed: ", e);
@@ -504,10 +524,10 @@ public class Command implements AI {
     @Override
     public int unitIdle(Unit unit) {
         try {
-            if (!units.containsKey(unit.getUnitId())) {
+            /*if (!units.containsKey(unit.getUnitId())) {
 //                debug("IDLEBUG Exception unknown unit " + unit.getUnitId());
                 return 0;
-            }
+            }*/
             units.get(unit.getUnitId()).idle();
         } catch (Throwable e) {
             debug("Exception in unitIdle: ", e);
@@ -589,6 +609,9 @@ public class Command implements AI {
                     comHandlers.add(comHandler);
                     aiunit = comHandler.addUnit(unit);
                     break;
+                case "armnanotc":
+                    aiunit = nanoHandler.addUnit(unit);
+                    break;
                 default:
                     if (unit.getDef().getBuildOptions().size() > 0 ){
                         if (unit.getDef().getSpeed() < 0.1){
@@ -648,7 +671,7 @@ public class Command implements AI {
         boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
         if (!ret || building.getName().equalsIgnoreCase("cormex")) return ret;
         for (Mex m : areaManager.getMexes()){
-            if (m.distanceTo(pos) < 90){
+            if (m.distanceTo(pos) < 90 && !m.isBuilt()){
                 return false;
             }
         }

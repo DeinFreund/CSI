@@ -181,6 +181,8 @@ public abstract class AITroop {
 
     public abstract void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout);
     
+    public abstract void wait(int timeout);
+    
     
     
     public abstract void setTarget(int targetUnitId);

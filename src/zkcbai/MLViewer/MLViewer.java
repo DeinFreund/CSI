@@ -23,7 +23,7 @@ public class MLViewer extends javax.swing.JFrame {
     public MLViewer() {
         initComponents();
         jComboBox1.removeAllItems();
-        for (Integer i : kills.keySet()){
+        for (String i : kills.keySet()){
             jComboBox1.addItem(names.get(i));
         }
     }
@@ -79,18 +79,18 @@ public class MLViewer extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private int getIndex(String s){
-        for (Map.Entry<Integer, String> e : names.entrySet()){
+    private String getIndex(String s){
+        for (Map.Entry<String, String> e : names.entrySet()){
             if (e.getValue().equals(s)) return e.getKey();
         }
-        return -1;
+        return "";
     }
     
     private void jComboBox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBox1ActionPerformed
         String res = "<html>";
-        int index = getIndex((String)jComboBox1.getSelectedItem());
-        if (index < 0) return;
-        for (Map.Entry<Integer, Integer> u : kills.get(index).entrySet()){
+        String index = getIndex((String)jComboBox1.getSelectedItem());
+        if (index.length() <= 0) return;
+        for (Map.Entry<String, Integer> u : kills.get(index).entrySet()){
             res+= names.get(u.getKey()) + ": " + kills.get(index).get(u.getKey()) / (float) kills.get(u.getKey()).get(index) + "<br>";
         }
         jLabel1.setText(res);
@@ -105,7 +105,7 @@ public class MLViewer extends javax.swing.JFrame {
             String path = "C:/Users/User/Documents/My Games/Spring/unitStats";
             FileInputStream fileIn = new FileInputStream(path);
             ObjectInputStream in = new ObjectInputStream(fileIn);
-            kills = (Map<Integer, Map<Integer, Integer>>) in.readObject();
+            kills = (Map<String, Map<String, Integer>>) in.readObject();
             in.close();
             fileIn.close();
             System.out.println("Loaded unitStats for " + kills.size() + " units.");
@@ -116,7 +116,7 @@ public class MLViewer extends javax.swing.JFrame {
             String path = "C:/Users/User/Documents/My Games/Spring/unitDefNames";
             FileInputStream fileIn = new FileInputStream(path);
             ObjectInputStream in = new ObjectInputStream(fileIn);
-            names = (Map<Integer, String>) in.readObject();
+            names = (Map<String, String>) in.readObject();
             in.close();
             fileIn.close();
             System.out.println("Loaded unitDefNames for " + names.size() + " units.");
@@ -157,8 +157,8 @@ public class MLViewer extends javax.swing.JFrame {
         });
     }
     
-    static Map<Integer, String> names ;
-    static Map<Integer, Map<Integer, Integer>> kills;
+    static Map<String, String> names ;
+    static Map<String, Map<String, Integer>> kills;
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JComboBox jComboBox1;
     private javax.swing.JLabel jLabel1;

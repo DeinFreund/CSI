@@ -197,7 +197,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
                 }
             }
             for ( AIUnit au : units ) {
-                if (au.handler == null) throw new RuntimeException("No AIUnitHandler");
+                if (au.handler == null) throw new AssertionError("No AIUnitHandler");
             }
         }
         
@@ -291,6 +291,20 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     }
 
     @Override
+    public void wait(int timeout) {
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
+        }
+    }
+
+
+    @Override
     public void fight(AIFloat3 trg, short options, int timeout) {
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
@@ -341,7 +355,11 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     public void troopIdle(AITroop u) {
         idlers.add((AIUnit) u);
         if (idlers.size() == units.size()) {
-            getCommand().debug("all idle");
+            String tasks = "";
+            for (Task t : taskqueue){
+                tasks += t.toString()+";";
+            }
+            getCommand().debug("all idle doing " + task.toString() +";" + tasks);
             idle();
         }
     }

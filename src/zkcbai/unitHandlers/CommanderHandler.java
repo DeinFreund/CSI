@@ -64,12 +64,15 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
 
             lastBuildTask = com.getTask();
         } else {
+            command.getBuilderHandler().addUnit(u);
+            removeUnit(u);
+            /*
             if (((BuildTask)lastBuildTask).isDone() || ((BuildTask)lastBuildTask).isAborted()){
                 finishedTask(lastBuildTask);
             } else {
                 command.debug(((BuildTask)lastBuildTask).isDone() + " || " +((BuildTask)lastBuildTask).isAborted());
                 com.assignTask(lastBuildTask);
-            }
+            }*/
         }
     }
 
@@ -81,14 +84,15 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void finishedTask(Task t) {
+        
         //command.debug("Commander finished a task");
         switch (t.getInfo()) {
             case "plop":
                 command.debug("Commander plopped fac");
                 plopped = t.getResult() != null;
-                lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
+                //lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
                 break;
-            case "win1":
+            /*case "win1":
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win2"));
                 break;
             case "win2":
@@ -111,9 +115,9 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             default:
             case "win3":
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win4"));
-                break;
+                break;*/
         }
-        com.assignTask(lastBuildTask);
+        //com.assignTask(lastBuildTask);
         //command.debug("New task has info " + lastBuildTask.getInfo());
 
     }

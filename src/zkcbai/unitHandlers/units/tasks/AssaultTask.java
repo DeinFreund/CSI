@@ -68,8 +68,8 @@ public class AssaultTask extends Task implements TaskIssuer{
                 best = e;
             }
         }
-        if (best != null && danger < u.getMetalCost()){
-            u.assignTask(new AttackTask(best, command.getCurrentFrame() + 300, this, command).queue(this));
+        if (best != null /*&& danger < 2*u.getMetalCost()*/){
+            u.assignTask(new AttackTask(best, command.getCurrentFrame() + 30, this, command).queue(this));
             return false;
         }
         best = null;
@@ -91,10 +91,10 @@ public class AssaultTask extends Task implements TaskIssuer{
         }
         if (best == null) {
             //command.mark(u.getPos(), "assaultmove");
-            u.assignTask(new MoveTask(target, command.getCurrentFrame() + 40, this, u.getDef(), command).queue(this));
+            u.assignTask(new MoveTask(target, command.getCurrentFrame() + 20, this, u.getDef(), command).queue(this));
         } else {
             //command.mark(u.getPos(), "assaultattack");
-            u.assignTask(new AttackTask(best, command.getCurrentFrame() + 300, this, command).queue(this));
+            u.assignTask(new AttackTask(best, command.getCurrentFrame() + 30, this, command).queue(this));
         }
         return false;
     }
@@ -123,6 +123,12 @@ public class AssaultTask extends Task implements TaskIssuer{
     @Override
     public void reportSpam() {
         throw new RuntimeException("I spammed Tasks!");
+    }
+    
+    
+    @Override
+    public void cancel(){
+        
     }
     
 }

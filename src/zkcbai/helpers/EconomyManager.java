@@ -15,10 +15,10 @@ import zkcbai.unitHandlers.units.AIUnit;
  */
 public class EconomyManager extends Helper{
 
-    final float ENERGY = 0.5f;
-    final float OVERDRIVE = 0.1f;
-    final float DEFENSE = 0.3f;
-    final float OFFENSE = 0.6f;
+    final float ENERGY = 0.3f;
+    final float OVERDRIVE = 0.05f;
+    final float DEFENSE = 0.2f;
+    final float OFFENSE = 0.5f;
     
     float generosity = 0;
     float adaption = 3e-3f;
@@ -73,7 +73,7 @@ public class EconomyManager extends Helper{
         return totalMetal;
     }
     
-    float totalMetal = 0;
+    float totalMetal = 500;
 
     int lastFrame = 0;
     
@@ -84,7 +84,9 @@ public class EconomyManager extends Helper{
         if (frame % 200 == 0){
             command.debug("Current generosity: " + generosity);
         }
-        generosity += adaption * (Math.min(300,clbk.getEconomy().getCurrent(command.metal)) - 150);
+        float mid = 50;
+        generosity += Math.signum(clbk.getEconomy().getCurrent(command.metal) - mid) * 
+                adaption * Math.pow(Math.abs(Math.min(mid*2,clbk.getEconomy().getCurrent(command.metal)) - mid), 2.2)/ 20f;
         
     }
     

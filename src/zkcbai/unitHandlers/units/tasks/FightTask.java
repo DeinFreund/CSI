@@ -75,5 +75,10 @@ public class FightTask extends Task {
     public Object getResult() {
         return null;
     }
+    
+    @Override
+    public void cancel(){
+        
+    }
 
 }

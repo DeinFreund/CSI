@@ -5,10 +5,10 @@
  */
 package zkcbai.unitHandlers;
 
-import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import zkcbai.Command;
@@ -55,6 +55,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     
     @Override
     public void troopIdle(AIUnit u) {
+        //if (!u.getUnit().getCurrentCommands().isEmpty()) throw new AssertionError("Unit not really idle");
         if (constructorRequests > 0) {
 
             for (UnitDef ud : u.getDef().getBuildOptions()) {
@@ -124,6 +125,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 command.economyManager.useOffenseBudget(best.getCost(command.metal));
                 return;
             }
+            u.wait(command.getCurrentFrame() + 30);
         }
                 
     }
@@ -147,6 +149,10 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             }
         }
         return clbk.getUnitDefByName("factorycloak");
+    }
+    
+    public Collection<AIUnit> getFacs(){
+        return aiunits.values();
     }
 
     @Override
