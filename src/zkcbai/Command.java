@@ -115,6 +115,8 @@ public class Command implements AI {
             areaManager.init();
             
 
+            mexradius = clbk.getUnitDefByName("cormex").getRadius();
+            
             String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw", "armflea", "corak"};
             for (String s : importantSpeedDefs) {
                 defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
@@ -680,18 +682,25 @@ public class Command implements AI {
         clbk.getMap().getDrawer().addPoint(pos, s);
     }
     
+    private final float mexradius;
+    
     public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing){
         boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
         if (!ret || building.getName().equalsIgnoreCase("cormex")) return ret;
-        debug(areaManager.getMexes().size() + " mexes");
+        //debug(areaManager.getMexes().size() + " mexes");
         float mindist = Float.MAX_VALUE;
         for (Mex m : areaManager.getArea(pos).getNearbyMexes()){
             mindist = Math.min(mindist, m.distanceTo(pos));
-            if (m.distanceTo(pos) < 120 + 2.5 * building.getRadius() && !m.isBuilt()){
+            if (m.distanceTo(pos) < mexradius + 1.5 * building.getRadius() && !m.isBuilt()){
                 return false;
             }
         }
-        debug("closed mex has a distance of " + mindist);
+        for (AIUnit au : facHandler.getFacs()){
+            if (au.distanceTo(pos) < au.getDef().getRadius() * 1.7 + building.getRadius() * 1.5){
+                return false;
+            }
+        }
+        //debug("checking for " + building.getHumanName() +" closed mex has a distance of " + mindist);
         return true;
     }
     

@@ -39,12 +39,13 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      *
      * @param building
      * @param approxPos
-     * @param minDist not implemented
+     * @param minDist minimum distance to next building 1 corresponds to 8 elmo
      * @param facing
      * @return
      */
     protected static AIFloat3 findClosestBuildSite(UnitDef building, AIFloat3 approxPos, int minDist, int facing, Command command) {
         final int step = 32;
+        float _minDist = 8 * minDist;
         command.debug("finding buildsite for "  + building.getHumanName());
         for (int radius = 0; radius < 1000; radius++) {
             command.debug("radius is now " + radius);
@@ -59,11 +60,12 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
                         continue;
                     }
                     pos.y = command.getCallback().getMap().getElevationAt(pos.x, pos.z);
-                    if (command.isPossibleToBuildAt(building, pos, facing)) {
-                        command.mark(pos, "bulidinig here");
+                    AIUnit nearestB = command.areaManager.getNearestBuilding(pos);
+                    if (command.isPossibleToBuildAt(building, pos, facing) && 
+                            ( nearestB == null || 
+                              nearestB.distanceTo(pos) > _minDist + building.getRadius() + nearestB.getDef().getRadius()) ) {
+                        command.mark(pos, "building " + building.getHumanName());
                         return pos;
-                    }else{
-                        command.mark(pos, "impossible");
                     }
                 }
             }
@@ -71,8 +73,18 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
                 for (int y = -radius; y <= radius; y++) {
                     AIFloat3 pos = new AIFloat3(approxPos);
                     pos.add(new AIFloat3(x * step, 0, y * step));
+                    if (pos.z < 0 || pos.z > command.areaManager.getMapHeight()){
+                        continue;
+                    }
+                    if (pos.x < 0 || pos.x > command.areaManager.getMapWidth()){
+                        continue;
+                    }
                     pos.y = command.getCallback().getMap().getElevationAt(pos.x, pos.z);
-                    if (command.isPossibleToBuildAt(building, pos, facing)) {
+                    AIUnit nearestB = command.areaManager.getNearestBuilding(pos);
+                    if (command.isPossibleToBuildAt(building, pos, facing) && 
+                            ( nearestB == null || 
+                              nearestB.distanceTo(pos) > _minDist + building.getRadius() + nearestB.getDef().getRadius()) ) {
+                        command.mark(pos, "building " + building.getHumanName());
                         return pos;
                     }
                 }
@@ -212,7 +224,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 250, this, command).queue(this));
             return false;
         }
-        if (u.distanceTo(pos) < building.getRadius()){
+        if (u.distanceTo(pos) < building.getRadius() && building.getSpeed() <= 0.001){
             command.debug("Inside radius of " + building.getRadius() + " elmos.");
             AIFloat3 tpos = new AIFloat3(u.getPos());
             tpos.sub(this.pos);

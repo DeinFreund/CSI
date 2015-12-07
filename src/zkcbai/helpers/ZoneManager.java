@@ -25,6 +25,7 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
+import zkcbai.UnitFinishedListener;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager.Area.Connection;
@@ -117,14 +118,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
     };
 
-    public int getMapHeight(){
+    public int getMapHeight() {
         return mheight;
     }
 
-    public int getMapWidth(){
+    public int getMapWidth() {
         return mwidth;
     }
-    
+
     public ZoneManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         mwidth = clbk.getMap().getWidth() * 8;
@@ -146,15 +147,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         frm.setVisible(true);
         frm.setSize(500, 500 * clbk.getMap().getHeight() / clbk.getMap().getWidth());
     }
-    
+
     @Override
-    public void init(){
-        
+    public void init() {
+
         command.debug("Zone Manager precalculating paths...");
         int i = 0;
-        for (Area a: areas){
+        for (Area a : areas) {
             a.recalculatePaths();
-            if (i++%17 == 0){
+            if (i++ % 17 == 0) {
                 pnl.updateUI();
             }
         }
@@ -242,7 +243,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             pos.x = mwidth - pos.x;
             pos.z = mheight - pos.z;
             command.addFakeEnemy(new FakeCommander(pos, command, clbk));
-            
+
         }
 
     }
@@ -336,6 +337,17 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             }
         }
     }
+    
+    
+    public AIUnit getNearestBuilding(AIFloat3 pos){
+        AIUnit best = null;
+        for (AIUnit au : getArea(pos).getNearbyBuildings()){
+            if (best == null || best.distanceTo(pos) > au.distanceTo(pos)){
+                best = au;
+            }
+        }
+        return best;
+    }
 
     private int cmds = 0;
     private float cmdsPerSec;
@@ -354,7 +366,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         return tasks;
     }
 
-    public class Area implements UpdateListener, UnitDestroyedListener {
+    public class Area implements UpdateListener, UnitDestroyedListener, UnitFinishedListener {
 
         public final int x, y;
         private AIFloat3 pos;
@@ -374,14 +386,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             this.pos.y = clbk.getMap().getElevationAt(pos.x, pos.z);
             command.addSingleUpdateListener(this, command.getCurrentFrame() + (int) (100 * Math.random()));
             command.addUnitDestroyedListener(this);
+            command.addUnitFinishedListener(this);
         }
 
         public Collection<Connection> getConnections() {
             return connections;
         }
-        
-        
-        public int getLastPathCalculationTime(){
+
+        public int getLastPathCalculationTime() {
             return lastPathCalcTime;
         }
 
@@ -454,33 +466,36 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             }
             return best;
         }
-        
+
         List<Mex> nearbyMexes;
-        
-        public Collection<Mex> getNearbyMexes(){
-            if (nearbyMexes == null){
+
+        public Collection<Mex> getNearbyMexes() {
+            if (nearbyMexes == null) {
                 nearbyMexes = new ArrayList();
-                for (Mex m : getMexes()){
-                    if (m.distanceTo(pos) < getEnclosingRadius() * 2){
+                for (Mex m : ZoneManager.this.getMexes()) {
+                    if (m.distanceTo(pos) < getEnclosingRadius() * 7) {
                         nearbyMexes.add(m);
                     }
                 }
+                //command.mark(pos, nearbyMexes.size() + "/" + getMexes().size() +  " nearby mexes");
             }
             return nearbyMexes;
         }
-        
-        public Set<Area> getConnectedAreas(MovementType mt, Set<Area> areas){
-            if (areas.contains(this)) return areas;
+
+        public Set<Area> getConnectedAreas(MovementType mt, Set<Area> areas) {
+            if (areas.contains(this)) {
+                return areas;
+            }
             areas.add(this);
-            for (Connection c : connections){
-                if (c.movementType.equals(mt)){
+            for (Connection c : connections) {
+                if (c.movementType.equals(mt)) {
                     c.endpoint.getConnectedAreas(mt, areas);
                 }
             }
             return areas;
         }
-        
-        public Set<Area> getConnectedAreas(MovementType mt){
+
+        public Set<Area> getConnectedAreas(MovementType mt) {
             return getConnectedAreas(mt, new HashSet());
         }
 
@@ -523,7 +538,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public boolean isReachable() {
             return reachable;
         }
-        
+
         public void setReachable() {
             setReachable(true);
         }
@@ -733,6 +748,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             return Math.max(getWidth(), getHeight());
         }
 
+        protected Set<AIUnit> nearbyBuildings = new HashSet();
+
+        public Collection<AIUnit> getNearbyBuildings() {
+            return nearbyBuildings;
+        }
+
         @Override
         public void update(int frame) {
             getZone();
@@ -741,12 +762,20 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         @Override
         public void unitDestroyed(AIUnit u, Enemy killer) {
+            nearbyBuildings.remove(u);
         }
 
         @Override
         public void unitDestroyed(Enemy e, AIUnit killer) {
             enemies.remove(e);
             nearbyEnemies.remove(e);
+        }
+
+        @Override
+        public void unitFinished(AIUnit u) {
+            if (u.getDef().getSpeed() < 0.01 && u.distanceTo(pos) < getEnclosingRadius() * 3) {
+                nearbyBuildings.add(u);
+            }
         }
 
         public class Connection {
@@ -806,15 +835,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public boolean isBuilt() {
-            command.debug( "checking whether mex has been built@" + pos.toString());
-            if (command.getCallback().getMap().isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0) == false){
+            //command.debug("checking whether mex has been built@" + pos.toString());
+            /*if (command.getCallback().getMap().isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0) == false) {
                 command.mark(pos, "mex is built");
-            }
-            try{
+            }*/
+            /*try { //hardcore debugging
                 throw new RuntimeException();
-            }catch(Exception ex){
-                command.debug("at ",ex);
-            }
+            } catch (Exception ex) {
+                command.debug("at ", ex);
+            }*/
             return !command.getCallback().getMap().isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0);
         }
 
@@ -947,7 +976,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                         g.drawLine((int) Math.round(x * w), (int) Math.round(y * h),
                                 (int) Math.round((x - dy[blub]) * w), (int) Math.round((y - dx[blub]) * h));
                     }
-                    if (!map[x][y].isReachable()){
+                    if (!map[x][y].isReachable()) {
                         g.setColor(Color.red.darker());
                         g.drawLine((int) Math.round(x * w), (int) Math.round(y * h + h),
                                 (int) Math.round((x + 1) * w), (int) Math.round((y) * h));

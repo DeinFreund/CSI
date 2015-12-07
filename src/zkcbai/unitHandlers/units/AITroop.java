@@ -89,6 +89,16 @@ public abstract class AITroop {
         taskqueue.clear();
         if (execute) doTask();
     }
+    
+    public AIUnit getNearestBuilding(){
+        AIUnit best = null;
+        for (AIUnit au : handler.getCommand().areaManager.getArea(getPos()).getNearbyBuildings()){
+            if (best == null || best.distanceTo(getPos()) > au.distanceTo(getPos())){
+                best = au;
+            }
+        }
+        return best;
+    }
 
     
     

@@ -5,9 +5,9 @@
         <group>
             <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FactoryHandler.java</file>
             <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/BuilderHandler.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/AreaChecker.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FighterHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/AI.java</file>
             <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/ZoneManager.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/Pathfinder.java</file>
         </group>
     </open-files>
 </project-private>
