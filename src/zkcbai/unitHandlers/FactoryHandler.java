@@ -13,6 +13,9 @@ import java.util.HashSet;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
+import zkcbai.helpers.Pathfinder;
+import zkcbai.helpers.Pathfinder.MovementType;
+import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -25,7 +28,6 @@ import zkcbai.unitHandlers.units.tasks.Task;
  */
 public class FactoryHandler extends UnitHandler implements UpdateListener {
 
-    private static final String[] facs = new String[]{"factorycloak", "factoryplane"};
 
     private Set<UnitDef> builtFacs = new HashSet();
     private int constructorRequests = 0;
@@ -42,12 +44,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         builtFacs.add(u.getDef());
         
         
-        for (UnitDef ud : u.getDef().getBuildOptions()) {
-            if (!ud.getBuildOptions().isEmpty()){
-                command.pathfinder.findPath(u.getPos(), u.getPos(), ud.getMoveData().getMaxSlope(), command.pathfinder.FAST_PATH, true);
-                break;
-            }
-        }
+        recalculateReachable(); //this call is only for gui
         return au;
     }
 
@@ -69,6 +66,13 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
         if (command.economyManager.getRemainingOffenseBudget() > 0) {
 
+            float unitDensity = 1000000 * command.getFighterHandler().getFighters().size() / 
+                    command.getCallback().getMap().getWidth() * command.getCallback().getMap().getHeight();
+            
+            final float targetDensity = 1;
+            float efficiencyMult = 1f / (-Math.min(0,(float)Math.log(unitDensity/targetDensity + 1e-6)) + 1);
+            command.debug("Unit density is " + unitDensity + " / " + targetDensity + " -> mult: "  + efficiencyMult);
+            
             if (command.economyManager.getRemainingOffenseBudget() > 500 && (lastCaretakerRequest == null || lastCaretakerRequest.getResult() != null)
                     && command.getCurrentFrame() > 1000) {
                 lastCaretakerRequest = command.getBuilderHandler().requestCaretaker(u.getPos());
@@ -93,16 +97,25 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 command.debug("No enemies found yet");
             }
             UnitDef best = null;
+            double bestEff = 0;
             for (UnitDef ud : u.getUnit().getDef().getBuildOptions()) {
                 //command.debug(ud.getTooltip());
                 if (ud.isAbleToRepair()) {
                     continue;
                 }
+                double effectiveEff = 0;
+                if (worst != null) {
+                    effectiveEff = command.killCounter.getEfficiency(ud, worst.getDef())
+                            * Math.pow(efficiencyMult, 1f / ud.getCost(command.metal));
+                    command.debug("Efficiency mult is " + Math.pow(efficiencyMult, 1f / ud.getCost(command.metal))
+                            + " for cost of " + ud.getCost(command.metal));
+                }
                 if (best == null
-                        || (worst != null && command.killCounter.getEfficiency(ud, worst.getDef()) > command.killCounter.getEfficiency(best, worst.getDef()))
+                        || (worst != null && effectiveEff > bestEff)
                         || (worst == null && (ud.getCost(command.metal) < best.getCost(command.metal) && ud.getTooltip().contains("aider")))) {
 
                     best = ud;
+                    bestEff = effectiveEff;
                 }
             }
             if (best == null) {
@@ -129,6 +142,19 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
                 
     }
+    
+    protected void recalculateReachable(){
+        for (Area a : command.areaManager.getAreas()){
+            a.setReachable(false);
+        }
+        for (AIUnit au : aiunits.values()){
+            MovementType mt = Pathfinder.MovementType.getMovementType(au.getDef().getBuildOptions().get(0));
+            for (Area a : command.areaManager.getArea(au.getPos()).getConnectedAreas(mt)){
+                a.setReachable();
+            }
+        }
+    }
+    
 
     public void requestConstructor() {
         constructorRequests = 1;
@@ -141,14 +167,73 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     @Override
     public void finishedTask(Task t) {
     }
+    
+    protected float getMovementTypeMultiplier(MovementType mt){
+        switch (mt){
+            case air:
+                return 1;
+            case spider:
+                return 2;
+            case bot:
+                return 3;
+            case vehicle:
+                return 4;
+            default:
+                throw new UnsupportedOperationException("Unimplemented MovementType");
+        }
+    }
 
-    public UnitDef getNextFac() {
-        for (String s : facs) {
-            if (!builtFacs.contains(clbk.getUnitDefByName(s))) {
-                return clbk.getUnitDefByName(s);
+    /**
+     *
+     * @param buildPositions container in which the possible building areas are returned<br />will be cleared
+     * @return the UnitDef of the best factory
+     */
+    public UnitDef getNextFac(Set<Area> buildPositions) {
+        recalculateReachable();
+        UnitDef bestFac = null;
+        Set<Area> position = null;
+        float bestScore = -1;
+        
+        for (UnitDef ud : command.getCallback().getUnitDefByName("armrectr").getBuildOptions()){
+            boolean allMovable = ud.getBuildOptions().size() > 0;
+            for (UnitDef buildable : ud.getBuildOptions()){
+                if (buildable.getSpeed() < 0.1){
+                    allMovable = false;
+                }
+            }
+            if (allMovable){//is factory
+                command.debug(ud.getHumanName() + " is a fac");
+                MovementType mt = MovementType.getMovementType(ud.getBuildOptions().get(0));
+                Set<Area> bestset = new HashSet();
+                int bestsize = 0;
+                Set<Area> totset = new HashSet();
+                for (Area a : command.areaManager.getAreas()){
+                    if (totset.contains(a)) continue;
+                    Set<Area> set = a.getConnectedAreas(mt);
+                    int size = set.size();
+                    for (Area area : set){
+                        if (area.isReachable()) size --;
+                    }
+                    if (size > bestset.size()){
+                        bestset = set;
+                        bestsize = size;
+                    }
+                    totset.addAll(set);
+                }
+                float score = ((float)Math.random()/20f+1f) * bestsize * getMovementTypeMultiplier(mt);
+                if (score > bestScore){
+                    bestScore = score;
+                    bestFac = ud;
+                    position = bestset;
+                }
             }
         }
-        return clbk.getUnitDefByName("factorycloak");
+        if (bestFac == null){
+            throw new AssertionError("Didn't find any valid fac to build");
+        }
+        buildPositions.clear();
+        buildPositions.addAll(position);
+        return bestFac;
     }
     
     public Collection<AIUnit> getFacs(){

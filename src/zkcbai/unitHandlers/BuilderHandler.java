@@ -326,9 +326,16 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             //    possibilities.add(new BuildPossibility(command.getCallback().getUnitDefByName("armsolar"), pos, Float.MAX_VALUE));
             }
         }*/
-
-        final UnitDef[] eBuildings = new UnitDef[]{command.getCallback().getUnitDefByName("armsolar"), 
-            command.getCallback().getUnitDefByName("armestor"), command.getCallback().getUnitDefByName("armwin")};
+        
+        final UnitDef[] eBuildings;
+        if (energyIncome > avgMetalIncome * 1.5){
+            eBuildings = new UnitDef[]{command.getCallback().getUnitDefByName("armsolar"), 
+                command.getCallback().getUnitDefByName("armestor"), command.getCallback().getUnitDefByName("armwin")};
+        }else{
+            
+            eBuildings = new UnitDef[]{command.getCallback().getUnitDefByName("armsolar"),
+                command.getCallback().getUnitDefByName("armwin")};
+        }
 
                 
         final float searchRadiusMult = 0.4f;
@@ -524,12 +531,19 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
             @Override
             public boolean checkArea(Area a) {
-                return command.radarManager.isInRadar(a.getPos());
+                return command.radarManager.isInRadar(a.getPos()) 
+                        && command.isPossibleToBuildAt(command.getCallback().getUnitDefByName("corrad"), a.getPos(), 0);
             }
         });
         if (area == null){
             if (aiunits.isEmpty()) return null;
-            area = command.areaManager.getArea(aiunits.values().iterator().next().getPos());
+            area = command.areaManager.getArea(aiunits.values().iterator().next().getPos()).getNearestArea(new AreaChecker() {
+
+                @Override
+                public boolean checkArea(Area a) {
+                    return command.isPossibleToBuildAt(command.getCallback().getUnitDefByName("corrad"), a.getPos(), 0);
+                }
+            });
         }
         BuildTask bt = new BuildTask(command.getCallback().getUnitDefByName("corrad"),area.getPos(), this, clbk, command, 4);
         bt.setInfo("radar");
@@ -612,8 +626,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     if (constructions.size() < aiunits.size() * 0.6) requestRadarCoverage(m.pos);
                     continue;
                 }
-                toBuild -= m.getIncome();
                 BuildTask bt = m.createBuildTask(this);
+                if (bt == null) continue;
+                toBuild -= m.getIncome();
                 GridNode gn = new GridNode(bt);
                 bt.setInfo("mextask");
                 constructions.add(bt);
@@ -753,7 +768,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             unitGridNodeFinder.put(u.getUnit().getUnitId(), gridNode);
             //command.mark(u.getPos(), "added grid");
         }
-        if (u.getDef().isAbleToAttack() && u.getDef().getBuildOptions().isEmpty()) {
+        if (u.getDef().isAbleToAttack() && u.getDef().getBuildOptions().isEmpty() && u.getDef().getSpeed() <= 0.01) {
             GridNode    gridNode = new GridNode(u.getUnit());
             defenseNodes.add(gridNode);
             unitDefenseNodeFinder.put(u.getUnit().getUnitId(), gridNode);

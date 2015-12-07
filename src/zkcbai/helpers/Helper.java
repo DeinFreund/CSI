@@ -18,13 +18,20 @@ import zkcbai.UpdateListener;
 public abstract class Helper implements UnitFinishedListener, UpdateListener{
     
     protected OOAICallback clbk;
-    protected Command command;
+    protected static Command command;
     
     public Helper(Command cmd, OOAICallback clbk){
         command = cmd;
         this.clbk = clbk;
         command.addUnitFinishedListener(this);
         command.addUpdateListener(this);
+    }
+    
+    /**
+     * Gets called after all helpers have been initialized
+     */ 
+    public void init(){
+        
     }
     
     

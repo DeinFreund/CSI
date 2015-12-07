@@ -71,7 +71,6 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
         //if (u.distanceTo(target.getPos()) > u.getMaxRange() * 1.5) {
         if (u.distanceTo(target.getPos()) > Math.max(u.getMaxRange() * 1.7, 70) || (!target.isVisible() && u.distanceTo(target.getPos()) > 60)) {
             u.assignTask(new MoveTask(target.getPos(), command.getCurrentFrame() + 80, this,u.getDef(),command).queue(this));
-            command.mark(u.getPos(), "approaching");
             return false;
         }
         /*

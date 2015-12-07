@@ -9,10 +9,13 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import java.util.HashSet;
+import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.ZoneManager;
+import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -52,13 +55,18 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
     public void troopIdle(AIUnit u) {
         //command.debug("Commander is idle");
         if (!plopped) {
-            final UnitDef fac = command.getFactoryHandler().getNextFac();
+            if (command.getCurrentFrame() < 5) {
+                u.wait(5);
+                return;
+            }
+            final Set<Area> facareas = new HashSet();
+            final UnitDef fac = command.getFactoryHandler().getNextFac(facareas);
             com.assignTask(new BuildTask(fac,command.areaManager.getArea(com.getPos()).getNearestArea(new AreaChecker() {
 
                 @Override
                 public boolean checkArea(ZoneManager.Area a) {
                     AIFloat3 bpos = clbk.getMap().findClosestBuildSite(fac, a.getPos(), 1000, 0, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0);
-                    return command.isPossibleToBuildAt(fac, bpos, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0);
+                    return command.isPossibleToBuildAt(fac, bpos, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0) && facareas.contains(a);
                 }
             }).getPos(), this, clbk, command,0).setInfo("plop"));
 
@@ -80,6 +88,10 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
     public void abortedTask(Task t) {
         //command.debug("Commander aborted a task");
         finishedTask(t);
+    }
+    
+    public AIUnit getCommander(){
+        return com;
     }
 
     @Override

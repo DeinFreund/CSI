@@ -106,6 +106,14 @@ public class Command implements AI {
             builderHandler = new BuilderHandler(this, clbk);
             nanoHandler = new NanoHandler(this, clbk);
             
+            economyManager.init();
+            losManager.init();
+            radarManager.init();
+            defenseManager.init();
+            pathfinder.init();
+            killCounter.init();
+            areaManager.init();
+            
 
             String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw", "armflea", "corak"};
             for (String s : importantSpeedDefs) {
@@ -129,6 +137,11 @@ public class Command implements AI {
     
     public FighterHandler getFighterHandler() {
         return fighterHandler;
+    }
+    
+    
+    public Collection<CommanderHandler> getCommanderHandlers() {
+        return comHandlers;
     }
 
     public TreeMap<Float, UnitDef> getEnemyUnitDefSpeedMap() {
@@ -670,11 +683,15 @@ public class Command implements AI {
     public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing){
         boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
         if (!ret || building.getName().equalsIgnoreCase("cormex")) return ret;
-        for (Mex m : areaManager.getMexes()){
-            if (m.distanceTo(pos) < 90 && !m.isBuilt()){
+        debug(areaManager.getMexes().size() + " mexes");
+        float mindist = Float.MAX_VALUE;
+        for (Mex m : areaManager.getArea(pos).getNearbyMexes()){
+            mindist = Math.min(mindist, m.distanceTo(pos));
+            if (m.distanceTo(pos) < 120 + 2.5 * building.getRadius() && !m.isBuilt()){
                 return false;
             }
         }
+        debug("closed mex has a distance of " + mindist);
         return true;
     }
     

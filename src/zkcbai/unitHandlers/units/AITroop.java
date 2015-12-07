@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Queue;
 import zkcbai.Command;
+import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.DevNullHandler;
 import static zkcbai.unitHandlers.units.AIUnit.OPTION_NONE;
@@ -51,6 +52,10 @@ public abstract class AITroop {
     
     
     public abstract float getEfficiencyAgainst(UnitDef ud);
+    
+    public MovementType getMovementType(){
+        return MovementType.getMovementType(getDef());
+    }
     
     public float getMetalCost(){
         float res = 0;

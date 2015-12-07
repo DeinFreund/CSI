@@ -7,11 +7,11 @@ package zkcbai.unitHandlers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
+import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
-import zkcbai.helpers.AreaZoneChangeListener;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -74,6 +74,10 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
             throw new RuntimeException("This should never be executed unless there are implementations of AITroop other than AISquad and AIUnit");
         }
 
+    }
+    
+    public Collection<AIUnit> getUnits(){
+        return aiunits.values();
     }
 
 }
