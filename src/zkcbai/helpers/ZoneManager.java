@@ -21,9 +21,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -193,10 +197,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         int i = 0;
         for (Area a : areas) {
             a.recalculatePaths();
-            if (i++ % 13 == 0) {
-                pnl.updateUI();
-            }
         }
+        PathPrecalculatorThread.calculate(command, pnl);
         for (Area a : areas) {
             a.setReachable(false);
         }
@@ -218,7 +220,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             for (GameRulesParam grp : clbk.getGame().getGameRulesParams()) {
                 //  command.debug(grp.getName() + ": " + grp.getValueFloat());
             }
-            command.debug("startscript:\n" + script);
+            //command.debug("startscript:\n" + script);
             List<List<Float>> startboxes = new ArrayList();
             for (String line : script.split("\n")) {
                 if (line.contains("startboxes")) {
@@ -427,6 +429,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         private List<Area> neighbours;
         private Set<Mex> mexes = new HashSet();
         private List<Connection> connections = new ArrayList();
+        private Map<MovementType, List<Connection>> connMap = new HashMap();
         private Set<DebugConnection> debugConns = new HashSet();
         private int lastPathCalcTime = -100000;
 
@@ -446,16 +449,40 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             return index;
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Area other = (Area) obj;
+            if (this.index != other.index) {
+                return false;
+            }
+            return true;
+        }
+
         public Collection<Connection> getConnections() {
             return connections;
+        }
+
+        public Collection<Connection> getConnections(MovementType mt) {
+            return connMap.get(mt);
         }
 
         public int getLastPathCalculationTime() {
             return lastPathCalcTime;
         }
 
-        public void recalculatePaths() {
-            lastPathCalcTime = command.getCurrentFrame();
+        boolean fancyCleared = false;
+
+        public synchronized void clearFancyPaths() {
+            if (fancyCleared) {
+                return;
+            }
+            fancyCleared = true;
             List<Connection> fancy = new ArrayList();
             for (Connection c : getConnections()) {
                 if (c.length < 0) {
@@ -463,13 +490,27 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 }
             }
             connections.removeAll(fancy);
+            for (Collection<Connection> clist : connMap.values()) {
+                fancy = new ArrayList();
+                for (Connection c : clist) {
+                    if (c.length < 0) {
+                        fancy.add(c);
+                    }
+                }
+                clist.removeAll(fancy);
+            }
+        }
+
+        public void recalculatePaths() {
+            lastPathCalcTime = command.getCurrentFrame();
+
             for (int xx = Math.max(x - 1, 0); xx <= Math.min(x + 1, map.length - 1); xx++) {
                 for (int yy = Math.max(y - 1, 0); yy <= Math.min(y + 1, map[0].length - 1); yy++) {
                     if (xx == x && yy == y || command.getCurrentFrame() - map[xx][yy].getLastPathCalculationTime() < 1000) {
                         continue;
                     }
                     for (Pathfinder.MovementType mt : Pathfinder.MovementType.values()) {
-                        command.pathfinder.precalcPath(this, mt, map[xx][yy]);
+                        PathPrecalculatorThread.addPrecalcTask(this, mt, map[xx][yy]);
                     }
                 }
             }
@@ -482,12 +523,45 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
          * @param length
          * @param mt
          */
-        public void addConnection(Area target, float length, Pathfinder.MovementType mt) {
+        public synchronized void addConnection(Area target, float length, Pathfinder.MovementType mt) {
             connections.add(new Connection(target, length, mt));
+            if (!connMap.containsKey(mt)) {
+                connMap.put(mt, new ArrayList());
+            }
+            connMap.get(mt).add(connections.get(connections.size() - 1));
         }
 
-        public void clearConnections() {
+        protected Queue<Connection> connQueue = new ConcurrentLinkedQueue<>();
+
+        private int queued = 0;
+
+        public void queueConnection(Area target, float length, Pathfinder.MovementType mt) {
+            if (length >= 0) {
+                connQueue.add(new Connection(target, length, mt));
+            }
+            queued++;
+            int req = 32;
+            if (queued >= req) {
+                applyConnections();
+            }
+        }
+
+        private int cnt = 0;
+
+        public synchronized void applyConnections() {
+            cnt++;
+            if (cnt >2) {
+                command.debug("Warning: called apply connections multiple times, probable performance issue");
+            }
+            clearFancyPaths();
+            while (!connQueue.isEmpty()) {
+                addConnection(connQueue.peek().endpoint, connQueue.peek().length, connQueue.poll().movementType);
+            }
+        }
+
+        public synchronized void clearConnections() {
             connections.clear();
+            connMap.clear();
         }
 
         private void addMex(Mex m) {
@@ -1085,11 +1159,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                         g.drawLine((int) Math.round(x * w), (int) Math.round(y * h + h),
                                 (int) Math.round((x + 1) * w), (int) Math.round((y) * h));
                     }
-                    for (DebugConnection dc : map[x][y].getDebugConnections()){
-                        
+                    for (DebugConnection dc : map[x][y].getDebugConnections()) {
+
                         g.setColor(dc.color);
-                        g.drawLine((int) Math.round((x+0.5f) * w), (int) Math.round((y+0.5) * h),
-                                (int) Math.round((dc.endpoint.x+0.5) * w), (int) Math.round((dc.endpoint.y+ 0.5) * h));
+                        g.drawLine((int) Math.round((x + 0.5f) * w), (int) Math.round((y + 0.5) * h),
+                                (int) Math.round((dc.endpoint.x + 0.5) * w), (int) Math.round((dc.endpoint.y + 0.5) * h));
                     }
                     //g.drawRect((int)Math.round(x * w), (int)Math.round(y * h), (int)Math.round(w), (int)Math.round(h));
                     g.setColor(stringcol);

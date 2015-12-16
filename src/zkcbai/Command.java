@@ -13,6 +13,10 @@ import com.springrts.ai.oo.clb.UnitDef;
 import com.springrts.ai.oo.clb.WeaponDef;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -49,6 +53,8 @@ import zkcbai.unitHandlers.units.FakeMex;
  */
 public class Command implements AI {
 
+    public static final boolean WRITE_LOG = true;
+    
     private final OOAICallback clbk;
     private final int ownTeamId;
     public final Resource metal;
@@ -536,10 +542,10 @@ public class Command implements AI {
         for (UnitDestroyedListener listener : unitDestroyedListenersc) {
             listener.unitDestroyed(e, frenemy);
         }
-        e.destroyed();
-        if (enemies.remove(e.getUnitId()) == null && ! (e instanceof FakeEnemy)) {
+        if (enemies.remove(e.getUnitId()) == null && !(e instanceof FakeEnemy)) {
             throw new AssertionError("Enemy not in enemy map");
         }
+        e.destroyed();
     }
 
     @Override
@@ -724,8 +730,22 @@ public class Command implements AI {
         debug(s.toString());
     }
 
+    PrintWriter debugWriter;
+
     public void debug(String s) {
         clbk.getGame().sendTextMessage(s, 0);
+        if (!WRITE_LOG) return;
+        try {
+            if (debugWriter == null) {
+                if (new File("CSI.log").exists()) new File("CSI.log").delete();
+                debugWriter = new PrintWriter(new BufferedWriter(new FileWriter("CSI.log", true)));
+            }
+            debugWriter.println(s);
+            debugWriter.flush();
+ 
+        } catch (IOException e) {
+
+        }
         //mark(new AIFloat3(), s); // if debug doesnt echo
     }
 

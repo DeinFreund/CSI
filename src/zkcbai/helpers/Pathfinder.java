@@ -45,9 +45,9 @@ public class Pathfinder extends Helper {
     int smwidth;
     float[] slopeMap;
     protected Thread backgroundThread;
-    private final static int mapCompression = 1;
-    private final static int originalMapRes = 16;
-    private final static int mapRes = originalMapRes * mapCompression;
+     final static int mapCompression = 1;
+     final static int originalMapRes = 16;
+     final static int mapRes = originalMapRes * mapCompression;
     
     private void updateSlopeMap() {
         List<Float> map = clbk.getMap().getSlopeMap();
@@ -105,7 +105,7 @@ public class Pathfinder extends Helper {
      *
      */
     public void requestPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, PathfindingCompleteListener listener) {
-        requestPath(start, target, maxSlope, costs, false, listener);
+        requestPath(start, target, MovementType.getMovementType(maxSlope), costs, false, listener);
     }
     /**
      * Requests the cheapest path between two arbitrary positions using the A*
@@ -123,7 +123,7 @@ public class Pathfinder extends Helper {
      *
      */
     public void requestPath(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, PathfindingCompleteListener listener) {
-        requestPath(start, target, mt.getMaxSlope(), costs, false, listener);
+        requestPath(start, target, mt, costs, false, listener);
     }
 
     /**
@@ -132,7 +132,7 @@ public class Pathfinder extends Helper {
      *
      * @param start
      * @param target
-     * @param maxSlope Maximum slope that can be travelled on. 0 &lt; maxslope
+     * @param mt Maximum slope that can be travelled on. 0 &lt; maxslope
      * &lt; 1
      * @param costs Class implementing CostSupplier
      * @param markReachable if this is set, all reached areas will be marked as
@@ -143,8 +143,8 @@ public class Pathfinder extends Helper {
      * @see #AVOID_ENEMIES found.
      *
      */
-    public void requestPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener) {
-        requests.add(new PathfinderRequest(start, target, maxSlope, costs, markReachable, listener));
+    public void requestPath(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener) {
+        requests.add(new PathfinderRequest(start, target, mt, costs, markReachable, listener));
     }
     
 
@@ -164,7 +164,7 @@ public class Pathfinder extends Helper {
      *
      */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs) {
-        return findPath(start, target, maxSlope, costs, false);
+        return findPath(start, target, MovementType.getMovementType(maxSlope), costs, false);
     }
     /**
      * Finds the cheapest path between two arbitrary positions using the A*
@@ -182,7 +182,7 @@ public class Pathfinder extends Helper {
      *
      */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs) {
-        return findPath(start, target, mt.getMaxSlope(), costs, false);
+        return findPath(start, target, mt, costs, false);
     }
 
     /**
@@ -191,8 +191,7 @@ public class Pathfinder extends Helper {
      *
      * @param start
      * @param target
-     * @param maxSlope Maximum slope that can be travelled on. 0 &lt; maxslope
-     * &lt; 1
+     * @param movementType movement Type indicating passable terrain
      * @param costs Class implementing CostSupplier
      * @param markReachable if this is set, all reached areas will be marked as
      * such WITHOUT EFFECT
@@ -202,7 +201,7 @@ public class Pathfinder extends Helper {
      * @see #AVOID_ENEMIES found.
      *
      */
-    public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, boolean markReachable) {
+    public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, MovementType movementType, CostSupplier costs, boolean markReachable) {
         long time = System.currentTimeMillis();
         Comparator<pqEntry2> pqComp = new Comparator<pqEntry2>() {
 
@@ -233,13 +232,17 @@ public class Pathfinder extends Helper {
         
         PriorityQueue<pqEntry2> pq = new PriorityQueue(1, pqComp);
         pq.add(new pqEntry2(startPos.distanceTo(targetPos.getPos()) , 0, startPos));
+        int evaluated = 0;
+        int evareas = 0;
         while (!pq.isEmpty()){
             Area pos = pq.peek().pos;
             float cost = pq.poll().realCost;
             if (minCost.get(pos) < cost) continue;
             if (pos.equals(targetPos)) break;
             
-            for (Connection c : pos.getConnections()){
+            evareas ++;
+            for (Connection c : pos.getConnections(movementType)){
+                evaluated ++;
                 float newcost = c.length + cost + getCachedCost(costs, c.endpoint);
                 //if (costs.getCost(c.endpoint) < 0) throw new RuntimeException("negative length");
                 if ((!minCost.containsKey(c.endpoint) || newcost < minCost.get(c.endpoint))){
@@ -258,13 +261,13 @@ public class Pathfinder extends Helper {
         Area pos = targetPos;
         while (pos != prev.get(pos)){
             pos.addDebugConnection(prev.get(pos), Color.yellow, command.getCurrentFrame() + 30);
-            res.add(pos.getPos());
+            res.addFirst(pos.getPos());
             pos = prev.get(pos);
         }
-        res.add(pos.getPos());
+        res.addFirst(pos.getPos());
         time = System.currentTimeMillis() - time;
         if (time > 10){
-            command.debug("Area Pathfinder took " + time + "ms");
+            command.debug("Area Pathfinder took " + time + "ms evaluating " + evaluated + " connections in " + evareas + " areas");
             command.debug("From " + startPos.x + "|" + startPos.y + " to " + targetPos.x  + "|" + targetPos.y);
             if (time > 6000){
                 throw new AssertionError("Time limit exceeded");
@@ -328,13 +331,19 @@ public class Pathfinder extends Helper {
         }
     }
 
+    public float getDistance(Float3 start, Float3 target){
+        return (float)Math.sqrt((start.x - target.x) * (start.x - target.x) + (start.z - target.z) * (start.z - target.z));
+    }
+    /*
     public void precalcPath(Area startarea, MovementType movementType, Area targetarea) {
+    //public void precalcPath(AIFloat3 start, float maxSlope, AIFloat3 target, float encradius) {
 
         //command.debug("starting pathfinder to " + target.toString());
         //command.debug("maxslop is " + maxSlope);
         float maxSlope = movementType.getMaxSlope();
         AIFloat3 start = startarea.getPos();
         AIFloat3 target = targetarea.getPos();
+        float encradius = startarea.getEnclosingRadius();
         if (!(maxSlope > 0 && maxSlope <= 1)) {
             throw new RuntimeException("Invalid maxSlope: " + maxSlope);
         }
@@ -386,9 +395,6 @@ public class Pathfinder extends Helper {
             // command.debug("pathfinder iteration");
             do {
                 if (pq.isEmpty()) {
-                    /*clbk.getMap().getDrawer().addPoint(start, "start");
-                     clbk.getMap().getDrawer().addPoint(target, "target");
-                     clbk.getMap().getDrawer().addLine(start, target );*/
                     result.add(target);
                     //command.debug("pathfinder couldnt find target");
                     return;
@@ -418,8 +424,8 @@ public class Pathfinder extends Helper {
 //                        minCost[pos + offset[i]]);
                 if (inBounds(pos + offset[i], minCost.length)
                         && cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope) < minCost[pos + offset[i]]
-                        && (startarea.distanceTo(toAIFloat3(pos + offset[i])) < 1.5f * startarea.getEnclosingRadius()
-                        || targetarea.distanceTo(toAIFloat3(pos + offset[i])) < 1.5f * targetarea.getEnclosingRadius())) {
+                        && (getDistance(start, toAIFloat3(pos + offset[i])) < 1.5f * encradius
+                        || getDistance(target, toAIFloat3(pos + offset[i])) < 1.5f * encradius)) {
 
                     pathTo[pos + offset[i]] = pos;
                     minCost[pos + offset[i]] = cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope);
@@ -431,30 +437,30 @@ public class Pathfinder extends Helper {
         }
 
         float totalcost = minCost[targetPos];
-        startarea.addConnection(targetarea, totalcost, movementType);
-        targetarea.addConnection(startarea, totalcost, movementType);
+        //startarea.queueConnection(targetarea, totalcost, movementType);
+        //targetarea.queueConnection(startarea, totalcost, movementType);
 
         time = System.currentTimeMillis() - time;
         if (time > 10) {
-            command.debug("pathfinder took " + time + "ms");
+            //command.debug("pathfinder took " + time + "ms");
         }
         return;
 
-    }
+    }*/
 
-    private float getHeuristic(int start, int trg) {
+    float getHeuristic(int start, int trg) {
         //return Math.abs(start % smwidth - trg % smwidth) + Math.abs(start / smwidth - trg / smwidth);//manhattan distance only works without diagonal paths
         return (float) Math.sqrt((start % smwidth - trg % smwidth) * (start % smwidth - trg % smwidth) + (start / smwidth - trg / smwidth) * (start / smwidth - trg / smwidth));
     }
     
 
-    private AIFloat3 toAIFloat3(int pos) {
-        AIFloat3 ret = new AIFloat3(mapRes * (pos % (smwidth)), 0, mapRes * (pos / (smwidth)));
+    Float3 toFloat3(int pos) {
+        Float3 ret = new Float3(mapRes * (pos % (smwidth)), 0, mapRes * (pos / (smwidth)));
         ret.y = clbk.getMap().getElevationAt(ret.x, ret.z);
         return ret;
     }
 
-    private float getCost(float slope, float maxSlope) {
+    float getCost(float slope, float maxSlope) {
         if (slope > maxSlope) {
             return Float.MAX_VALUE;
         }
@@ -502,11 +508,11 @@ public class Pathfinder extends Helper {
         }
     };
 
-    private boolean inBounds(int num, int max) {
+    boolean inBounds(int num, int max) {
         return num < max && num >= 0;
     }
 
-    private class pqEntry {
+    static class pqEntry {
 
         final float cost;
         final float realCost;
@@ -545,15 +551,16 @@ public class Pathfinder extends Helper {
     public void update(int frame) {
     }
 
-    /**
-     *
-     * @param start
-     * @param target
-     * @param maxSlope
-     * @return Path as list of AIFloat3
-     * @deprecated Finds the shortest path using hardcoded costs. A CostSupplier
-     * should be used instead.
-     */
+//      /**
+//     *
+//     * @param start
+//     * @param target
+//     * @param maxSlope
+//     * @return Path as list of AIFloat3
+//     * @deprecated Finds the shortest path using hardcoded costs. A CostSupplier
+//     * should be used instead.
+//     */
+    /*
     @Deprecated
     public List<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope) {
 
@@ -605,9 +612,6 @@ public class Pathfinder extends Helper {
             do {
                 if (pq.isEmpty()) {
                     command.debug("pathfinder didn't find path");
-                    /*clbk.getMap().getDrawer().addPoint(start, "start");
-                     clbk.getMap().getDrawer().addPoint(target, "target");
-                     clbk.getMap().getDrawer().addLine(start, target );*/
                     return new ArrayList();
                 }
                 pos = pq.peek().pos;
@@ -647,21 +651,21 @@ public class Pathfinder extends Helper {
         command.debug("pathfinder took " + time + "ms");
         return result;
 
-    }
+    }*/
     
     public class PathfinderRequest{
         
         public final AIFloat3 start;
         public final AIFloat3 target;
-        public final float maxSlope; 
+        public final MovementType movementType; 
         public final CostSupplier costs;
         public final boolean markReachable;
         public final PathfindingCompleteListener listener;
         
-        public PathfinderRequest(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener){
+        public PathfinderRequest(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener){
             this.start = start;
             this.target = target;
-            this.maxSlope = maxSlope;
+            this.movementType = mt;
             this.costs = costs;
             this.markReachable = markReachable;
             this.listener = listener;

@@ -34,14 +34,26 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     private Set<AIUnit> idlers = new HashSet();
     private boolean dead = false;
     private int timeCreated;
+    private boolean autoMerge;
     
     private static List<AISquad> squads = new ArrayList();
 
+    
     public AISquad(AIUnitHandler handler) {
+        this(handler, false);
+    }
+    
+    /**
+     *
+     * @param handler
+     * @param autoMerge whether squad should automatically merge with nearby squads
+     */
+    public AISquad(AIUnitHandler handler, boolean autoMerge) {
         super(handler);
         handler.getCommand().addUnitDestroyedListener(this);
         squads.add(this);
         timeCreated = handler.getCommand().getCurrentFrame();
+        this.autoMerge = false;
     }
 
     public void addUnit(AIUnit u) {
@@ -70,6 +82,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
                 getCommand().removeUnitDestroyedListener(this);
             }
         }
+        //*/
     }
 
     @Override
@@ -143,7 +156,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
 
     @Override
     protected void doTask() {
-        if (handler.getCommand().getCurrentFrame() - timeCreated > 150) {
+        if (handler.getCommand().getCurrentFrame() - timeCreated > 150 && autoMerge) {
             Map<Integer, List<AIUnit>> unittypes = new TreeMap();
             int squadcount = 0;
             List<Task> tasks = new ArrayList();

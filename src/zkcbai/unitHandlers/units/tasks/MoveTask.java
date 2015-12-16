@@ -7,6 +7,7 @@ package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.UnitDef;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Random;
 import zkcbai.Command;
@@ -106,6 +107,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         }
         while (!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 220 && path.size() > 1) || (u.distanceTo(path.getFirst()) < 50))) {
             path.pollFirst();
+            //command.debug("removing first checkpoint");
         }
         if (path.isEmpty() && u.distanceTo(target) > 50) {
             u.moveTo(target, u.getCommand().getCurrentFrame() + 20);
@@ -167,6 +169,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         requestingPath = false;
         lastPath = command.getCurrentFrame();
         this.path = path;
+        command.debug("path has " + path.size() + " steps");
         if (path.size() <= 1) {
 
             target.x = Math.max(0, Math.min(command.getCallback().getMap().getWidth() * 8 - 1, target.x + (float) Math.random() * 150 - 75));

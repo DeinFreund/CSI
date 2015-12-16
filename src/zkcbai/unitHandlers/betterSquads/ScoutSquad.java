@@ -55,6 +55,7 @@ public class ScoutSquad extends SquadManager {
                 reqcnt--;
             }
         }
+        if (this.aisquad != null && units.size() != aisquad.getUnits().size()) throw new AssertionError("didnt add all units correctly to scoutsquad " + aisquad.getUnits().size() + " / " + units.size());
         Set<UnitDef> unitset = new HashSet(availableUnits);
         for (UnitDef ud : scouts) {
             if (unitset.contains(ud)) {
@@ -107,6 +108,7 @@ public class ScoutSquad extends SquadManager {
             aisquad = new AISquad(this);
         }
         aisquad.addUnit(u);
+        command.debug("added " + u.getDef().getHumanName() + " to scoutsquad, size is now " + aisquad.getUnits().size());
     }
 
     @Override
@@ -121,7 +123,7 @@ public class ScoutSquad extends SquadManager {
 
     @Override
     public void troopIdle(AITroop t) {
-        if (!getRequiredUnits(command.getCallback().getUnitDefs()).isEmpty() && !finished) {
+        if (!getRequiredUnits(availableUnits).isEmpty() && !finished) {
             t.wait(command.getCurrentFrame() + 60);
             return;
         } else {
@@ -180,4 +182,10 @@ public class ScoutSquad extends SquadManager {
         return new ScoutSquad(fighterHandler, command, clbk, availableUnits);
     }
 
+    
+    @Override
+    public void unitDestroyed(Enemy e, AIUnit killer){
+        super.unitDestroyed(e, killer);
+        if (target.equals(e)) target = null;
+    }
 }

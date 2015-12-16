@@ -246,7 +246,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 }
             }
             if (allMovable) {//is factory
-                command.debug(ud.getHumanName() + " is a fac");
+                //command.debug(ud.getHumanName() + " is a fac");
                 MovementType mt = MovementType.getMovementType(ud.getBuildOptions().get(0));
                 Set<Area> bestset = new HashSet();
                 int bestsize = 0;

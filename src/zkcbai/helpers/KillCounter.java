@@ -44,12 +44,12 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
             in.close();
             fileIn.close();
             command.debug("Loaded unitStats for " + kills.size() + " units.");
-            for (Map.Entry<String, Map<String, Integer>> a : kills.entrySet()){
+            /*for (Map.Entry<String, Map<String, Integer>> a : kills.entrySet()){
                 command.debug("-- " + a.getKey());
                 for (Map.Entry<String, Integer> b : a.getValue().entrySet()){
                     command.debug(a.getKey() + " -> " + b.getKey() + " = " + b.getValue());
                 }
-            }
+            }*/
         } catch (Exception e) {
             command.debug("Loading unitStats failed!\n",e);
         }
