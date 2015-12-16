@@ -8,6 +8,7 @@ package zkcbai.helpers;
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.UnitDef;
+import java.awt.Color;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -17,6 +18,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Queue;
 import zkcbai.Command;
 import static zkcbai.helpers.Helper.command;
 import zkcbai.helpers.ZoneManager.Area;
@@ -35,15 +37,18 @@ public class Pathfinder extends Helper {
         mheight = clbk.getMap().getHeight() * 8;
         smwidth = (int) (mwidth / mapRes);
         updateSlopeMap();
+        backgroundThread = new Thread(new BackgroundPathfinder(this));
+        backgroundThread.start();
     }
 
     float mwidth, mheight;
     int smwidth;
     float[] slopeMap;
+    protected Thread backgroundThread;
     private final static int mapCompression = 1;
     private final static int originalMapRes = 16;
     private final static int mapRes = originalMapRes * mapCompression;
-
+    
     private void updateSlopeMap() {
         List<Float> map = clbk.getMap().getSlopeMap();
         slopeMap = new float[map.size() / mapCompression / mapCompression];
@@ -66,7 +71,7 @@ public class Pathfinder extends Helper {
         }
         float[] costs = costSupplierCosts.get(supplier);
         int[] lastUpdate = costSupplierLastUpdate.get(supplier);
-        if (command.getCurrentFrame() - lastUpdate[pos.index] > 15) {
+        if (command.getCurrentFrame() - lastUpdate[pos.index] > 32) {
             lastUpdate[pos.index] = command.getCurrentFrame();
             costs[pos.index] = supplier.getCost(pos);
         }
@@ -76,6 +81,72 @@ public class Pathfinder extends Helper {
     public boolean isReachable(AIFloat3 target, AIFloat3 start, float maxSlope) {
         return findPath(start, target, maxSlope, FAST_PATH).size() > 1;
     }
+    
+    private Queue<PathfinderRequest> requests = new LinkedList<>();
+    
+    public Queue<PathfinderRequest> getPathfinderRequests(){
+        return requests;
+    }
+    
+    
+    /**
+     * Requests the cheapest path between two arbitrary positions using the A*
+     * algorithm.
+     *
+     * @param start
+     * @param target
+     * @param maxSlope Maximum slope that can be traveled on. 0 &lt; maxslope
+     * &lt; 1
+     * @param costs Class implementing CostSupplier
+     * @param listener will be called after path has been calculated
+     * @see #FAST_PATH
+     * @see #RAIDER_PATH
+     * @see #AVOID_ENEMIES found.
+     *
+     */
+    public void requestPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, PathfindingCompleteListener listener) {
+        requestPath(start, target, maxSlope, costs, false, listener);
+    }
+    /**
+     * Requests the cheapest path between two arbitrary positions using the A*
+     * algorithm.
+     *
+     * @param start
+     * @param target
+     * @param mt Movement type of unit that is traveling
+     * &lt; 1
+     * @param costs Class implementing CostSupplier
+     * @param listener will be called after path has been calculated
+     * @see #FAST_PATH
+     * @see #RAIDER_PATH
+     * @see #AVOID_ENEMIES found.
+     *
+     */
+    public void requestPath(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, PathfindingCompleteListener listener) {
+        requestPath(start, target, mt.getMaxSlope(), costs, false, listener);
+    }
+
+    /**
+     * Requests the cheapest path between two arbitrary positions using the A*
+     * algorithm.
+     *
+     * @param start
+     * @param target
+     * @param maxSlope Maximum slope that can be travelled on. 0 &lt; maxslope
+     * &lt; 1
+     * @param costs Class implementing CostSupplier
+     * @param markReachable if this is set, all reached areas will be marked as
+     * @param listener will be called after path has been calculated
+     * such WITHOUT EFFECT
+     * @see #FAST_PATH
+     * @see #RAIDER_PATH
+     * @see #AVOID_ENEMIES found.
+     *
+     */
+    public void requestPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener) {
+        requests.add(new PathfinderRequest(start, target, maxSlope, costs, markReachable, listener));
+    }
+    
 
     /**
      * Finds the cheapest path between two arbitrary positions using the A*
@@ -169,7 +240,8 @@ public class Pathfinder extends Helper {
             if (pos.equals(targetPos)) break;
             
             for (Connection c : pos.getConnections()){
-                float newcost = c.length + cost + costs.getCost(c.endpoint);
+                float newcost = c.length + cost + getCachedCost(costs, c.endpoint);
+                //if (costs.getCost(c.endpoint) < 0) throw new RuntimeException("negative length");
                 if ((!minCost.containsKey(c.endpoint) || newcost < minCost.get(c.endpoint))){
                     minCost.put(c.endpoint, newcost);
                     prev.put(c.endpoint, pos);
@@ -185,6 +257,7 @@ public class Pathfinder extends Helper {
         Deque<AIFloat3> res = new LinkedList<>();
         Area pos = targetPos;
         while (pos != prev.get(pos)){
+            pos.addDebugConnection(prev.get(pos), Color.yellow, command.getCurrentFrame() + 30);
             res.add(pos.getPos());
             pos = prev.get(pos);
         }
@@ -192,6 +265,10 @@ public class Pathfinder extends Helper {
         time = System.currentTimeMillis() - time;
         if (time > 10){
             command.debug("Area Pathfinder took " + time + "ms");
+            command.debug("From " + startPos.x + "|" + startPos.y + " to " + targetPos.x  + "|" + targetPos.y);
+            if (time > 6000){
+                throw new AssertionError("Time limit exceeded");
+            }
         }
         return res;
     }
@@ -570,6 +647,26 @@ public class Pathfinder extends Helper {
         command.debug("pathfinder took " + time + "ms");
         return result;
 
+    }
+    
+    public class PathfinderRequest{
+        
+        public final AIFloat3 start;
+        public final AIFloat3 target;
+        public final float maxSlope; 
+        public final CostSupplier costs;
+        public final boolean markReachable;
+        public final PathfindingCompleteListener listener;
+        
+        public PathfinderRequest(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener){
+            this.start = start;
+            this.target = target;
+            this.maxSlope = maxSlope;
+            this.costs = costs;
+            this.markReachable = markReachable;
+            this.listener = listener;
+        }
+        
     }
 
 }

@@ -129,6 +129,8 @@ public class ScoutSquad extends SquadManager {
         }
         if (t instanceof AIUnit) {
             throw new AssertionError("all units should be in aisquad instead of single aiunits");
+        }else{
+            command.debug("scoutsquad has " + ((AISquad)t).getUnits().size() + " units");
         }
         if (target != null) {
             if (t.distanceTo(target.getPos()) > Math.max(500, t.getMaxRange())) {
@@ -136,6 +138,7 @@ public class ScoutSquad extends SquadManager {
             } else {
                 t.assignTask(new AttackTask(target, command.getCurrentFrame() + 200, this, command));
             }
+            return;
         }
         Enemy best = null;
         for (Mex m : command.areaManager.getMexes()) {
@@ -154,6 +157,7 @@ public class ScoutSquad extends SquadManager {
         if (best != null) {
             target = best;
             troopIdle(t);
+            return;
         }
         for (Area a : command.areaManager.getAreas()) {
             if (!a.isInLOS()) {

@@ -15,7 +15,6 @@ import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -25,8 +24,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -37,6 +34,7 @@ import zkcbai.UpdateListener;
 import static zkcbai.helpers.Helper.command;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager.Area.Connection;
+import zkcbai.helpers.ZoneManager.Area.DebugConnection;
 import zkcbai.helpers.ZoneManager.Owner;
 import static zkcbai.helpers.ZoneManager.Owner.enemy;
 import static zkcbai.helpers.ZoneManager.Owner.none;
@@ -317,7 +315,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
             parseStartScript();
         }
-        if (frame % 50 == 0) {
+        if (frame % 17 == 0) {
             cmdsPerSec = cmds / 50f * 30;
             pnl.updateUI();
             cmds = 0;
@@ -429,6 +427,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         private List<Area> neighbours;
         private Set<Mex> mexes = new HashSet();
         private List<Connection> connections = new ArrayList();
+        private Set<DebugConnection> debugConns = new HashSet();
         private int lastPathCalcTime = -100000;
 
         public Area(int x, int y, int index) {
@@ -458,8 +457,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public void recalculatePaths() {
             lastPathCalcTime = command.getCurrentFrame();
             List<Connection> fancy = new ArrayList();
-            for (Connection c : getConnections()){
-                if (c.length < 0) fancy.add(c);
+            for (Connection c : getConnections()) {
+                if (c.length < 0) {
+                    fancy.add(c);
+                }
             }
             connections.removeAll(fancy);
             for (int xx = Math.max(x - 1, 0); xx <= Math.min(x + 1, map.length - 1); xx++) {
@@ -648,7 +649,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                     if (getArea(e.getPos()).equals(this)) {
                         enemies.add(e);
                     }
-                    if (e.distanceTo(pos) < 7 * getEnclosingRadius()) {
+                    if (e.distanceTo(pos) < 8 * getEnclosingRadius()) {
                         nearbyEnemies.add(e);
                     }
                 }
@@ -826,6 +827,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             return nearbyBuildings;
         }
 
+        public void addDebugConnection(Area target, Color color, int timeout) {
+            debugConns.add(new DebugConnection(target, color, timeout));
+        }
+
+        public Collection<DebugConnection> getDebugConnections() {
+            return debugConns;
+        }
+
         @Override
         public void update(int frame) {
             getZone();
@@ -860,6 +869,25 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 this.endpoint = endpoint;
                 this.length = length;
                 this.movementType = movementType;
+            }
+        }
+
+        public class DebugConnection implements UpdateListener {
+
+            public final Area endpoint;
+            public final Color color;
+            public final int timeout;
+
+            public DebugConnection(Area endpoint, Color color, int timeout) {
+                this.endpoint = endpoint;
+                this.color = color;
+                this.timeout = timeout;
+                command.addSingleUpdateListener(this, timeout);
+            }
+
+            @Override
+            public void update(int frame) {
+                debugConns.remove(this);
             }
         }
     }
@@ -1056,6 +1084,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                         g.setColor(Color.red.darker());
                         g.drawLine((int) Math.round(x * w), (int) Math.round(y * h + h),
                                 (int) Math.round((x + 1) * w), (int) Math.round((y) * h));
+                    }
+                    for (DebugConnection dc : map[x][y].getDebugConnections()){
+                        
+                        g.setColor(dc.color);
+                        g.drawLine((int) Math.round((x+0.5f) * w), (int) Math.round((y+0.5) * h),
+                                (int) Math.round((dc.endpoint.x+0.5) * w), (int) Math.round((dc.endpoint.y+ 0.5) * h));
                     }
                     //g.drawRect((int)Math.round(x * w), (int)Math.round(y * h), (int)Math.round(w), (int)Math.round(h));
                     g.setColor(stringcol);

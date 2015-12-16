@@ -202,7 +202,7 @@ public class Command implements AI {
          list.add(enemies.get(u.getUnitId()));
          }*/
         for (Area a : areaManager.getAreas()) {
-            if (a.distanceTo(pos)  > radius) {
+            if (a.distanceTo(pos) > radius) {
                 continue;
             }
             for (Enemy e : a.getNearbyEnemies()) {
@@ -229,6 +229,11 @@ public class Command implements AI {
     public void addFakeEnemy(FakeEnemy e) {
         fakeEnemies.add(e);
         enemyDiscovered(e);
+    }
+
+    public void removeFakeEnemy(FakeEnemy e) {
+        fakeEnemies.remove(e);
+        enemyDestroyed(e, null);
     }
 
     public void addEnemyEnterRadarListener(EnemyEnterRadarListener listener) {
@@ -514,24 +519,27 @@ public class Command implements AI {
             }
             Enemy e = enemies.get(unit.getUnitId());
             if (e != null) {
-
-                Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
-                AIUnit frenemy = null;
-                if (attacker != null && units.containsKey(attacker.getUnitId())) {
-                    frenemy = units.get(attacker.getUnitId());
-                }
-                for (UnitDestroyedListener listener : unitDestroyedListenersc) {
-                    listener.unitDestroyed(e, frenemy);
-                }
-                e.destroyed();
-                if (enemies.remove(unit.getUnitId()) == null) {
-                    throw new AssertionError("Enemy not in enemy map");
-                }
+                enemyDestroyed(e, attacker);
             }
         } catch (Throwable e) {
             debug("Exception in unitDestroyed: ", e);
         }
         return 0;
+    }
+
+    protected void enemyDestroyed(Enemy e, Unit attacker) {
+        Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
+        AIUnit frenemy = null;
+        if (attacker != null && units.containsKey(attacker.getUnitId())) {
+            frenemy = units.get(attacker.getUnitId());
+        }
+        for (UnitDestroyedListener listener : unitDestroyedListenersc) {
+            listener.unitDestroyed(e, frenemy);
+        }
+        e.destroyed();
+        if (enemies.remove(e.getUnitId()) == null && ! (e instanceof FakeEnemy)) {
+            throw new AssertionError("Enemy not in enemy map");
+        }
     }
 
     @Override
@@ -577,6 +585,7 @@ public class Command implements AI {
 
                 @Override
                 public void actionPerformed(ActionEvent ae) {
+                    debug("Lagging out, printing stack trace: ");
                     for (StackTraceElement ste : mainThread.getStackTrace()) {
                         debug(ste.toString());
                     }

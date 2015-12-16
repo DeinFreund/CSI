@@ -44,10 +44,9 @@ public class Enemy implements UpdateListener {
         setUnitId(u.getUnitId());
         setUnit(u);
     }
-    
-    
-    protected Enemy(AIFloat3 pos , Command cmd, OOAICallback clbk) {
-        id = idCounter --;
+
+    protected Enemy(AIFloat3 pos, Command cmd, OOAICallback clbk) {
+        id = idCounter--;
         unitId = id;
         this.clbk = clbk;
         command = cmd;
@@ -55,7 +54,7 @@ public class Enemy implements UpdateListener {
         isBuilding = false;
         lastSeen = cmd.getCurrentFrame();
         getDef();
-        
+
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
     }
 
@@ -65,39 +64,51 @@ public class Enemy implements UpdateListener {
     }
 
     public AIFloat3 getPos() {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         if (unit != null && unit.getPos().length() > 0) {
             return new AIFloat3(unit.getPos());
         }
         return new AIFloat3(lastPos);
     }
 
-    
     public UnitDef getDef() {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         if (unit != null && unit.getDef() != null) {
             return unit.getDef();
         }
-        if (unitDef == null ) identify();
+        if (unitDef == null) {
+            identify();
+        }
         return unitDef;
     }
-    
-    protected void setUnitId(int id){
+
+    protected void setUnitId(int id) {
         this.unitId = id;
         command.debug("Set unit id to " + id);
     }
-    
-    public float getHealth(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+
+    public float getHealth() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return health;
     }
-    public float getRelativeHealth(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+
+    public float getRelativeHealth() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return health / getDef().getHealth();
     }
-    
-    public float getDPS(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+
+    public float getDPS() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         float dps = 0;
         for (WeaponMount wm : getDef().getWeaponMounts()) {
             for (Float f : wm.getWeaponDef().getDamage().getTypes()) {
@@ -106,29 +117,36 @@ public class Enemy implements UpdateListener {
         }
         return dps;
     }
-    
 
-    protected void setUnit(Unit unit){
+    protected void setUnit(Unit unit) {
         this.unit = unit;
     }
-    
+
     public Unit getUnit() {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return unit;
     }
-    
+
     public int getUnitId() {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return unitId;
     }
 
     public float getMaxRange() {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return maxRange;
     }
 
     public float distanceTo(AIFloat3 trg) {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
         pos.y = 0;
@@ -136,20 +154,24 @@ public class Enemy implements UpdateListener {
     }
 
     public boolean shouldBeVisible(AIFloat3 pos) {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700) {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
         } else {
             return !clbk.getFriendlyUnitsIn(pos, getDef().getDecloakDistance()).isEmpty();
         }
     }
-    
-    public boolean isVisible(){
+
+    public boolean isVisible() {
         return isVisible(false);
     }
-    
-    public boolean isVisible(boolean inLos){
-        if (unit == null) return false;
+
+    public boolean isVisible(boolean inLos) {
+        if (unit == null) {
+            return false;
+        }
         return (!inLos && unit.getPos().length() > 0) || unit.getHealth() > 0;
     }
 
@@ -161,23 +183,31 @@ public class Enemy implements UpdateListener {
         }
 
     };
-    
-    public int timeSinceLastSeen(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
-        if (isBuilding) return 0;
+
+    public int timeSinceLastSeen() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
+        if (isBuilding) {
+            return 0;
+        }
         return command.getCurrentFrame() - lastSeen;
     }
-    
-    public boolean isTimedOut(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
-        return timeSinceLastSeen() > 2000 * 100 / Math.max(getDef().getSpeed(),0.1);
+
+    public boolean isTimedOut() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
+        return timeSinceLastSeen() > 2000 * 100 / Math.max(getDef().getSpeed(), 0.1);
     }
 
     @Override
     public void update(int frame) {
-        if (!alive) return;
-        health = Math.min(getDef().getHealth(),health + regen*getDef().getHealth());
-        if (unit != null && unit.getHealth() > 0){
+        if (!alive) {
+            return;
+        }
+        health = Math.min(getDef().getHealth(), health + regen * getDef().getHealth());
+        if (unit != null && unit.getHealth() > 0) {
             //in LOS
             health = unit.getHealth();
         }
@@ -188,8 +218,16 @@ public class Enemy implements UpdateListener {
         } else if (shouldBeVisible(lastPos)) {
             //command.debug("new pos");
             AIFloat3 npos = command.areaManager.getArea(lastPos).getNearestArea(invisible).getPos();
-            if (npos != null) lastPos = npos;
-            if (isBuilding) command.unitDestroyed(unit, null);
+            if (npos != null) {
+                lastPos = npos;
+            }
+            if (isBuilding) {
+                if (this instanceof FakeEnemy) {
+                    command.removeFakeEnemy((FakeEnemy) this);
+                } else {
+                    command.unitDestroyed(unit, null);
+                }
+            }
         }
         if (neverSeen && unit != null && unit.getVel().length() > maxVelocity) {
             identify();
@@ -199,7 +237,9 @@ public class Enemy implements UpdateListener {
     }
 
     public void enterLOS() {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         if (neverSeen) {
             health = unit.getHealth();
             unitDef = unit.getDef();
@@ -211,24 +251,32 @@ public class Enemy implements UpdateListener {
         }
         neverSeen = false;
     }
-    
-    public float getMetalCost(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+
+    public float getMetalCost() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return getDef().getCost(command.metal);
     }
-    
-    public boolean isBuilding(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+
+    public boolean isBuilding() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return isBuilding;
     }
-    
-    public boolean isIdentifiedByRadar(){
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+
+    public boolean isIdentifiedByRadar() {
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         return neverSeen && getDef().getSpeed() > 0.5;
     }
 
     public void identify() {
-        if (!alive) throw new RuntimeException("Polled dead enemy " + hashCode() );
+        if (!alive) {
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+        }
         if (!neverSeen) {
             return;
         }
@@ -250,7 +298,7 @@ public class Enemy implements UpdateListener {
     }
 
     public void enterRadar() {
-        
+
     }
 
     public void leaveLOS() {
@@ -266,9 +314,9 @@ public class Enemy implements UpdateListener {
     }
 
     @Override
-    public boolean equals(Object o){
-        if (o instanceof Enemy){
-            return equals((Enemy)o);
+    public boolean equals(Object o) {
+        if (o instanceof Enemy) {
+            return equals((Enemy) o);
         }
         return false;
     }
@@ -277,9 +325,11 @@ public class Enemy implements UpdateListener {
     public int hashCode() {
         return id;
     }
-    
+
     public boolean equals(Enemy e) {
-        if (e== null) return false;
+        if (e == null) {
+            return false;
+        }
         return hashCode() == e.hashCode();
     }
 }

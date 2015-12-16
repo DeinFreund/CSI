@@ -70,7 +70,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
 
     public float getGeneralDanger(AIFloat3 pos) {
         float result = 0;
-        for (Enemy e : fighters) {
+        for (Enemy e : command.areaManager.getArea(pos).getNearbyEnemies()) {
             result += (e.distanceTo(pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getDef().getCost(command.metal);
             result += (e.distanceTo(pos) <= e.getMaxRange() * 2.7 ? 0.5 : 0) * e.getDef().getCost(command.metal);
         }
