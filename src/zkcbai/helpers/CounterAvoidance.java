@@ -5,9 +5,9 @@
  */
 package zkcbai.helpers;
 
-import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.UnitDef;
 import zkcbai.Command;
+import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.units.Enemy;
 
 /**
@@ -31,17 +31,17 @@ public class CounterAvoidance implements CostSupplier {
         }
 
         @Override
-        public float getCost(float slope, float maxSlope, AIFloat3 pos) {
+        public float getCost(Area pos) {
             float danger = 0;
             for (Enemy e : command.getEnemyUnits(false)) {
-                if (e.distanceTo(pos) < e.getMaxRange() * 1.4 && command.killCounter.getEfficiency(e.getDef(), def) > 3) {
+                if (e.distanceTo(pos.getPos()) < e.getMaxRange() * 1.4 && command.killCounter.getEfficiency(e.getDef(), def) > 3) {
                     danger += e.getMetalCost();
                 }
-                if (e.distanceTo(pos) < mindist) {
+                if (e.distanceTo(pos.getPos()) < mindist) {
                     danger += e.getMetalCost() * 1.5;
                 }
             }
-            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1000) : (0))) + 1 + danger / 10 + command.defenseManager.getGeneralDanger(pos)/100;
+            return danger * 10 + command.defenseManager.getGeneralDanger(pos.getPos());
         }
 
     }

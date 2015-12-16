@@ -29,13 +29,16 @@ import zkcbai.utility.SmallestEnclosingCircle;
 public abstract class SquadHandler extends UnitHandler{
     //not exactly a Task but really close
 
-    Set<AIUnit> units = new HashSet();
-    OOAICallback clbk;
-    Command command;
-    FighterHandler fighterHandler;
+    protected Set<AIUnit> units = new HashSet();
+    protected OOAICallback clbk;
+    protected Command command;
+    protected FighterHandler fighterHandler;
 
     public SquadHandler(FighterHandler fighterHandler, Command command, OOAICallback callback) {
         super(command, callback);
+        if (fighterHandler == null) throw new AssertionError("inb4 nullpointer");
+        if (command == null) throw new AssertionError("inb4 nullpointer");
+        if (callback == null) throw new AssertionError("inb4 nullpointer");
         this.command = command;
         this.clbk = callback;
         this.fighterHandler = fighterHandler;
@@ -70,11 +73,13 @@ public abstract class SquadHandler extends UnitHandler{
         return pos.length();
     }
 
+    @Override
     public void addUnit(AIUnit u) {
         units.add(u);
         u.assignAIUnitHandler(this);
     }
 
+    @Override
     public Collection<AIUnit> getUnits(){
         return new ArrayList(units);
     }

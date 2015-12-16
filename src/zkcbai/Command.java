@@ -40,6 +40,7 @@ import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.NanoHandler;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeEnemy;
+import zkcbai.unitHandlers.units.FakeMex;
 
 /**
  *
@@ -89,14 +90,14 @@ public class Command implements AI {
 
     public Command(int teamId, OOAICallback callback) {
         try {
-            
+
             this.clbk = callback;
             ownTeamId = teamId;
             metal = clbk.getResources().get(0);
             energy = clbk.getResources().get(1);
             economyManager = new EconomyManager(this, clbk);
-            facHandler = new FactoryHandler(this, callback);
             fighterHandler = new FighterHandler(this, clbk);
+            facHandler = new FactoryHandler(this, callback); //req: fighterHandler
             losManager = new LosManager(this, clbk);
             areaManager = new ZoneManager(this, clbk);
             radarManager = new RadarManager(this, clbk);
@@ -105,7 +106,7 @@ public class Command implements AI {
             killCounter = new KillCounter(this, clbk);
             builderHandler = new BuilderHandler(this, clbk);
             nanoHandler = new NanoHandler(this, clbk);
-            
+
             economyManager.init();
             losManager.init();
             radarManager.init();
@@ -113,10 +114,9 @@ public class Command implements AI {
             pathfinder.init();
             killCounter.init();
             areaManager.init();
-            
 
             mexradius = clbk.getUnitDefByName("cormex").getRadius();
-            
+
             String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw", "armflea", "corak"};
             for (String s : importantSpeedDefs) {
                 defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
@@ -133,15 +133,15 @@ public class Command implements AI {
     public FactoryHandler getFactoryHandler() {
         return facHandler;
     }
+
     public BuilderHandler getBuilderHandler() {
         return builderHandler;
     }
-    
+
     public FighterHandler getFighterHandler() {
         return fighterHandler;
     }
-    
-    
+
     public Collection<CommanderHandler> getCommanderHandlers() {
         return comHandlers;
     }
@@ -149,42 +149,48 @@ public class Command implements AI {
     public TreeMap<Float, UnitDef> getEnemyUnitDefSpeedMap() {
         return defSpeedMap;
     }
-    
-    
+
     /**
-     * 
+     *
      * @param u
      * @return aiunit which contains u or null if such an aiunit doesnt exist
      */
-    public AIUnit getAIUnit(Unit u){
-        if (u == null) return null;
+    public AIUnit getAIUnit(Unit u) {
+        if (u == null) {
+            return null;
+        }
         return units.get(u.getUnitId());
     }
 
     /**
-     *  Returns all known enemies
+     * Returns all known enemies
+     *
      * @param allEnemies decides whether to include timed out enemies
      * @return
      */
     public List<Enemy> getEnemyUnits(boolean allEnemies) {
         List<Enemy> list = new ArrayList();
         for (Enemy e : enemies.values()) {
-            if (allEnemies || !e.isTimedOut()) list.add(e);
+            if (allEnemies || !e.isTimedOut()) {
+                list.add(e);
+            }
         }
         return list;
     }
-    
+
     /**
-     *  Returns own units.
+     * Returns own units.
+     *
      * @return
      */
     public Collection<AIUnit> getUnits() {
-        
+
         return units.values();
     }
 
     /**
      * Returns enemy unit in radius that haven't timed out
+     *
      * @param pos
      * @param radius
      * @return
@@ -214,11 +220,11 @@ public class Command implements AI {
         return clbk;
     }
 
-    public void addFakeEnemy(FakeEnemy e){
+    public void addFakeEnemy(FakeEnemy e) {
         fakeEnemies.add(e);
         enemyDiscovered(e);
     }
-    
+
     public void addEnemyEnterRadarListener(EnemyEnterRadarListener listener) {
         enemyEnterRadarListeners.add(listener);
     }
@@ -246,7 +252,7 @@ public class Command implements AI {
     public void removeUnitFinishedListener(UnitFinishedListener listener) {
         unitFinishedListeners.remove(listener);
     }
-    
+
     public void addUnitCreatedListener(UnitCreatedListener listener) {
         unitCreatedListeners.add(listener);
     }
@@ -255,7 +261,6 @@ public class Command implements AI {
         unitCreatedListeners.remove(listener);
     }
 
-
     public void addUnitDestroyedListener(UnitDestroyedListener listener) {
         unitDestroyedListeners.add(listener);
     }
@@ -263,11 +268,11 @@ public class Command implements AI {
     public void removeUnitDestroyedListener(UnitDestroyedListener listener) {
         unitDestroyedListeners.remove(listener);
     }
-    
+
     public void addUnitDamagedListener(UnitDamagedListener listener) {
         unitDamagedListeners.add(listener);
     }
-    
+
     public void removeUnitDamagedListener(UnitDamagedListener listener) {
         unitDamagedListeners.remove(listener);
     }
@@ -337,12 +342,14 @@ public class Command implements AI {
     public int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
             Enemy att = null;
-            if (attacker != null) att = enemies.get(attacker.getUnitId());
+            if (attacker != null) {
+                att = enemies.get(attacker.getUnitId());
+            }
             AIUnit def = units.get(unit.getUnitId());
-            for (UnitDamagedListener listener : unitDamagedListeners){
+            for (UnitDamagedListener listener : unitDamagedListeners) {
                 listener.unitDamaged(def, att, damage);
             }
-            if (unit.getHealth() <=0){
+            if (unit.getHealth() <= 0) {
                 unitDestroyed(unit, attacker);
             }
         } catch (Throwable e) {
@@ -359,12 +366,12 @@ public class Command implements AI {
             }
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             FakeEnemy closest = null;
-            for (FakeEnemy fe : fakeEnemies){
-                if (fe.isUnit(enemy) && (closest == null || closest.distanceTo(enemy.getPos()) > fe.distanceTo(enemy.getPos()))){
+            for (FakeEnemy fe : fakeEnemies) {
+                if (fe.isUnit(enemy) && (closest == null || closest.distanceTo(enemy.getPos()) > fe.distanceTo(enemy.getPos()))) {
                     closest = fe;
                 }
             }
-            if (closest != null){
+            if (closest != null) {
                 unitDestroyed(enemy, null);
                 aiEnemy = closest;
                 closest.setUnitId(enemy.getUnitId());
@@ -463,11 +470,13 @@ public class Command implements AI {
     @Override
     public int enemyDamaged(Unit enemy, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
-            
+
             AIUnit att = null;
-            if (attacker != null) att = units.get(attacker.getUnitId());
+            if (attacker != null) {
+                att = units.get(attacker.getUnitId());
+            }
             Enemy def = enemies.get(enemy.getUnitId());
-            for (UnitDamagedListener listener : unitDamagedListeners){
+            for (UnitDamagedListener listener : unitDamagedListeners) {
                 listener.unitDamaged(def, att, damage);
             }
             if (enemy.getHealth() <= 0) {
@@ -509,11 +518,13 @@ public class Command implements AI {
                     listener.unitDestroyed(e, frenemy);
                 }
                 e.destroyed();
-                if (enemies.remove(unit.getUnitId()) == null) throw new AssertionError("Enemy not in enemy map");
+                if (enemies.remove(unit.getUnitId()) == null) {
+                    throw new AssertionError("Enemy not in enemy map");
+                }
             }
         } catch (Throwable e) {
             debug("Exception in unitDestroyed: ", e);
-        } 
+        }
         return 0;
     }
 
@@ -540,16 +551,15 @@ public class Command implements AI {
     public int unitIdle(Unit unit) {
         try {
             /*if (!units.containsKey(unit.getUnitId())) {
-//                debug("IDLEBUG Exception unknown unit " + unit.getUnitId());
-                return 0;
-            }*/
+             //                debug("IDLEBUG Exception unknown unit " + unit.getUnitId());
+             return 0;
+             }*/
             units.get(unit.getUnitId()).idle();
         } catch (Throwable e) {
             debug("Exception in unitIdle: ", e);
         }
         return 0;
     }
-    
 
     @Override
     public int update(int frame) {
@@ -561,7 +571,7 @@ public class Command implements AI {
 
                 @Override
                 public void actionPerformed(ActionEvent ae) {
-                    for (StackTraceElement ste : mainThread.getStackTrace()){
+                    for (StackTraceElement ste : mainThread.getStackTrace()) {
                         debug(ste.toString());
                     }
                     mainThread.stop(new RuntimeException("Lockup"));
@@ -605,7 +615,7 @@ public class Command implements AI {
 
         } catch (Throwable e) {
             debug("Exception in unitCreated: ", e);
-           
+
         }
         return 0;
     }
@@ -628,8 +638,8 @@ public class Command implements AI {
                     aiunit = nanoHandler.addUnit(unit);
                     break;
                 default:
-                    if (unit.getDef().getBuildOptions().size() > 0 ){
-                        if (unit.getDef().getSpeed() < 0.1){
+                    if (unit.getDef().getBuildOptions().size() > 0) {
+                        if (unit.getDef().getSpeed() < 0.1) {
                             aiunit = facHandler.addUnit(unit);
                         } else {
                             aiunit = builderHandler.addUnit(unit);
@@ -642,6 +652,32 @@ public class Command implements AI {
                     }
                     //debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");
                     aiunit = new AIUnit(unit, null);
+            }
+            //shadow expansion
+            if (aiunit.getDef().equals(clbk.getUnitDefByName("cormex"))) {
+                float mindist = Float.MAX_VALUE;
+                Mex closest = null;
+                for (Mex m : areaManager.getMexes()) {
+                    if (m.getOwner() == ZoneManager.Owner.enemy) {
+                        continue;
+                    }
+                    float dist = 0;
+                    for (Mex em : areaManager.getMexes()) {
+                        if (em.getOwner() != ZoneManager.Owner.enemy) {
+                            continue;
+                        }
+                        dist += em.distanceTo(m.pos);
+                    }
+                    if (dist < mindist) {
+                        mindist = dist;
+                        closest = m;
+                    }
+                }
+                if (closest != null) {
+                    FakeEnemy fakemex = new FakeMex(closest.pos, this, clbk);
+                    addFakeEnemy(fakemex);
+                    closest.setEnemyMex(fakemex);
+                }
             }
 //            debug("IDLEBUG registering " + aiunit.getUnit().getUnitId());
             units.put(unit.getUnitId(), aiunit);
@@ -681,36 +717,37 @@ public class Command implements AI {
     public void mark(AIFloat3 pos, String s) {
         clbk.getMap().getDrawer().addPoint(pos, s);
     }
-    
+
     private final float mexradius;
-    
-    public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing){
+
+    public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing) {
         boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
-        if (!ret || building.getName().equalsIgnoreCase("cormex")) return ret;
+        if (!ret || building.getName().equalsIgnoreCase("cormex")) {
+            return ret;
+        }
         //debug(areaManager.getMexes().size() + " mexes");
         float mindist = Float.MAX_VALUE;
-        for (Mex m : areaManager.getArea(pos).getNearbyMexes()){
+        for (Mex m : areaManager.getArea(pos).getNearbyMexes()) {
             mindist = Math.min(mindist, m.distanceTo(pos));
-            if (m.distanceTo(pos) < mexradius + 1.5 * building.getRadius() && !m.isBuilt()){
+            if (m.distanceTo(pos) < mexradius + 1.5 * building.getRadius() && !m.isBuilt()) {
                 return false;
             }
         }
-        for (AIUnit au : facHandler.getFacs()){
-            if (au.distanceTo(pos) < au.getDef().getRadius() * 1.7 + building.getRadius() * 1.5){
+        for (AIUnit au : facHandler.getUnits()) {
+            if (au.distanceTo(pos) < au.getDef().getRadius() * 1.7 + building.getRadius() * 1.5) {
                 return false;
             }
         }
         //debug("checking for " + building.getHumanName() +" closed mex has a distance of " + mindist);
         return true;
     }
-    
-    
+
     public static float distance(AIFloat3 a, AIFloat3 b) {
         AIFloat3 delta = new AIFloat3(a);
         delta.sub(b);
         return delta.length();
     }
-    
+
     public static float distance2D(AIFloat3 a, AIFloat3 b) {
         AIFloat3 delta = new AIFloat3(a);
         delta.sub(b);

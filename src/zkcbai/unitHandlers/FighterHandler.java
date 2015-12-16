@@ -20,7 +20,6 @@ import java.util.TreeMap;
 import zkcbai.Command;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.squads.RaiderSquad;
-import zkcbai.unitHandlers.squads.ScoutSquad;
 import zkcbai.unitHandlers.squads.SquadHandler;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -30,6 +29,8 @@ import zkcbai.EnemyEnterLOSListener;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaZoneChangeListener;
 import zkcbai.helpers.ZoneManager;
+import zkcbai.unitHandlers.betterSquads.SquadManager;
+import zkcbai.unitHandlers.betterSquads.ScoutSquad;
 import zkcbai.unitHandlers.squads.AssaultSquad;
 import zkcbai.unitHandlers.squads.GenericSquad;
 import zkcbai.unitHandlers.units.AISquad;
@@ -52,7 +53,8 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
     }
 
-    Set<SquadHandler> squads = new HashSet();
+    Set<SquadManager> squads = new HashSet();
+    
 
     Map<Integer, SquadHandler> unitSquads = new TreeMap();
 
@@ -66,6 +68,27 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
         useUnit(au);
         return au;
+    }
+    
+    /**
+     * needed to keep track of squads that are being constructed
+     * @param squad
+     */
+    public void addSquad(SquadManager squad){
+        squads.add(squad);
+    }
+    
+    public void squadAborted(SquadManager squad){
+        //squadsUnderConstruction.remove(squad);
+        squads.remove(squad);
+        for (AIUnit au : squad.disband()){
+            useUnit(au);
+        }
+    }
+    
+    public void squadFinished(SquadManager squad){
+        //squadsUnderConstruction.remove(squad);
+        //squads.add(squad);
     }
 
     private class pqEntry {
@@ -144,6 +167,15 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     }
     
     private void useUnit(AIUnit au) {
+        for (SquadManager sq : squads){
+            if (sq.getRequiredUnits().contains(au.getDef())){
+                sq.addUnit(au);
+                command.mark(au.getPos(), "added to " + sq.getClass().getName());
+                return;
+            }else{
+                //command.debug("Unsatisfied " + sq.getClass().getName() + " " + sq.getRequiredUnits().get(0));
+            }
+        }
         tryAssault();
         float sum = 0;
         for (Area a : command.areaManager.getAreas()){
@@ -302,6 +334,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     
     
     public AIFloat3 requestNewTarget(GenericSquad s) {
+        /*
         Enemy best = null;
         AIFloat3 spos = s.getPos();
         Collection<Enemy> enemies = command.getEnemyUnitsIn(spos, 100000);
@@ -343,10 +376,11 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         squads.add(ss);
 
 
-        return new AIFloat3();
+        return new AIFloat3();*/
+        return null;
     }
 
-    public AIFloat3 requestNewTarget(RaiderSquad s) {
+    public AIFloat3 requestNewTarget(RaiderSquad s) {/*
         Enemy best = null;
         AIFloat3 spos = s.getPos();
         Collection<Enemy> enemies = command.getEnemyUnitsIn(spos, 100000);
@@ -388,11 +422,12 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         squads.add(ss);
 
 
-        return new AIFloat3();
+        return new AIFloat3();*/
+        return null;
     }
 
     public AIFloat3 requestNewTarget(AssaultSquad s) {
-
+/*
         Area a = command.areaManager.getArea(s.getPos()).getNearestArea(command.areaManager.FORTIFIED_ASSAULT_ACCESSIBLE);
         if (a != null) {
             return a.getPos();
@@ -435,7 +470,8 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         }
         squads.add(ss);
 
-        return new AIFloat3();
+        return new AIFloat3();*/
+        return null;
     }
 
     public void squadDestroyed(SquadHandler s) {

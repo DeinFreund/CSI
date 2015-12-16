@@ -39,7 +39,7 @@ public class NanoHandler extends UnitHandler{
     @Override
     public void troopIdle(AIUnit u) {
         AIUnit closest = null;
-        for (AIUnit fac : command.getFactoryHandler().getFacs()){
+        for (AIUnit fac : command.getFactoryHandler().getUnits()){
             if (closest == null || closest.distanceTo(u.getPos()) > fac.distanceTo(u.getPos())){
                 closest = fac;
             }

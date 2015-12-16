@@ -59,18 +59,18 @@ public class Pathfinder extends Helper {
     private Map<CostSupplier, float[]> costSupplierCosts = new HashMap();
     private Map<CostSupplier, int[]> costSupplierLastUpdate = new HashMap();
 
-    private float getCachedCost(CostSupplier supplier, float slope, float maxSlope, int pos) {
+    private float getCachedCost(CostSupplier supplier, Area pos) {
         if (!costSupplierCosts.containsKey(supplier)) {
-            costSupplierCosts.put(supplier, new float[slopeMap.length]);
-            costSupplierLastUpdate.put(supplier, new int[slopeMap.length]);
+            costSupplierCosts.put(supplier, new float[command.areaManager.getAreas().size()]);
+            costSupplierLastUpdate.put(supplier, new int[command.areaManager.getAreas().size()]);
         }
         float[] costs = costSupplierCosts.get(supplier);
         int[] lastUpdate = costSupplierLastUpdate.get(supplier);
-        if (command.getCurrentFrame() - lastUpdate[pos] > 15) {
-            lastUpdate[pos] = command.getCurrentFrame();
-            costs[pos] = supplier.getCost(slope, maxSlope, toAIFloat3(pos));
+        if (command.getCurrentFrame() - lastUpdate[pos.index] > 15) {
+            lastUpdate[pos.index] = command.getCurrentFrame();
+            costs[pos.index] = supplier.getCost(pos);
         }
-        return costs[pos];
+        return costs[pos.index];
     }
 
     public boolean isReachable(AIFloat3 target, AIFloat3 start, float maxSlope) {
@@ -169,10 +169,11 @@ public class Pathfinder extends Helper {
             if (pos.equals(targetPos)) break;
             
             for (Connection c : pos.getConnections()){
-                if ((!minCost.containsKey(c.endpoint) || c.length + cost < minCost.get(c.endpoint))){
-                    minCost.put(c.endpoint, cost + c.length);
+                float newcost = c.length + cost + costs.getCost(c.endpoint);
+                if ((!minCost.containsKey(c.endpoint) || newcost < minCost.get(c.endpoint))){
+                    minCost.put(c.endpoint, newcost);
                     prev.put(c.endpoint, pos);
-                    pq.add(new pqEntry2(cost + c.length + c.endpoint.distanceTo(targetPos.getPos()), cost + c.length, c.endpoint));
+                    pq.add(new pqEntry2(newcost + c.endpoint.distanceTo(targetPos.getPos()), newcost, c.endpoint));
                 }
             }
         }
@@ -389,11 +390,8 @@ public class Pathfinder extends Helper {
     public final CostSupplier FAST_PATH = new CostSupplier() {
 
         @Override
-        public float getCost(float slope, float maxSlope, AIFloat3 pos) {
-            if (slope > maxSlope) {
-                return Float.MAX_VALUE;
-            }
-            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1e6f) : (0))) + 1;
+        public float getCost(Area pos) {
+            return 0;
         }
     };
     /**
@@ -402,11 +400,8 @@ public class Pathfinder extends Helper {
     public final CostSupplier RAIDER_PATH = new CostSupplier() {
 
         @Override
-        public float getCost(float slope, float maxSlope, AIFloat3 pos) {
-            if (slope > maxSlope) {
-                return Float.MAX_VALUE;
-            }
-            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1e6f) : (0))) + 200 * command.defenseManager.getRaiderAccessibilityCost(pos) + 1;
+        public float getCost(Area pos) {
+            return 20000 * command.defenseManager.getRaiderAccessibilityCost(pos.getPos());
         }
     };
     /**
@@ -415,11 +410,8 @@ public class Pathfinder extends Helper {
     public final CostSupplier ASSAULT_PATH = new CostSupplier() {
 
         @Override
-        public float getCost(float slope, float maxSlope, AIFloat3 pos) {
-            if (slope > maxSlope) {
-                return Float.MAX_VALUE;
-            }
-            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1e6f) : (0))) + 200 * command.defenseManager.getAssaultAccessibilityCost(pos) + 1;
+        public float getCost(Area pos) {
+            return 20000 * command.defenseManager.getAssaultAccessibilityCost(pos.getPos());
         }
     };
     /**
@@ -428,11 +420,8 @@ public class Pathfinder extends Helper {
     public final CostSupplier AVOID_ENEMIES = new CostSupplier() {
 
         @Override
-        public float getCost(float slope, float maxSlope, AIFloat3 pos) {
-            if (slope > maxSlope) {
-                return Float.MAX_VALUE;
-            }
-            return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1e6f) : (0))) + 0.04f * command.defenseManager.getGeneralDanger(pos) + 1;
+        public float getCost(Area pos) {
+            return 4f * command.defenseManager.getGeneralDanger(pos.getPos());
         }
     };
 

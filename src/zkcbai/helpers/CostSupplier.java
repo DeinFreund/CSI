@@ -5,7 +5,7 @@
  */
 package zkcbai.helpers;
 
-import com.springrts.ai.oo.AIFloat3;
+import zkcbai.helpers.ZoneManager.Area;
 
 /**
  *
@@ -13,5 +13,5 @@ import com.springrts.ai.oo.AIFloat3;
  */
 public interface CostSupplier {
     
-    float getCost(float slope, float maxSlope, AIFloat3 pos);
+    float getCost(Area pos);
 }

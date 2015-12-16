@@ -18,6 +18,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,6 +28,7 @@ import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.UnitFinishedListener;
 import zkcbai.UpdateListener;
+import static zkcbai.helpers.Helper.command;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager.Area.Connection;
 import zkcbai.helpers.ZoneManager.Owner;
@@ -38,9 +40,11 @@ import static zkcbai.helpers.ZoneManager.Zone.hostile;
 import static zkcbai.helpers.ZoneManager.Zone.neutral;
 import static zkcbai.helpers.ZoneManager.Zone.own;
 import zkcbai.unitHandlers.BuilderHandler.GridNode;
+import zkcbai.unitHandlers.FactoryHandler.Factory;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeCommander;
+import zkcbai.unitHandlers.units.FakeMex;
 import zkcbai.unitHandlers.units.tasks.BuildTask;
 import zkcbai.unitHandlers.units.tasks.TaskIssuer;
 
@@ -132,13 +136,16 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         mheight = clbk.getMap().getHeight() * 8;
         map = new Area[50][50];
         areas = new ArrayList();
+        int arindex = 0;
         for (int x = 0; x < map.length; x++) {
             for (int y = 0; y < map[x].length; y++) {
-                map[x][y] = new Area(x, y);
+                map[x][y] = new Area(x, y, arindex++);
                 areas.add(map[x][y]);
             }
         }
         mexes = new ArrayList();
+        Collections.shuffle(areas);
+        Collections.shuffle(mexes);
         cmd.addUnitDestroyedListener(this);
 
         frm = new JFrame("MapGUI");
@@ -171,6 +178,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     }
 
     private void parseStartScript() {
+        AIFloat3 compos = null;
         try {
             String script = clbk.getGame().getSetupScript();
             for (GameRulesParam grp : clbk.getGame().getGameRulesParams()) {
@@ -231,7 +239,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                         AIFloat3 mid = new AIFloat3(startboxes.get(startbox).get(0) * mwidth, 0, startboxes.get(startbox).get(1) * mheight);
                         mid.add(new AIFloat3(startboxes.get(startbox).get(2) * mwidth, 0, startboxes.get(startbox).get(3) * mheight));
                         mid.scale(0.5f);
-                        command.addFakeEnemy(new FakeCommander(mid, command, clbk));
+                        compos = mid;
                         break;
                     }
                 }
@@ -242,9 +250,16 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             AIFloat3 pos = new AIFloat3(command.getCommanderHandlers().iterator().next().getCommander().getPos());
             pos.x = mwidth - pos.x;
             pos.z = mheight - pos.z;
-            command.addFakeEnemy(new FakeCommander(pos, command, clbk));
-
+            compos = pos;
         }
+        command.addFakeEnemy(new FakeCommander(compos, command, clbk));
+        Mex closest = null;
+        for (Mex m : mexes) {
+            if (closest == null || closest.distanceTo(compos) > m.distanceTo(compos)) {
+                closest = m;
+            }
+        }
+        command.addFakeEnemy(new FakeMex(closest.pos, command, clbk));
 
     }
 
@@ -270,6 +285,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             cmdsPerSec = cmds / 50f * 30;
             pnl.updateUI();
             cmds = 0;
+        }
+        if (frame % 150 == 42) {
         }
         tasks = 0;
     }
@@ -337,12 +354,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             }
         }
     }
-    
-    
-    public AIUnit getNearestBuilding(AIFloat3 pos){
+
+    public AIUnit getNearestBuilding(AIFloat3 pos) {
         AIUnit best = null;
-        for (AIUnit au : getArea(pos).getNearbyBuildings()){
-            if (best == null || best.distanceTo(pos) > au.distanceTo(pos)){
+        for (AIUnit au : getArea(pos).getNearbyBuildings()) {
+            if (best == null || best.distanceTo(pos) > au.distanceTo(pos)) {
                 best = au;
             }
         }
@@ -368,7 +384,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
     public class Area implements UpdateListener, UnitDestroyedListener, UnitFinishedListener {
 
-        public final int x, y;
+        public final int x, y, index;
         private AIFloat3 pos;
         private Owner owner = Owner.none;
         private Zone zoneCache = Zone.neutral;
@@ -379,14 +395,20 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         private List<Connection> connections = new ArrayList();
         private int lastPathCalcTime = -100000;
 
-        public Area(int x, int y) {
+        public Area(int x, int y, int index) {
             this.x = x;
             this.y = y;
+            this.index = index;
             this.pos = new AIFloat3((x + 0.5f) * mwidth / map.length, 0, (y + 0.5f) * mheight / map[0].length);
             this.pos.y = clbk.getMap().getElevationAt(pos.x, pos.z);
             command.addSingleUpdateListener(this, command.getCurrentFrame() + (int) (100 * Math.random()));
             command.addUnitDestroyedListener(this);
             command.addUnitFinishedListener(this);
+        }
+
+        @Override
+        public int hashCode() {
+            return index;
         }
 
         public Collection<Connection> getConnections() {
@@ -531,8 +553,16 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             //return map[(int) (Math.random() * map.length)][(int) (Math.random() * map[0].length)];
         }
 
+        /**
+         *
+         * @return whether area is in radar or los
+         */
         public boolean isVisible() {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
+        }
+
+        public boolean isInLOS() {
+            return command.losManager.isInLos(pos);
         }
 
         public boolean isReachable() {
@@ -837,13 +867,13 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public boolean isBuilt() {
             //command.debug("checking whether mex has been built@" + pos.toString());
             /*if (command.getCallback().getMap().isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0) == false) {
-                command.mark(pos, "mex is built");
-            }*/
+             command.mark(pos, "mex is built");
+             }*/
             /*try { //hardcore debugging
-                throw new RuntimeException();
-            } catch (Exception ex) {
-                command.debug("at ", ex);
-            }*/
+             throw new RuntimeException();
+             } catch (Exception ex) {
+             command.debug("at ", ex);
+             }*/
             return !command.getCallback().getMap().isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0);
         }
 
@@ -1011,6 +1041,18 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             g.drawString("Energy budget: " + Math.round(command.economyManager.getRemainingEnergyBudget()), 10, 40);
             g.drawString("Defense budget: " + Math.round(command.economyManager.getRemainingDefenseBudget()), 10, 55);
             g.drawString("Grid nodes: " + command.getBuilderHandler().getGridNodes().size(), 10, 70);
+            String queue = "";
+            String building = "";
+            for (Factory f : command.getFactoryHandler().getFacs()) {
+                for (UnitDef ud : f.getBuildQueue()) {
+                    queue += ud.getHumanName() + ", ";
+                }
+                if (f.getCurrentTask() != null) {
+                    building += f.getCurrentTask().getBuilding().getHumanName() + ", ";
+                }
+            }
+            g.drawString("Queue: " + queue, 10, 85);
+            g.drawString("Building: " + building, 10, 100);
             g.setColor(Color.yellow);
             for (GridNode gn : command.getBuilderHandler().getGridNodes()) {
                 int x = (int) Math.round((gn.pos.x - gn.range) * getWidth() / mwidth);

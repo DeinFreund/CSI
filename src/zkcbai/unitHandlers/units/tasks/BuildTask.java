@@ -46,9 +46,9 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     protected static AIFloat3 findClosestBuildSite(UnitDef building, AIFloat3 approxPos, int minDist, int facing, Command command) {
         final int step = 32;
         float _minDist = 8 * minDist;
-        command.debug("finding buildsite for "  + building.getHumanName());
+        //command.debug("finding buildsite for "  + building.getHumanName());
         for (int radius = 0; radius < 1000; radius++) {
-            command.debug("radius is now " + radius);
+            //command.debug("radius is now " + radius);
             for (int y = -radius; y <= radius; y += Math.max(1, 2 * radius)) {
                 for (int x = -radius; x <= radius; x++) {
                     AIFloat3 pos = new AIFloat3(approxPos);
@@ -64,7 +64,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
                     if (command.isPossibleToBuildAt(building, pos, facing) && 
                             ( nearestB == null || 
                               nearestB.distanceTo(pos) > _minDist + building.getRadius() + nearestB.getDef().getRadius()) ) {
-                        command.mark(pos, "building " + building.getHumanName());
+                        //command.mark(pos, "building " + building.getHumanName());
                         return pos;
                     }
                 }
@@ -84,7 +84,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
                     if (command.isPossibleToBuildAt(building, pos, facing) && 
                             ( nearestB == null || 
                               nearestB.distanceTo(pos) > _minDist + building.getRadius() + nearestB.getDef().getRadius()) ) {
-                        command.mark(pos, "building " + building.getHumanName());
+                        //command.mark(pos, "building " + building.getHumanName());
                         return pos;
                     }
                 }
@@ -232,7 +232,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             tpos.normalize();
             tpos.scale(building.getRadius() * 1.5f);
             tpos.add(pos);
-            command.mark(tpos, "moving to here first");
+            //command.mark(tpos, "moving to here first");
             u.moveTo(tpos, command.getCurrentFrame() + 50); 
             return false;
         }
@@ -304,7 +304,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void unitFinished(AIUnit u) {
-        if (u.getUnit().getDef().equals(building) && u.distanceTo(pos) < 65) {
+        if ((u.getUnit().getDef().equals(building) && u.distanceTo(pos) < 65) || result.equals(u.getUnit())) {
             command.debug("finished " + building.getHumanName());
             completed(u);
             result = u.getUnit();
@@ -328,6 +328,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void cancel() {
+        
         cleanup();
     }
 
