@@ -170,7 +170,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         for (SquadManager sq : squads){
             if (sq.getRequiredUnits().contains(au.getDef())){
                 sq.addUnit(au);
-                command.mark(au.getPos(), "added to " + sq.getClass().getName());
+                //command.mark(au.getPos(), "added to " + sq.getClass().getName());
                 return;
             }else{
                 //command.debug("Unsatisfied " + sq.getClass().getName() + " " + sq.getRequiredUnits().get(0));

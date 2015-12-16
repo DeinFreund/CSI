@@ -34,6 +34,7 @@ import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.helpers.LosManager;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.RadarManager;
+import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.unitHandlers.BuilderHandler;
 import zkcbai.unitHandlers.FighterHandler;
@@ -195,14 +196,19 @@ public class Command implements AI {
      * @param radius
      * @return
      */
-    public List<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
-        List<Enemy> list = new ArrayList();
+    public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
+        Set<Enemy> list = new HashSet();
         /*for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
          list.add(enemies.get(u.getUnitId()));
          }*/
-        for (Enemy e : enemies.values()) {
-            if (e.distanceTo(pos) < radius && !e.isTimedOut()) {
-                list.add(e);
+        for (Area a : areaManager.getAreas()) {
+            if (a.distanceTo(pos)  > radius) {
+                continue;
+            }
+            for (Enemy e : a.getNearbyEnemies()) {
+                if (e.distanceTo(pos) < radius && !e.isTimedOut()) {
+                    list.add(e);
+                }
             }
         }
         return list;

@@ -151,7 +151,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             throw new AssertionError("Invalid BuildTask parameters: Unable to build at location");
         }
         assignedUnits = new ArrayList();
-        command.debug("radius of " + building.getHumanName() + " is " + building.getRadius());
+        //command.debug("radius of " + building.getHumanName() + " is " + building.getRadius());
 
         /*try{
          throw new AssertionError("");
@@ -225,7 +225,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             return false;
         }
         if (u.distanceTo(pos) < building.getRadius() && building.getSpeed() <= 0.001){
-            command.debug("Inside radius of " + building.getRadius() + " elmos.");
+            //command.debug("Inside radius of " + building.getRadius() + " elmos.");
             AIFloat3 tpos = new AIFloat3(u.getPos());
             tpos.sub(this.pos);
             tpos.add(new AIFloat3((float)(Math.random()*500 - 250), 0, (float)(Math.random()*500 - 250)));
@@ -304,7 +304,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void unitFinished(AIUnit u) {
-        if ((u.getUnit().getDef().equals(building) && u.distanceTo(pos) < 65) || result.equals(u.getUnit())) {
+        
+        if ((u.getUnit().getDef().equals(building) && u.distanceTo(pos) < 65) || (result != null && result.equals(u.getUnit()))) {
             command.debug("finished " + building.getHumanName());
             completed(u);
             result = u.getUnit();

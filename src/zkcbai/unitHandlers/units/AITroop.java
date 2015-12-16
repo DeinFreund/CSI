@@ -157,7 +157,11 @@ public abstract class AITroop {
     }
 
     public Command getCommand() {
-        return handler.getCommand();
+        Command ret = handler.getCommand();
+        if (ret == null){
+            throw new AssertionError(handler.getClass().getName() + " has command==null");
+        }
+        return ret;
     }
 
     public void moveTo(AIFloat3 trg, int timeout) {

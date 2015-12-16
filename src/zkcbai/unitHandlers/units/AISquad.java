@@ -359,7 +359,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             for (Task t : taskqueue){
                 tasks += t.toString()+";";
             }
-            getCommand().debug("all idle doing " + task.toString() +";" + tasks);
+            //getCommand().debug("all idle doing " + task.toString() +";" + tasks);
             idle();
         }
     }

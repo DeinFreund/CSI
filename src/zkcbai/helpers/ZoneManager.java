@@ -15,13 +15,19 @@ import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import zkcbai.Command;
@@ -137,10 +143,37 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         map = new Area[50][50];
         areas = new ArrayList();
         int arindex = 0;
+        BufferedImage csiimg = new BufferedImage(50, 50, BufferedImage.TYPE_3BYTE_BGR);
+        try {
+            csiimg = ImageIO.read(Command.class.getResource("/zkcbai/resources/csi.png"));
+            command.debug("read csi image " + csiimg.getWidth() + "|" + csiimg.getHeight());
+        } catch (IOException ex) {
+            command.debug("failed to read csi image", ex);
+        }
         for (int x = 0; x < map.length; x++) {
             for (int y = 0; y < map[x].length; y++) {
                 map[x][y] = new Area(x, y, arindex++);
                 areas.add(map[x][y]);
+
+            }
+        }
+        for (int x = 0; x < map.length; x++) {
+            for (int y = 0; y < map[x].length; y++) {
+                if (!new Color(csiimg.getRGB(x, y)).equals(Color.white)) {
+                    map[x][y].setReachable(true);
+                    if (y > 0) {
+                        map[x][y].addConnection(map[x][y - 1], -1, MovementType.vehicle);
+                    }
+                    if (y < map[0].length - 1) {
+                        map[x][y].addConnection(map[x][y + 1], -1, MovementType.vehicle);
+                    }
+                    if (x > 0) {
+                        map[x][y].addConnection(map[x - 1][y], -1, MovementType.vehicle);
+                    }
+                    if (x < map.length - 1) {
+                        map[x][y].addConnection(map[x + 1][y], -1, MovementType.vehicle);
+                    }
+                }
             }
         }
         mexes = new ArrayList();
@@ -162,9 +195,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         int i = 0;
         for (Area a : areas) {
             a.recalculatePaths();
-            if (i++ % 17 == 0) {
+            if (i++ % 13 == 0) {
                 pnl.updateUI();
             }
+        }
+        for (Area a : areas) {
+            a.setReachable(false);
         }
         command.debug("Zone Manager post-initialized");
     }
@@ -421,6 +457,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         public void recalculatePaths() {
             lastPathCalcTime = command.getCurrentFrame();
+            List<Connection> fancy = new ArrayList();
+            for (Connection c : getConnections()){
+                if (c.length < 0) fancy.add(c);
+            }
+            connections.removeAll(fancy);
             for (int xx = Math.max(x - 1, 0); xx <= Math.min(x + 1, map.length - 1); xx++) {
                 for (int yy = Math.max(y - 1, 0); yy <= Math.min(y + 1, map[0].length - 1); yy++) {
                     if (xx == x && yy == y || command.getCurrentFrame() - map[xx][yy].getLastPathCalculationTime() < 1000) {
@@ -580,6 +621,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         List<Enemy> enemies;
 
         public final List<Enemy> getEnemies() {
+            getDanger();
             return enemies;
         }
 
@@ -594,7 +636,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         float dangerCache = 0;
 
         public float getDanger() {
-            if (command.getCurrentFrame() - lastDangerCache > 30) {
+            if (command.getCurrentFrame() - lastDangerCache > 40) {
                 enemies = new ArrayList();
                 nearbyEnemies = new ArrayList();
                 lastDangerCache = command.getCurrentFrame();
@@ -606,7 +648,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                     if (getArea(e.getPos()).equals(this)) {
                         enemies.add(e);
                     }
-                    if (e.distanceTo(pos) < 750) {
+                    if (e.distanceTo(pos) < 7 * getEnclosingRadius()) {
                         nearbyEnemies.add(e);
                     }
                 }
@@ -862,6 +904,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             if (this.enemy != null && this.enemy.equals(e)) {
                 this.enemy = null;
             }
+        }
+
+        public Enemy getEnemy() {
+            return enemy;
         }
 
         public boolean isBuilt() {
