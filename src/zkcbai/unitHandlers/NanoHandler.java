@@ -10,6 +10,7 @@ import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AISquad;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -71,6 +72,11 @@ public class NanoHandler extends UnitHandler{
 
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
+    }
+
+    @Override
+    public boolean retreatForRepairs(AITroop u) {
+        return false;
     }
     
 }

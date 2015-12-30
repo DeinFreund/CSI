@@ -9,11 +9,12 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
-import com.springrts.ai.oo.clb.WeaponDef;
 import com.springrts.ai.oo.clb.WeaponMount;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaChecker;
+import zkcbai.helpers.Pathfinder;
+import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager;
 
 /**
@@ -57,15 +58,37 @@ public class Enemy implements UpdateListener {
 
         cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
     }
+    
+    private int deadpollCounter = 0;
+    
+    private void polledDead(){
+        deadpollCounter++;
+        if (deadpollCounter > 4){
+            command.enemyDestroyed(this, null);
+            command.debug("Dead polled too often: destroying");
+            try{
+            throw new RuntimeException("Polled dead enemy " + hashCode());
+            }catch(Exception ex){
+                command.debug("",ex);
+            }
+        }
+    }
 
-    @Deprecated
+    public MovementType getMovementType(){
+        return Pathfinder.MovementType.getMovementType(getDef());
+    }
+    
+    /**
+     * only use when you can't use a UnitDestroyedListener instead
+     * @return
+     */
     public boolean isAlive() {
         return alive;
     }
 
     public AIFloat3 getPos() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         if (unit != null && unit.getPos().length() > 0) {
             return new AIFloat3(unit.getPos());
@@ -75,7 +98,7 @@ public class Enemy implements UpdateListener {
 
     public UnitDef getDef() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         if (unit != null && unit.getDef() != null) {
             return unit.getDef();
@@ -88,26 +111,26 @@ public class Enemy implements UpdateListener {
 
     protected void setUnitId(int id) {
         this.unitId = id;
-        command.debug("Set unit id to " + id);
+        //command.debug("Set unit id to " + id);
     }
 
     public float getHealth() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return health;
     }
 
     public float getRelativeHealth() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return health / getDef().getHealth();
     }
 
     public float getDPS() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         float dps = 0;
         for (WeaponMount wm : getDef().getWeaponMounts()) {
@@ -124,28 +147,28 @@ public class Enemy implements UpdateListener {
 
     public Unit getUnit() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return unit;
     }
 
     public int getUnitId() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return unitId;
     }
 
     public float getMaxRange() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return maxRange;
     }
 
     public float distanceTo(AIFloat3 trg) {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
@@ -155,7 +178,7 @@ public class Enemy implements UpdateListener {
 
     public boolean shouldBeVisible(AIFloat3 pos) {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700) {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
@@ -186,7 +209,7 @@ public class Enemy implements UpdateListener {
 
     public int timeSinceLastSeen() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         if (isBuilding) {
             return 0;
@@ -196,7 +219,7 @@ public class Enemy implements UpdateListener {
 
     public boolean isTimedOut() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return timeSinceLastSeen() > 2000 * 100 / Math.max(getDef().getSpeed(), 0.1);
     }
@@ -238,7 +261,7 @@ public class Enemy implements UpdateListener {
 
     public void enterLOS() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         if (neverSeen) {
             health = unit.getHealth();
@@ -254,28 +277,28 @@ public class Enemy implements UpdateListener {
 
     public float getMetalCost() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return getDef().getCost(command.metal);
     }
 
     public boolean isBuilding() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return isBuilding;
     }
 
     public boolean isIdentifiedByRadar() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         return neverSeen && getDef().getSpeed() > 0.5;
     }
 
     public void identify() {
         if (!alive) {
-            throw new RuntimeException("Polled dead enemy " + hashCode());
+            polledDead();
         }
         if (!neverSeen) {
             return;
@@ -293,7 +316,7 @@ public class Enemy implements UpdateListener {
         for (WeaponMount wm : unitDef.getWeaponMounts()) {
             maxRange = Math.max(wm.getWeaponDef().getRange(), maxRange);
         }
-        command.debug(unitDef.getHumanName() + " identified by Radar");
+        //command.debug(unitDef.getHumanName() + " identified by Radar");
         health = unitDef.getHealth();
     }
 

@@ -170,14 +170,17 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         lastPath = command.getCurrentFrame();
         this.path = path;
         command.debug("path has " + path.size() + " steps");
+        
         if (path.size() <= 1) {
-
-            target.x = Math.max(0, Math.min(command.getCallback().getMap().getWidth() * 8 - 1, target.x + (float) Math.random() * 150 - 75));
-            target.z = Math.max(0, Math.min(command.getCallback().getMap().getHeight() * 8 - 1, target.z + (float) Math.random() * 150 - 75));
+            lastPath = command.getCurrentFrame() - repathTime + 30;
+        }
+/*
+            target.x = Math.max(0, Math.min(command.getCallback().getMap().getWidth() * 8 - 1, target.x + (float) Math.random() * 400 - 200));
+            target.z = Math.max(0, Math.min(command.getCallback().getMap().getHeight() * 8 - 1, target.z + (float) Math.random() * 400 - 200));
 
             updatePath(lastUnit);
 
-        }
+        }*/
     }
 
 }

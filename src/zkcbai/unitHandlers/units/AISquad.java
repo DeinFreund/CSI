@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.UpdateListener;
+import zkcbai.unitHandlers.DevNullHandler;
 import zkcbai.unitHandlers.units.tasks.Task;
 import zkcbai.utility.Point;
 import zkcbai.utility.SmallestEnclosingCircle;
@@ -25,9 +26,10 @@ import zkcbai.utility.SmallestEnclosingCircle;
  *
  * @author User
  */
-public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, UnitDestroyedListener {
+public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, UnitDestroyedListener, RepairListener {
 
-    Set<AIUnit> units = new HashSet();
+    Set<AIUnit> allUnits = new HashSet();
+    Set<AIUnit> activeUnits = new HashSet(); //units that are not busy being repaired
     private int wakeUpFrame = -1;
     private float minRange = Float.MAX_VALUE;
     private float minSlope = Float.MAX_VALUE;
@@ -57,25 +59,29 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     }
 
     public void addUnit(AIUnit u) {
-        units.add(u);
+        allUnits.add(u);
+        activeUnits.add(u);
+        u.addRepairListener(this);
         u.assignAIUnitHandler(this);
         minRange = Math.min(u.getMaxRange(), minRange);
         minSlope = Math.min(minSlope, u.getUnit().getDef().getMoveData().getMaxSlope());
     }
 
     public void removeUnit(AIUnit u, AIUnitHandler newHandler) {
-        if (!units.contains(u)) {
+        if (!allUnits.contains(u)) {
             return;
         }
         u.assignAIUnitHandler(newHandler);
-        units.remove(u);
+        u.removeRepairListener(this);
+        allUnits.remove(u);
+        activeUnits.remove(u);
         minRange = Float.MAX_VALUE;
         minSlope = Float.MAX_VALUE;
-        for (AIUnit au : units) {
+        for (AIUnit au : allUnits) {
             minRange = Math.min(au.getMaxRange(), minRange);
             minSlope = Math.min(minSlope, au.getUnit().getDef().getMoveData().getMaxSlope());
         }
-        if (units.isEmpty()) {
+        if (allUnits.isEmpty()) {
             dead = true;
             squads.remove(this);
             if (getCommand() != null) {
@@ -91,7 +97,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         pos.sub(trg);
         pos.y = 0;
         //if (getRadius() > 40) handler.getCommand().mark(getPos(), "regrouping");
-        return pos.length() + Math.max(0,getRadius()-50);
+        return pos.length();// + Math.max(0,getRadius()-50);
     }
 
     /**
@@ -101,6 +107,8 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
      */
     public float getRadius() {
         List<Point> positions = new ArrayList();
+        Collection<AIUnit> units = activeUnits;
+        if (units.isEmpty()) units = allUnits;
         for (AIUnit au : units) {
             positions.add(new Point(au.getPos().x, au.getPos().z));
         }
@@ -110,6 +118,8 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     @Override
     public AIFloat3 getPos() {
         List<Point> positions = new ArrayList();
+        Collection<AIUnit> units = activeUnits;
+        if (units.isEmpty()) units = allUnits;
         for (AIUnit au : units) {
             positions.add(new Point(au.getPos().x, au.getPos().z));
         }
@@ -122,7 +132,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     @Override
     public UnitDef getDef(){
         Map<UnitDef, Integer> cnt = new TreeMap();
-        for (AIUnit u : units){
+        for (AIUnit u : allUnits){
             if (!cnt.containsKey(u.getDef())) cnt.put(u.getDef(), 0);
             cnt.put(u.getDef(), cnt.get(u.getDef()) + 1);
         }
@@ -231,7 +241,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
 
     @Override
     public Collection<AIUnit> getUnits() {
-        return units;
+        return allUnits;
     }
 
     @Override
@@ -240,8 +250,18 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
-        for (AIUnit u : units) {
-            u.moveTo(trg, options, Integer.MAX_VALUE);
+        AIFloat3 toTarget = new AIFloat3(trg);
+        toTarget.sub(getPos());
+        AIFloat3 ortho = new AIFloat3(toTarget.z, toTarget.y, - toTarget.x);
+        ortho.normalize();
+        float offset = getDef().getSpeed();
+        ortho.scale(offset * ((activeUnits.size() ) / 2));
+        trg.sub(ortho);
+        ortho.normalize();
+        ortho.scale(offset);
+        for (AIUnit u : activeUnits) {
+            u.moveTo(new AIFloat3(trg), options, Integer.MAX_VALUE);
+            trg.add(ortho);
         }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
@@ -258,7 +278,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             timeout = Integer.MAX_VALUE;
         }
         areaManager.executedCommand();
-        for (AIUnit u : units) {
+        for (AIUnit u : activeUnits) {
             u.attack(trg, options, Integer.MAX_VALUE);
         }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
@@ -275,7 +295,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             timeout = Integer.MAX_VALUE;
         }
         areaManager.executedCommand();
-        for (AIUnit u : units) {
+        for (AIUnit u : activeUnits) {
             u.repair(trg, options, Integer.MAX_VALUE);
         }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
@@ -292,7 +312,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             timeout = Integer.MAX_VALUE;
         }
         areaManager.executedCommand();
-        for (AIUnit u : units) {
+        for (AIUnit u : activeUnits) {
             u.patrolTo(trg, options, Integer.MAX_VALUE);
         }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
@@ -323,7 +343,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             timeout = Integer.MAX_VALUE;
         }
         areaManager.executedCommand();
-        for (AIUnit u : units) {
+        for (AIUnit u : activeUnits) {
             u.fight(trg, options, Integer.MAX_VALUE);
         }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
@@ -342,7 +362,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             timeout = Integer.MAX_VALUE;
         }
         areaManager.executedCommand();
-        for (AIUnit u : units) {
+        for (AIUnit u : activeUnits) {
             u.build(building, facing, trg, options, Integer.MAX_VALUE);
         }
 
@@ -358,7 +378,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     public void setTarget(int targetUnitId) {
         
         areaManager.executedCommand();
-        for (AIUnit u : units) {
+        for (AIUnit u : activeUnits) {
             u.setTarget(targetUnitId);
         }
     }
@@ -367,7 +387,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     @Override
     public void troopIdle(AITroop u) {
         idlers.add((AIUnit) u);
-        if (idlers.size() == units.size()) {
+        if (idlers.size() == allUnits.size()) {
             String tasks = "";
             for (Task t : taskqueue){
                 tasks += t.toString()+";";
@@ -389,7 +409,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
 
     @Override
     public void unitDestroyed(AIUnit u, Enemy e) {
-        removeUnit(u, null);
+        removeUnit(u, new DevNullHandler(getCommand(), getCommand().getCallback()));
     }
 
     @Override
@@ -405,11 +425,26 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     public float getEfficiencyAgainst(UnitDef ud) {
         float tot = 0.1f;
         float div = 0.1f;
-        for (AIUnit u : units){
+        for (AIUnit u : allUnits){
             tot += u.getEfficiencyAgainst(ud)*u.getDef().getCost(handler.getCommand().metal);
             div += u.getDef().getCost(handler.getCommand().metal);
         }
         return tot/div;
+    }
+
+    @Override
+    public boolean retreatForRepairs(AITroop u) {
+        return handler.retreatForRepairs(this);
+    }
+
+    @Override
+    public void retreating(AIUnit u) {
+        activeUnits.remove(u);
+    }
+
+    @Override
+    public void finishedRepairs(AIUnit u) {
+        activeUnits.add(u);
     }
 
 }

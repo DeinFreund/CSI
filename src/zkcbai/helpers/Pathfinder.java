@@ -9,16 +9,16 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.awt.Color;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.Set;
 import zkcbai.Command;
 import static zkcbai.helpers.Helper.command;
 import zkcbai.helpers.ZoneManager.Area;
@@ -45,10 +45,12 @@ public class Pathfinder extends Helper {
     int smwidth;
     float[] slopeMap;
     protected Thread backgroundThread;
-     final static int mapCompression = 1;
-     final static int originalMapRes = 16;
-     final static int mapRes = originalMapRes * mapCompression;
-    
+    final static int mapCompression = 1;
+    final static int originalMapRes = 16;
+    final static int mapRes = originalMapRes * mapCompression;
+
+    float minCostPerElmo = Float.MAX_VALUE; //optimal ratio of elmo distance to precached distance for astar heuristic
+
     private void updateSlopeMap() {
         List<Float> map = clbk.getMap().getSlopeMap();
         slopeMap = new float[map.size() / mapCompression / mapCompression];
@@ -81,14 +83,13 @@ public class Pathfinder extends Helper {
     public boolean isReachable(AIFloat3 target, AIFloat3 start, float maxSlope) {
         return findPath(start, target, maxSlope, FAST_PATH).size() > 1;
     }
-    
+
     private Queue<PathfinderRequest> requests = new LinkedList<>();
-    
-    public Queue<PathfinderRequest> getPathfinderRequests(){
+
+    public Queue<PathfinderRequest> getPathfinderRequests() {
         return requests;
     }
-    
-    
+
     /**
      * Requests the cheapest path between two arbitrary positions using the A*
      * algorithm.
@@ -107,14 +108,14 @@ public class Pathfinder extends Helper {
     public void requestPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs, PathfindingCompleteListener listener) {
         requestPath(start, target, MovementType.getMovementType(maxSlope), costs, false, listener);
     }
+
     /**
      * Requests the cheapest path between two arbitrary positions using the A*
      * algorithm.
      *
      * @param start
      * @param target
-     * @param mt Movement type of unit that is traveling
-     * &lt; 1
+     * @param mt Movement type of unit that is traveling &lt; 1
      * @param costs Class implementing CostSupplier
      * @param listener will be called after path has been calculated
      * @see #FAST_PATH
@@ -132,12 +133,11 @@ public class Pathfinder extends Helper {
      *
      * @param start
      * @param target
-     * @param mt Maximum slope that can be travelled on. 0 &lt; maxslope
-     * &lt; 1
+     * @param mt Maximum slope that can be travelled on. 0 &lt; maxslope &lt; 1
      * @param costs Class implementing CostSupplier
      * @param markReachable if this is set, all reached areas will be marked as
-     * @param listener will be called after path has been calculated
-     * such WITHOUT EFFECT
+     * @param listener will be called after path has been calculated such
+     * WITHOUT EFFECT
      * @see #FAST_PATH
      * @see #RAIDER_PATH
      * @see #AVOID_ENEMIES found.
@@ -146,7 +146,6 @@ public class Pathfinder extends Helper {
     public void requestPath(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener) {
         requests.add(new PathfinderRequest(start, target, mt, costs, markReachable, listener));
     }
-    
 
     /**
      * Finds the cheapest path between two arbitrary positions using the A*
@@ -166,14 +165,14 @@ public class Pathfinder extends Helper {
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs) {
         return findPath(start, target, MovementType.getMovementType(maxSlope), costs, false);
     }
+
     /**
      * Finds the cheapest path between two arbitrary positions using the A*
      * algorithm.
      *
      * @param start
      * @param target
-     * @param mt Movement type of unit that is traveling
-     * &lt; 1
+     * @param mt Movement type of unit that is traveling &lt; 1
      * @param costs Class implementing CostSupplier
      * @return Path as List of AIFloat3. If list.size() &lt; 2 no valid path was
      * @see #FAST_PATH
@@ -201,7 +200,7 @@ public class Pathfinder extends Helper {
      * @see #AVOID_ENEMIES found.
      *
      */
-    public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, MovementType movementType, CostSupplier costs, boolean markReachable) {
+    public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, final MovementType movementType, final CostSupplier costs, boolean markReachable) {
         long time = System.currentTimeMillis();
         Comparator<pqEntry2> pqComp = new Comparator<pqEntry2>() {
 
@@ -220,56 +219,73 @@ public class Pathfinder extends Helper {
             }
 
         };
-        
-        Area startPos = command.areaManager.getArea(start);
+
+        Area startPos = command.areaManager.getArea(start).getNearestArea(new AreaChecker() {
+
+            @Override
+            public boolean checkArea(Area a) {
+                return !a.getConnections(movementType).isEmpty();
+            }
+        });
         Area targetPos = command.areaManager.getArea(target);
 
         Map<Area, Float> minCost = new HashMap();
         Map<Area, Area> prev = new HashMap();
-        
+        Set<Area> visited = new HashSet();
+
         minCost.put(startPos, 0f);
         prev.put(startPos, startPos);
-        
+
         PriorityQueue<pqEntry2> pq = new PriorityQueue(1, pqComp);
-        pq.add(new pqEntry2(startPos.distanceTo(targetPos.getPos()) , 0, startPos));
+        pq.add(new pqEntry2(startPos.distanceTo(targetPos.getPos()), 0, startPos));
         int evaluated = 0;
         int evareas = 0;
-        while (!pq.isEmpty()){
+        while (!pq.isEmpty()) {
             Area pos = pq.peek().pos;
             float cost = pq.poll().realCost;
-            if (minCost.get(pos) < cost) continue;
-            if (pos.equals(targetPos)) break;
-            
-            evareas ++;
-            for (Connection c : pos.getConnections(movementType)){
-                evaluated ++;
+            if (minCost.get(pos) < cost) {
+                continue;
+            }
+            if (pos.equals(targetPos)) {
+                break;
+            }
+
+            if (visited.contains(pos)) {
+                throw new RuntimeException("nononono" + (float) smwidth / mwidth);
+            }
+            visited.add(pos);
+            evareas++;
+            for (Connection c : pos.getConnections(movementType)) {
+                evaluated++;
                 float newcost = c.length + cost + getCachedCost(costs, c.endpoint);
                 //if (costs.getCost(c.endpoint) < 0) throw new RuntimeException("negative length");
-                if ((!minCost.containsKey(c.endpoint) || newcost < minCost.get(c.endpoint))){
+                if ((!minCost.containsKey(c.endpoint) || newcost < minCost.get(c.endpoint))) {
                     minCost.put(c.endpoint, newcost);
                     prev.put(c.endpoint, pos);
-                    pq.add(new pqEntry2(newcost + c.endpoint.distanceTo(targetPos.getPos()), newcost, c.endpoint));
+                    pq.add(new pqEntry2(newcost + minCostPerElmo * c.endpoint.distanceTo(targetPos.getPos()), newcost, c.endpoint));
                 }
             }
         }
-        if (!minCost.containsKey(targetPos)) {
-            command.mark(start, "start (impossible path)");
-            command.mark(target, "end (impossible path)");
-            return null;
-        }
         Deque<AIFloat3> res = new LinkedList<>();
+        if (!minCost.containsKey(targetPos)) {
+            //command.mark(start, "start (impossible path)");
+            //command.mark(target, "end (impossible path)");
+            command.debug("Impossible path");
+            res.add(target);
+            return res;
+        }
         Area pos = targetPos;
-        while (pos != prev.get(pos)){
+        while (pos != prev.get(pos)) {
             pos.addDebugConnection(prev.get(pos), Color.yellow, command.getCurrentFrame() + 30);
             res.addFirst(pos.getPos());
             pos = prev.get(pos);
         }
         res.addFirst(pos.getPos());
         time = System.currentTimeMillis() - time;
-        if (time > 10){
+        if (time > 10) {
             command.debug("Area Pathfinder took " + time + "ms evaluating " + evaluated + " connections in " + evareas + " areas");
-            command.debug("From " + startPos.x + "|" + startPos.y + " to " + targetPos.x  + "|" + targetPos.y);
-            if (time > 6000){
+            command.debug("From " + startPos.x + "|" + startPos.y + " to " + targetPos.x + "|" + targetPos.y);
+            if (time > 6000) {
                 throw new AssertionError("Time limit exceeded");
             }
         }
@@ -299,7 +315,9 @@ public class Pathfinder extends Helper {
         }
 
         public static MovementType getMovementType(UnitDef ud) {
-            if (ud.isAbleToFly()) return MovementType.air;
+            if (ud.isAbleToFly()) {
+                return MovementType.air;
+            }
             return getMovementType(ud.getMoveData().getMaxSlope());
         }
 
@@ -331,128 +349,127 @@ public class Pathfinder extends Helper {
         }
     }
 
-    public float getDistance(Float3 start, Float3 target){
-        return (float)Math.sqrt((start.x - target.x) * (start.x - target.x) + (start.z - target.z) * (start.z - target.z));
+    public float getDistance(Float3 start, Float3 target) {
+        return (float) Math.sqrt((start.x - target.x) * (start.x - target.x) + (start.z - target.z) * (start.z - target.z));
     }
     /*
-    public void precalcPath(Area startarea, MovementType movementType, Area targetarea) {
-    //public void precalcPath(AIFloat3 start, float maxSlope, AIFloat3 target, float encradius) {
+     public void precalcPath(Area startarea, MovementType movementType, Area targetarea) {
+     //public void precalcPath(AIFloat3 start, float maxSlope, AIFloat3 target, float encradius) {
 
-        //command.debug("starting pathfinder to " + target.toString());
-        //command.debug("maxslop is " + maxSlope);
-        float maxSlope = movementType.getMaxSlope();
-        AIFloat3 start = startarea.getPos();
-        AIFloat3 target = targetarea.getPos();
-        float encradius = startarea.getEnclosingRadius();
-        if (!(maxSlope > 0 && maxSlope <= 1)) {
-            throw new RuntimeException("Invalid maxSlope: " + maxSlope);
-        }
+     //command.debug("starting pathfinder to " + target.toString());
+     //command.debug("maxslop is " + maxSlope);
+     float maxSlope = movementType.getMaxSlope();
+     AIFloat3 start = startarea.getPos();
+     AIFloat3 target = targetarea.getPos();
+     float encradius = startarea.getEnclosingRadius();
+     if (!(maxSlope > 0 && maxSlope <= 1)) {
+     throw new RuntimeException("Invalid maxSlope: " + maxSlope);
+     }
 
-        //command.mark(start,"markreachable is " + markReachable);
-//        command.mark(start, "start");
-        //command.mark(target, "target");
-        long time = System.currentTimeMillis();
-        int startPos = (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes); //reverse to return in right order when traversing backwards
-        int targetPos = (int) (start.z / mapRes) * smwidth + (int) (start.x / mapRes);
-        int[] offset = new int[]{-1, 1, smwidth, -smwidth, smwidth + 1, smwidth - 1, -smwidth + 1, -smwidth - 1};
-        float[] offsetCostMod = new float[]{1, 1, 1, 1, 1.42f, 1.42f, 1.42f, 1.42f};
+     //command.mark(start,"markreachable is " + markReachable);
+     //        command.mark(start, "start");
+     //command.mark(target, "target");
+     long time = System.currentTimeMillis();
+     int startPos = (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes); //reverse to return in right order when traversing backwards
+     int targetPos = (int) (start.z / mapRes) * smwidth + (int) (start.x / mapRes);
+     int[] offset = new int[]{-1, 1, smwidth, -smwidth, smwidth + 1, smwidth - 1, -smwidth + 1, -smwidth - 1};
+     float[] offsetCostMod = new float[]{1, 1, 1, 1, 1.42f, 1.42f, 1.42f, 1.42f};
 
-        Deque<AIFloat3> result = new ArrayDeque();
+     Deque<AIFloat3> result = new ArrayDeque();
 
-        Comparator<pqEntry> pqComp = new Comparator<pqEntry>() {
+     Comparator<pqEntry> pqComp = new Comparator<pqEntry>() {
 
-            @Override
-            public int compare(pqEntry t, pqEntry t1) {
-                if (t == null && t1 == null) {
-                    return 0;
-                }
-                if (t == null) {
-                    return -1;
-                }
-                if (t1 == null) {
-                    return 1;
-                }
-                return (int) Math.signum(t.cost - t1.cost);
-            }
+     @Override
+     public int compare(pqEntry t, pqEntry t1) {
+     if (t == null && t1 == null) {
+     return 0;
+     }
+     if (t == null) {
+     return -1;
+     }
+     if (t1 == null) {
+     return 1;
+     }
+     return (int) Math.signum(t.cost - t1.cost);
+     }
 
-        };
+     };
 
-        PriorityQueue<pqEntry> pq = new PriorityQueue(1, pqComp);
-        pq.add(new pqEntry(getHeuristic(startPos, targetPos), 0, startPos));
+     PriorityQueue<pqEntry> pq = new PriorityQueue(1, pqComp);
+     pq.add(new pqEntry(getHeuristic(startPos, targetPos), 0, startPos));
 
-        float[] minCost = new float[slopeMap.length];
-        int[] pathTo = new int[slopeMap.length];
-        for (int i = 0; i < minCost.length; i++) {
-            minCost[i] = Float.MAX_VALUE;
-        }
-        minCost[startPos] = 0;
+     float[] minCost = new float[slopeMap.length];
+     int[] pathTo = new int[slopeMap.length];
+     for (int i = 0; i < minCost.length; i++) {
+     minCost[i] = Float.MAX_VALUE;
+     }
+     minCost[startPos] = 0;
 
-        int pos;
-        float cost;
+     int pos;
+     float cost;
 
-        while (true) {
+     while (true) {
 
-            // command.debug("pathfinder iteration");
-            do {
-                if (pq.isEmpty()) {
-                    result.add(target);
-                    //command.debug("pathfinder couldnt find target");
-                    return;
-                }
-                pos = pq.peek().pos;
-                cost = pq.poll().realCost;
-                //if (cost > 1e6f) command.mark(toAIFloat3(pos), "unreachable with " + maxSlope);
-            } while (cost > minCost[pos] || cost >= 1e6f);
-            if (pos == targetPos) {//breaks but shouldnt
+     // command.debug("pathfinder iteration");
+     do {
+     if (pq.isEmpty()) {
+     result.add(target);
+     //command.debug("pathfinder couldnt find target");
+     return;
+     }
+     pos = pq.peek().pos;
+     cost = pq.poll().realCost;
+     //if (cost > 1e6f) command.mark(toAIFloat3(pos), "unreachable with " + maxSlope);
+     } while (cost > minCost[pos] || cost >= 1e6f);
+     if (pos == targetPos) {//breaks but shouldnt
 
-                //command.debug("pathfinder reached target");
-                //command.mark(new AIFloat3(),"pathfinder reached target");
-                break;
-            }
+     //command.debug("pathfinder reached target");
+     //command.mark(new AIFloat3(),"pathfinder reached target");
+     break;
+     }
 
-            for (int i = 0; i < offset.length; i++) {
-                if (pos % (smwidth) == 0 && offset[i] % smwidth != 0) {
-                    //command.mark(toAIFloat3(pos), "stopping");
-                    continue;
-                }
-                if ((pos + 1) % (smwidth) == 0 && offset[i] % smwidth != 0) {
-                    //command.mark(toAIFloat3(pos), "stopping");
-                    continue;
-                }
-//                command.debug(inBounds(pos + offset[i], minCost.length)
-//                        + "&&" + cost + "+" + offsetCostMod[i] + "*" + getCachedCost(costs, slopeMap[pos + offset[i]], maxSlope, (pos + offset[i])) +" <"+
-//                        minCost[pos + offset[i]]);
-                if (inBounds(pos + offset[i], minCost.length)
-                        && cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope) < minCost[pos + offset[i]]
-                        && (getDistance(start, toAIFloat3(pos + offset[i])) < 1.5f * encradius
-                        || getDistance(target, toAIFloat3(pos + offset[i])) < 1.5f * encradius)) {
+     for (int i = 0; i < offset.length; i++) {
+     if (pos % (smwidth) == 0 && offset[i] % smwidth != 0) {
+     //command.mark(toAIFloat3(pos), "stopping");
+     continue;
+     }
+     if ((pos + 1) % (smwidth) == 0 && offset[i] % smwidth != 0) {
+     //command.mark(toAIFloat3(pos), "stopping");
+     continue;
+     }
+     //                command.debug(inBounds(pos + offset[i], minCost.length)
+     //                        + "&&" + cost + "+" + offsetCostMod[i] + "*" + getCachedCost(costs, slopeMap[pos + offset[i]], maxSlope, (pos + offset[i])) +" <"+
+     //                        minCost[pos + offset[i]]);
+     if (inBounds(pos + offset[i], minCost.length)
+     && cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope) < minCost[pos + offset[i]]
+     && (getDistance(start, toAIFloat3(pos + offset[i])) < 1.5f * encradius
+     || getDistance(target, toAIFloat3(pos + offset[i])) < 1.5f * encradius)) {
 
-                    pathTo[pos + offset[i]] = pos;
-                    minCost[pos + offset[i]] = cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope);
-                    pq.add(new pqEntry(getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]],
-                            minCost[pos + offset[i]], pos + offset[i]));
-                    //command.mark(toAIFloat3(pos+offset[i]), "for " + (getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]]));
-                }
-            }
-        }
+     pathTo[pos + offset[i]] = pos;
+     minCost[pos + offset[i]] = cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope);
+     pq.add(new pqEntry(getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]],
+     minCost[pos + offset[i]], pos + offset[i]));
+     //command.mark(toAIFloat3(pos+offset[i]), "for " + (getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]]));
+     }
+     }
+     }
 
-        float totalcost = minCost[targetPos];
-        //startarea.queueConnection(targetarea, totalcost, movementType);
-        //targetarea.queueConnection(startarea, totalcost, movementType);
+     float totalcost = minCost[targetPos];
+     //startarea.queueConnection(targetarea, totalcost, movementType);
+     //targetarea.queueConnection(startarea, totalcost, movementType);
 
-        time = System.currentTimeMillis() - time;
-        if (time > 10) {
-            //command.debug("pathfinder took " + time + "ms");
-        }
-        return;
+     time = System.currentTimeMillis() - time;
+     if (time > 10) {
+     //command.debug("pathfinder took " + time + "ms");
+     }
+     return;
 
-    }*/
+     }*/
 
     float getHeuristic(int start, int trg) {
         //return Math.abs(start % smwidth - trg % smwidth) + Math.abs(start / smwidth - trg / smwidth);//manhattan distance only works without diagonal paths
         return (float) Math.sqrt((start % smwidth - trg % smwidth) * (start % smwidth - trg % smwidth) + (start / smwidth - trg / smwidth) * (start / smwidth - trg / smwidth));
     }
-    
 
     Float3 toFloat3(int pos) {
         Float3 ret = new Float3(mapRes * (pos % (smwidth)), 0, mapRes * (pos / (smwidth)));
@@ -531,7 +548,6 @@ public class Pathfinder extends Helper {
         final float realCost;
         final Area pos;
 
-        
         public pqEntry2(float cost, float realCost, Area pos) {
             this.cost = cost;
             this.pos = pos;
@@ -561,108 +577,107 @@ public class Pathfinder extends Helper {
 //     * should be used instead.
 //     */
     /*
-    @Deprecated
-    public List<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope) {
+     @Deprecated
+     public List<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope) {
 
-        //command.debug("maxSlope: " + maxSlope);
-        long time = System.currentTimeMillis();
-        //maxSlope = convertMaxSlope(maxSlope);
-        int startPos = (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes); //reverse to return in right order when traversing backwards
-        int targetPos = (int) (start.z / mapRes) * smwidth + (int) (start.x / mapRes);
-        int[] offset = new int[]{-1, 1, smwidth, -smwidth, smwidth + 1, smwidth - 1, -smwidth + 1, -smwidth - 1};
-        float[] offsetCostMod = new float[]{1, 1, 1, 1, 1.5f, 1.5f, 1.5f, 1.5f};
+     //command.debug("maxSlope: " + maxSlope);
+     long time = System.currentTimeMillis();
+     //maxSlope = convertMaxSlope(maxSlope);
+     int startPos = (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes); //reverse to return in right order when traversing backwards
+     int targetPos = (int) (start.z / mapRes) * smwidth + (int) (start.x / mapRes);
+     int[] offset = new int[]{-1, 1, smwidth, -smwidth, smwidth + 1, smwidth - 1, -smwidth + 1, -smwidth - 1};
+     float[] offsetCostMod = new float[]{1, 1, 1, 1, 1.5f, 1.5f, 1.5f, 1.5f};
 
-//        command.mark(start, "start");
-//        command.mark(target, "target");
-//        command.mark(toAIFloat3(startPos), "start" + startPos);
-//        command.mark(toAIFloat3(targetPos), "target" + targetPos);
-        Comparator<pqEntry> pqComp = new Comparator<pqEntry>() {
+     //        command.mark(start, "start");
+     //        command.mark(target, "target");
+     //        command.mark(toAIFloat3(startPos), "start" + startPos);
+     //        command.mark(toAIFloat3(targetPos), "target" + targetPos);
+     Comparator<pqEntry> pqComp = new Comparator<pqEntry>() {
 
-            @Override
-            public int compare(pqEntry t, pqEntry t1) {
-                if (t == null && t1 == null) {
-                    return 0;
-                }
-                if (t == null) {
-                    return -1;
-                }
-                if (t1 == null) {
-                    return 1;
-                }
-                return (int) Math.signum(t.cost - t1.cost);
-            }
+     @Override
+     public int compare(pqEntry t, pqEntry t1) {
+     if (t == null && t1 == null) {
+     return 0;
+     }
+     if (t == null) {
+     return -1;
+     }
+     if (t1 == null) {
+     return 1;
+     }
+     return (int) Math.signum(t.cost - t1.cost);
+     }
 
-        };
+     };
 
-        PriorityQueue<pqEntry> pq = new PriorityQueue(1, pqComp);
-        pq.add(new pqEntry(getHeuristic(startPos, targetPos), 0, startPos));
+     PriorityQueue<pqEntry> pq = new PriorityQueue(1, pqComp);
+     pq.add(new pqEntry(getHeuristic(startPos, targetPos), 0, startPos));
 
-        float[] minCost = new float[slopeMap.length];
-        int[] pathTo = new int[slopeMap.length];
-        for (int i = 0; i < minCost.length; i++) {
-            minCost[i] = Float.MAX_VALUE;
-        }
-        minCost[startPos] = 0;
+     float[] minCost = new float[slopeMap.length];
+     int[] pathTo = new int[slopeMap.length];
+     for (int i = 0; i < minCost.length; i++) {
+     minCost[i] = Float.MAX_VALUE;
+     }
+     minCost[startPos] = 0;
 
-        int pos;
-        float cost;
+     int pos;
+     float cost;
 
-        while (true) {
+     while (true) {
 
-            do {
-                if (pq.isEmpty()) {
-                    command.debug("pathfinder didn't find path");
-                    return new ArrayList();
-                }
-                pos = pq.peek().pos;
-                cost = pq.poll().realCost;
-            } while (cost > minCost[pos]);
-            if (pos == targetPos) {
-                break;
-            }
+     do {
+     if (pq.isEmpty()) {
+     command.debug("pathfinder didn't find path");
+     return new ArrayList();
+     }
+     pos = pq.peek().pos;
+     cost = pq.poll().realCost;
+     } while (cost > minCost[pos]);
+     if (pos == targetPos) {
+     break;
+     }
 
-            //clbk.getMap().getDrawer().addLine(toAIFloat3(pos), toAIFloat3(pathTo[pos]));
-            for (int i = 0; i < offset.length; i++) {
-                if (pos % (smwidth) == 0 && offset[i] % smwidth == -1) {
-                    continue;
-                }
-                if ((pos + 1) % (smwidth) == 0 && offset[i] % smwidth == 1) {
-                    continue;
-                }
-                if (inBounds(pos + offset[i], minCost.length)
-                        && cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope) < minCost[pos + offset[i]]) {
+     //clbk.getMap().getDrawer().addLine(toAIFloat3(pos), toAIFloat3(pathTo[pos]));
+     for (int i = 0; i < offset.length; i++) {
+     if (pos % (smwidth) == 0 && offset[i] % smwidth == -1) {
+     continue;
+     }
+     if ((pos + 1) % (smwidth) == 0 && offset[i] % smwidth == 1) {
+     continue;
+     }
+     if (inBounds(pos + offset[i], minCost.length)
+     && cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope) < minCost[pos + offset[i]]) {
 
-                    pathTo[pos + offset[i]] = pos;
-                    minCost[pos + offset[i]] = cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope);
-                    pq.add(new pqEntry(getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]],
-                            minCost[pos + offset[i]], pos + offset[i]));
-                }
-            }
-        }
+     pathTo[pos + offset[i]] = pos;
+     minCost[pos + offset[i]] = cost + offsetCostMod[i] * getCost(slopeMap[pos + offset[i]], maxSlope);
+     pq.add(new pqEntry(getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]],
+     minCost[pos + offset[i]], pos + offset[i]));
+     }
+     }
+     }
 
-        pos = targetPos;
-        List<AIFloat3> result = new ArrayList();
-        while (pos != startPos) {
-            //clbk.getMap().getDrawer().addLine(toAIFloat3(pos), toAIFloat3(pathTo[pos]));
-            result.add(toAIFloat3(pos));
-            pos = pathTo[pos];
-        }
-        time = System.currentTimeMillis() - time;
-        command.debug("pathfinder took " + time + "ms");
-        return result;
+     pos = targetPos;
+     List<AIFloat3> result = new ArrayList();
+     while (pos != startPos) {
+     //clbk.getMap().getDrawer().addLine(toAIFloat3(pos), toAIFloat3(pathTo[pos]));
+     result.add(toAIFloat3(pos));
+     pos = pathTo[pos];
+     }
+     time = System.currentTimeMillis() - time;
+     command.debug("pathfinder took " + time + "ms");
+     return result;
 
-    }*/
-    
-    public class PathfinderRequest{
-        
+     }*/
+    public class PathfinderRequest {
+
         public final AIFloat3 start;
         public final AIFloat3 target;
-        public final MovementType movementType; 
+        public final MovementType movementType;
         public final CostSupplier costs;
         public final boolean markReachable;
         public final PathfindingCompleteListener listener;
-        
-        public PathfinderRequest(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener){
+
+        public PathfinderRequest(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener) {
             this.start = start;
             this.target = target;
             this.movementType = mt;
@@ -670,7 +685,7 @@ public class Pathfinder extends Helper {
             this.markReachable = markReachable;
             this.listener = listener;
         }
-        
+
     }
 
 }

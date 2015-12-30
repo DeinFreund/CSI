@@ -20,7 +20,9 @@ import zkcbai.unitHandlers.squads.SquadHandler;
 public abstract class SquadManager extends SquadHandler {
     //squad handler 2.0
     
-    Collection<UnitDef> availableUnits;
+    protected Collection<UnitDef> availableUnits;
+    
+    protected boolean finished = false; //whether squad has been completely built
 
     /**
      *
@@ -40,6 +42,13 @@ public abstract class SquadManager extends SquadHandler {
         return getRequiredUnits(availableUnits);
     }
     
+    /**
+     *
+     * @return whether the squad has been completely built
+     */
+    public boolean isFinished(){
+        return finished;
+    }
     /**
      *
      * @return number in [0, 1] representing effectiveness of the squad under

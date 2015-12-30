@@ -91,6 +91,7 @@ public abstract class SquadHandler extends UnitHandler{
         units.remove(u);
         if (units.isEmpty()) {
             fighterHandler.squadDestroyed(this);
+            disband();
         }
     }
 

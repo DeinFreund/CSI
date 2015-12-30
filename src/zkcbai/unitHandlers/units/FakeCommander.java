@@ -42,5 +42,11 @@ public class FakeCommander extends FakeEnemy {
     public boolean isUnit(Unit u) {
         return u.getDef().getName().contains("com");
     }
+    
+    
+    @Override
+    public int timeSinceLastSeen() {
+        return 0;
+    }
 
 }

@@ -53,7 +53,7 @@ public class FightTask extends Task {
             target.x += Math.random() * 80 - 40;
             target.z += Math.random() * 80 - 40;
         }
-        u.fight(target, (short) 0, timeout);
+        u.patrolTo(target, (short) 0, Math.min(timeout, u.getCommand().getCurrentFrame() + 30));
         return false;
     }
 

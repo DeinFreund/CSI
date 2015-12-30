@@ -3,19 +3,12 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package zkcbai.unitHandlers.units;
-
-import zkcbai.Command;
+package zkcbai.unitHandlers;
 
 /**
  *
  * @author User
  */
-public interface AIUnitHandler {
-
-    public Command getCommand();
-
-    public void troopIdle(AITroop u);
+public class GridPlannerThread {
     
-    public boolean retreatForRepairs(AITroop u);
 }

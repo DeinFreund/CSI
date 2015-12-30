@@ -16,6 +16,7 @@ import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.AISquad;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.AttackTask;
@@ -241,4 +242,8 @@ public class GenericSquad extends SquadHandler implements TaskIssuer {
         return AIUnit.UnitType.raider;
     }
 
+    @Override
+    public boolean retreatForRepairs(AITroop u) {
+        return true;
+    }
 }

@@ -25,8 +25,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import javax.swing.Timer;
 import zkcbai.helpers.DefenseManager;
 import zkcbai.helpers.EconomyManager;
@@ -54,7 +56,7 @@ import zkcbai.unitHandlers.units.FakeMex;
 public class Command implements AI {
 
     public static final boolean WRITE_LOG = true;
-    
+
     private final OOAICallback clbk;
     private final int ownTeamId;
     public final Resource metal;
@@ -175,7 +177,10 @@ public class Command implements AI {
      * @param allEnemies decides whether to include timed out enemies
      * @return
      */
-    public List<Enemy> getEnemyUnits(boolean allEnemies) {
+    public synchronized Collection<Enemy> getEnemyUnits(boolean allEnemies) {
+        if (allEnemies) {
+            return enemies.values();
+        }
         List<Enemy> list = new ArrayList();
         for (Enemy e : enemies.values()) {
             if (allEnemies || !e.isTimedOut()) {
@@ -195,6 +200,37 @@ public class Command implements AI {
         return units.values();
     }
 
+    private Random random = new Random();
+    int lastRandomUnitUpdate = -100000;
+    List<AIUnit> unitList;
+
+    public AIUnit getRandomUnit() {
+        if (getCurrentFrame() - lastRandomUnitUpdate > 300) {
+            unitList = new ArrayList(getUnits());
+            lastRandomUnitUpdate = getCurrentFrame();
+        }
+        AIUnit randomUnit;
+        do {
+            randomUnit = unitList.get(random.nextInt(unitList.size()));
+        } while (randomUnit.isDead());
+        return randomUnit;
+    }
+
+    int lastRandomEnemyUpdate = -100000;
+    List<Enemy> enemyList;
+
+    public Enemy getRandomEnemy() {
+        if (getCurrentFrame() - lastRandomEnemyUpdate > 150) {
+            enemyList = new ArrayList(getEnemyUnits(true));
+            lastRandomEnemyUpdate = getCurrentFrame();
+        }
+        Enemy randomEnemy;
+        do {
+            randomEnemy = enemyList.get(random.nextInt(enemyList.size()));
+        } while (!randomEnemy.isAlive());
+        return randomEnemy;
+    }
+
     /**
      * Returns enemy unit in radius that haven't timed out
      *
@@ -212,6 +248,9 @@ public class Command implements AI {
                 continue;
             }
             for (Enemy e : a.getNearbyEnemies()) {
+                if (e == null) {
+                    continue;
+                }
                 if (e.distanceTo(pos) < radius && !e.isTimedOut()) {
                     list.add(e);
                 }
@@ -260,6 +299,26 @@ public class Command implements AI {
 
     public void addEnemyLeaveLOSListener(EnemyLeaveLOSListener listener) {
         enemyLeaveLOSListeners.add(listener);
+    }
+
+    public void removeEnemyEnterRadarListener(EnemyEnterRadarListener listener) {
+        enemyEnterRadarListeners.remove(listener);
+    }
+
+    public void removeEnemyDiscoveredListener(EnemyDiscoveredListener listener) {
+        enemyDiscoveredListeners.remove(listener);
+    }
+
+    public void removeEnemyEnterLOSListener(EnemyEnterLOSListener listener) {
+        enemyEnterLOSListeners.remove(listener);
+    }
+
+    public void removeEnemyLeaveRadarListener(EnemyLeaveRadarListener listener) {
+        enemyLeaveRadarListeners.remove(listener);
+    }
+
+    public void removeEnemyLeaveLOSListener(EnemyLeaveLOSListener listener) {
+        enemyLeaveLOSListeners.remove(listener);
     }
 
     public void addUnitFinishedListener(UnitFinishedListener listener) {
@@ -356,16 +415,21 @@ public class Command implements AI {
     }
 
     @Override
-    public int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
+    public synchronized int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
             Enemy att = null;
             if (attacker != null) {
                 att = enemies.get(attacker.getUnitId());
             }
             AIUnit def = units.get(unit.getUnitId());
+            if (def == null){
+                if (unit.isBeingBuilt()) return 0;
+                mark(unit.getPos(), "unknown unit");
+            }
             for (UnitDamagedListener listener : unitDamagedListeners) {
                 listener.unitDamaged(def, att, damage);
             }
+            def.damaged(att, damage);
             if (unit.getHealth() <= 0) {
                 unitDestroyed(unit, attacker);
             }
@@ -376,7 +440,7 @@ public class Command implements AI {
     }
 
     @Override
-    public int enemyEnterLOS(Unit enemy) {
+    public synchronized int enemyEnterLOS(Unit enemy) {
         try {
             if (!enemies.containsKey(enemy.getUnitId())) {
                 enemyDiscovered(new Enemy(enemy, this, clbk));
@@ -422,7 +486,7 @@ public class Command implements AI {
     }
 
     @Override
-    public int enemyLeaveLOS(Unit enemy) {
+    public synchronized int enemyLeaveLOS(Unit enemy) {
         try {
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             if (aiEnemy != null) {
@@ -439,15 +503,14 @@ public class Command implements AI {
     }
 
     @Override
-    public int enemyEnterRadar(Unit enemy) {
+    public synchronized int enemyEnterRadar(Unit enemy) {
         try {
-            debug(enemy.getUnitId() + " entered radar");
+            //debug(enemy.getUnitId() + " entered radar");
             if (!enemies.containsKey(enemy.getUnitId())) {
                 enemyDiscovered(new Enemy(enemy, this, clbk));
             }
-            debug("discovered");
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
-            debug("ai enemy is null " + (aiEnemy == null));
+            //debug("ai enemy is null " + (aiEnemy == null));
             aiEnemy.enterRadar();
             Collection<EnemyEnterRadarListener> listenerc = new ArrayList(enemyEnterRadarListeners);
             for (EnemyEnterRadarListener listener : listenerc) {
@@ -459,7 +522,7 @@ public class Command implements AI {
         return 0;
     }
 
-    public void enemyDiscovered(Enemy enemy) {
+    public synchronized void enemyDiscovered(Enemy enemy) {
 
         // debug("ai enemy is null " + (enemy == null));
         enemies.put(enemy.getUnitId(), enemy);
@@ -469,7 +532,7 @@ public class Command implements AI {
     }
 
     @Override
-    public int enemyLeaveRadar(Unit enemy) {
+    public synchronized int enemyLeaveRadar(Unit enemy) {
         try {
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             if (aiEnemy != null) {
@@ -485,7 +548,7 @@ public class Command implements AI {
     }
 
     @Override
-    public int enemyDamaged(Unit enemy, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
+    public synchronized int enemyDamaged(Unit enemy, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
 
             AIUnit att = null;
@@ -506,7 +569,7 @@ public class Command implements AI {
     }
 
     @Override
-    public int unitDestroyed(Unit unit, Unit attacker) {
+    public synchronized int unitDestroyed(Unit unit, Unit attacker) {
         try {
             AIUnit aiunit = units.get(unit.getUnitId());
             if (aiunit != null) {
@@ -533,7 +596,7 @@ public class Command implements AI {
         return 0;
     }
 
-    protected void enemyDestroyed(Enemy e, Unit attacker) {
+    public synchronized void enemyDestroyed(Enemy e, Unit attacker) {
         Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
         AIUnit frenemy = null;
         if (attacker != null && units.containsKey(attacker.getUnitId())) {
@@ -574,6 +637,11 @@ public class Command implements AI {
              //                debug("IDLEBUG Exception unknown unit " + unit.getUnitId());
              return 0;
              }*/
+            if (units.get(unit.getUnitId()).isDead()) {
+                mark(unit.getPos(), "zombie?");
+                debug("zombie " + unit.getUnitId());
+                return 0;
+            }
             units.get(unit.getUnitId()).idle();
         } catch (Throwable e) {
             debug("Exception in unitIdle: ", e);
@@ -583,9 +651,9 @@ public class Command implements AI {
 
     @Override
     public int update(int frame) {
+        Timer timer = new Timer(5000, null);
         try {
             final Thread mainThread = Thread.currentThread();
-            Timer timer = new Timer(5000, null);
             timer.setRepeats(false);
             timer.addActionListener(new ActionListener() {
 
@@ -601,11 +669,21 @@ public class Command implements AI {
             timer.start();
             this.frame = frame;
             for (UpdateListener listener : updateListeners) {
+                long time = System.currentTimeMillis();
                 listener.update(frame);
+                time = System.currentTimeMillis() - time;
+                if (time > 100) {
+                    debug("Update of " + listener.getClass().getName() + " took " + time + " ms.");
+                }
             }
             while (!singleUpdateListeners.isEmpty() && singleUpdateListeners.firstKey() <= frame) {
                 for (UpdateListener listener : singleUpdateListeners.firstEntry().getValue()) {
+                    long time = System.currentTimeMillis();
                     listener.update(frame);
+                    time = System.currentTimeMillis() - time;
+                    if (time > 100) {
+                        debug("Update of " + listener.getClass().getName() + " took " + time + " ms.");
+                    }
                 }
                 singleUpdateListeners.remove(singleUpdateListeners.firstKey());
             }
@@ -616,10 +694,10 @@ public class Command implements AI {
                     u.checkIdle();
                 }
             }
-            timer.stop();
         } catch (Throwable e) {
             debug("Exception in update: ", e);
         } finally {
+            timer.stop();
         }
         return 0;
     }
@@ -672,7 +750,7 @@ public class Command implements AI {
                         break;
                     }
                     //debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");
-                    aiunit = new AIUnit(unit, null);
+                    aiunit = new AIUnit(unit, this);
             }
             //shadow expansion
             if (aiunit.getDef().equals(clbk.getUnitDefByName("cormex"))) {
@@ -732,17 +810,29 @@ public class Command implements AI {
 
     PrintWriter debugWriter;
 
+    public void debugStackTrace() {
+        try {
+            throw new Exception("DebugStackTrace");
+        } catch (Exception ex) {
+            debug("trace: ", ex);
+        }
+    }
+
     public void debug(String s) {
         clbk.getGame().sendTextMessage(s, 0);
-        if (!WRITE_LOG) return;
+        if (!WRITE_LOG) {
+            return;
+        }
         try {
             if (debugWriter == null) {
-                if (new File("CSI.log").exists()) new File("CSI.log").delete();
+                if (new File("CSI.log").exists()) {
+                    new File("CSI.log").delete();
+                }
                 debugWriter = new PrintWriter(new BufferedWriter(new FileWriter("CSI.log", true)));
             }
             debugWriter.println(s);
             debugWriter.flush();
- 
+
         } catch (IOException e) {
 
         }
@@ -751,6 +841,7 @@ public class Command implements AI {
 
     public void mark(AIFloat3 pos, String s) {
         clbk.getMap().getDrawer().addPoint(pos, s);
+        debug("add mark at " + pos.toString() + ": " + s);
     }
 
     private final float mexradius;

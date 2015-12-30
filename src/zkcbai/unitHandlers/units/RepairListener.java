@@ -5,17 +5,13 @@
  */
 package zkcbai.unitHandlers.units;
 
-import zkcbai.Command;
-
 /**
  *
  * @author User
  */
-public interface AIUnitHandler {
-
-    public Command getCommand();
-
-    public void troopIdle(AITroop u);
+public interface RepairListener {
     
-    public boolean retreatForRepairs(AITroop u);
+    public void retreating(AIUnit u);
+    
+    public void finishedRepairs(AIUnit u);
 }

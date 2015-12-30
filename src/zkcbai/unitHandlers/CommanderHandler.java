@@ -17,6 +17,7 @@ import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.units.AISquad;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.AttackTask;
@@ -174,6 +175,11 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void troopIdle(AISquad s) {
+    }
+
+    @Override
+    public boolean retreatForRepairs(AITroop u) {
+        return true;
     }
 
 }

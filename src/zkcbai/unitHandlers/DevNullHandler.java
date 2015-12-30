@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AISquad;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -68,6 +69,11 @@ public class DevNullHandler extends UnitHandler{
 
     @Override
     public void troopIdle(AISquad s) {
+    }
+
+    @Override
+    public boolean retreatForRepairs(AITroop u) {
+        return false;
     }
     
 }

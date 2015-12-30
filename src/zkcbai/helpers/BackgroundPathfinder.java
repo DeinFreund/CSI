@@ -14,25 +14,28 @@ import zkcbai.helpers.Pathfinder.PathfinderRequest;
 public class BackgroundPathfinder implements Runnable {
 
     Pathfinder pathfinder;
-    
-    public BackgroundPathfinder(Pathfinder pathfinder){
+
+    public BackgroundPathfinder(Pathfinder pathfinder) {
         this.pathfinder = pathfinder;
     }
-    
+
     @Override
     public void run() {
-        while(true){
-            if (pathfinder.getPathfinderRequests().isEmpty()){
-                try {
-                    Thread.sleep(20);
-                } catch (InterruptedException ex) {
+        while (true) {
+            try {
+                if (pathfinder.getPathfinderRequests().isEmpty()) {
+                    try {
+                        Thread.sleep(20);
+                    } catch (InterruptedException ex) {
+                    }
+                    continue;
                 }
-                continue;
+                PathfinderRequest request = pathfinder.getPathfinderRequests().poll();
+                request.listener.foundPath(pathfinder.findPath(request.start, request.target, request.movementType, request.costs, request.markReachable));
+            } catch (Throwable ex) {
+                pathfinder.command.debug("pathfinding error: ", ex);
             }
-            PathfinderRequest request = pathfinder.getPathfinderRequests().poll();
-            request.listener.foundPath(pathfinder.findPath(request.start, request.target, request.movementType, request.costs, request.markReachable));
-            
         }
     }
-    
+
 }

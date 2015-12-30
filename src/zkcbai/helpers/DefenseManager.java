@@ -71,6 +71,9 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     public float getGeneralDanger(AIFloat3 pos) {
         float result = 0;
         for (Enemy e : command.areaManager.getArea(pos).getNearbyEnemies()) {
+            if (e.getUnit() != null && e.getUnit().isBeingBuilt() && e.getRelativeHealth() < 0.9) {
+                continue;
+            }
             result += (e.distanceTo(pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getDef().getCost(command.metal);
             result += (e.distanceTo(pos) <= e.getMaxRange() * 2.7 ? 0.5 : 0) * e.getDef().getCost(command.metal);
         }
@@ -165,7 +168,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
 
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
-        command.debug("removed enemy " + e.getUnitId());
+        //command.debug("removed enemy " + e.getUnitId());
         defenses.remove(e);
         riots.remove(e);
         fighters.remove(e);

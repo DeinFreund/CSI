@@ -45,7 +45,7 @@ public class AssaultTask extends Task implements TaskIssuer{
     public boolean execute(AITroop u) {
         if (!aitroops.contains(u)) aitroops.add(u);
         if (command.getCurrentFrame() - lastTime > 300){
-            if (command.areaManager.getArea(u.getPos()).getNearbyEnemies().isEmpty() && lastpos != null && u.distanceTo(lastpos) < 250){
+            if (command.areaManager.getArea(u.getPos()).getNearbyEnemies().length == 0 && lastpos != null && u.distanceTo(lastpos) < 250){
                 command.debug("Assault finished because no enemy in sight");
                 completed(u);
                 issuer.finishedTask(this);

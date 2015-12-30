@@ -54,7 +54,7 @@ public abstract class Task {
     public abstract Task clone();
     
     protected void completed(AITroop t){
-        
+        if (t == null) return;
         for (Task ta : queued){
             t.queueTask(ta, false);
         }

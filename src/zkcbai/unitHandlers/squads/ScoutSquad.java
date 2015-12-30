@@ -10,6 +10,7 @@ import com.springrts.ai.oo.clb.OOAICallback;
 import zkcbai.Command;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.units.AISquad;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.tasks.FightTask;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
@@ -87,4 +88,9 @@ public class ScoutSquad extends SquadHandler implements TaskIssuer {
         return AIUnit.UnitType.raider;
     }
 
+    
+    @Override
+    public boolean retreatForRepairs(AITroop u) {
+        return true;
+    }
 }

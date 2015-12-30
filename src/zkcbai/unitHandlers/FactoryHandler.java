@@ -24,6 +24,7 @@ import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.betterSquads.*;
 import zkcbai.unitHandlers.units.AISquad;
+import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.BuildTask;
@@ -45,6 +46,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         squads.add(new ScoutSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         
         //cmd.addSingleUpdateListener(this, assaultFrame);
     }
@@ -229,7 +232,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     /**
      *
      * @param buildPositions container in which the possible building areas are
-     * returned<br />will be cleared
+     * returned<br />
+     * will be cleared
      * @return the UnitDef of the best factory
      */
     public UnitDef getNextFac(Set<Area> buildPositions) {
@@ -322,6 +326,11 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void update(int frame) {
+    }
+
+    @Override
+    public boolean retreatForRepairs(AITroop u) {
+        return false;
     }
 
     public class Factory implements TaskIssuer {

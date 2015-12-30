@@ -22,6 +22,7 @@ public abstract class FakeEnemy extends Enemy{
     
     public FakeEnemy(UnitDef fakeUnitDef, AIFloat3 pos, Command cmd, OOAICallback clbk) {
         super(pos, cmd, clbk);
+        if (fakeUnitDef == null) throw new AssertionError("FakeEnemy UnitDef is null");
         this.fakeUnitDef = fakeUnitDef;
         this.unitDef = fakeUnitDef;
         health = fakeUnitDef.getHealth();

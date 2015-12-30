@@ -39,6 +39,7 @@ public class PathPrecalculatorThread implements Runnable {
     protected static int threads = Runtime.getRuntime().availableProcessors();
     protected static int taskcnt = 0;
     protected static List< PrecalcTask> tasks[] = new ArrayList[threads];
+    protected static float[] minCostPerElmo;
 
     public static void addPrecalcTask(ZoneManager.Area startarea, Pathfinder.MovementType movementType, ZoneManager.Area targetarea) {
         if (tasks[taskcnt % threads] == null) {
@@ -52,9 +53,11 @@ public class PathPrecalculatorThread implements Runnable {
 
         long time = System.currentTimeMillis();
         Thread[] thread = new Thread[threads];
+        minCostPerElmo = new float[threads];
         countdown = new CountDownLatch(threads);
         queuingDone = new CountDownLatch(threads);
         for (int i = 0; i < thread.length; i++) {
+            minCostPerElmo[i] = Float.MAX_VALUE;
             thread[i] = new Thread(new PathPrecalculatorThread(command, i, threads, tasks[i].toArray(new PrecalcTask[0])));
             thread[i].setPriority(Thread.MIN_PRIORITY);
             thread[i].start();
@@ -70,12 +73,17 @@ public class PathPrecalculatorThread implements Runnable {
         /*for (int i = 0; i <8; i++){
          chk += sums[i];
          }*/
+        
+        for (int i = 0; i < thread.length; i++) {
+            command.pathfinder.minCostPerElmo = Math.min(command.pathfinder.minCostPerElmo, minCostPerElmo[i]);
+        }
         command.debug("Done. " + (System.currentTimeMillis() - time) / 1000.0 + "s" + chk);
 
     }
     float[] slopeMap;
     int mapRes;
     int smwidth;
+    
 
     //static int[] sums = new int[8];
     @Override
@@ -187,6 +195,7 @@ public class PathPrecalculatorThread implements Runnable {
                 if (foundpath) {
                     task.startarea.queueConnection(task.targetarea, totalcost, task.movementType);
                     task.targetarea.queueConnection(task.startarea, totalcost, task.movementType);
+                    minCostPerElmo[offset] = Math.min(minCostPerElmo[offset], totalcost / getDistance(task.start, task.target));
                 }else{
                     task.startarea.queueConnection(null,-1, task.movementType);
                     task.targetarea.queueConnection(null,-1, task.movementType);

@@ -12,10 +12,12 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Queue;
 import zkcbai.Command;
+import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.DevNullHandler;
 import static zkcbai.unitHandlers.units.AIUnit.OPTION_NONE;
+import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
@@ -37,29 +39,28 @@ public abstract class AITroop {
     protected Queue<Task> taskqueue = new LinkedList();
 
     public abstract float getMaxRange();
-    
+
     public abstract float getMaxSlope();
-            
+
     public abstract AIFloat3 getPos();
-    
+
     public abstract void idle();
-    
+
     public abstract UnitDef getDef();
-    
+
     public abstract Collection<AIUnit> getUnits();
-    
+
     public abstract float getEfficiencyAgainst(Enemy e);
-    
-    
+
     public abstract float getEfficiencyAgainst(UnitDef ud);
-    
-    public MovementType getMovementType(){
+
+    public MovementType getMovementType() {
         return MovementType.getMovementType(getDef());
     }
-    
-    public float getMetalCost(){
+
+    public float getMetalCost() {
         float res = 0;
-        for (AIUnit u : getUnits()){
+        for (AIUnit u : getUnits()) {
             res += u.getDef().getCost(handler.getCommand().metal);
         }
         return res;
@@ -71,8 +72,11 @@ public abstract class AITroop {
         pos.y = 0;
         return pos.length();
     }
-    
-    public void assignAIUnitHandler(AIUnitHandler handler){
+
+    public void assignAIUnitHandler(AIUnitHandler handler) {
+        if (handler == null || handler.getCommand() == null) {
+            throw new AssertionError("AITroop without handler | handler has no command");
+        }
         this.handler = handler;
     }
 
@@ -81,49 +85,54 @@ public abstract class AITroop {
     }
 
     public void assignTask(Task t) {
-        assignTask(t,true);
+        assignTask(t, true);
     }
-    
+
     private void assignTask(Task t, boolean execute) {
         task = t;
         taskqueue.clear();
-        if (execute) doTask();
+        if (execute) {
+            doTask();
+        }
     }
-    
-    public AIUnit getNearestBuilding(){
+
+    public AIUnit getNearestBuilding() {
         AIUnit best = null;
-        for (AIUnit au : handler.getCommand().areaManager.getArea(getPos()).getNearbyBuildings()){
-            if (best == null || best.distanceTo(getPos()) > au.distanceTo(getPos())){
+        for (AIUnit au : handler.getCommand().areaManager.getArea(getPos()).getNearbyBuildings()) {
+            if (best == null || best.distanceTo(getPos()) > au.distanceTo(getPos())) {
                 best = au;
             }
         }
         return best;
     }
 
-    
-    
     /**
-     *  Tasks are easily overwritten, use other methods to queue tasks securely!
+     * Tasks are easily overwritten, use other methods to queue tasks securely!
+     *
      * @param t
      */
     public void queueTask(Task t) {
-        queueTask(t,true);
+        queueTask(t, true);
     }
-    
+
     /**
-     *  Tasks are easily overwritten, use other methods to queue tasks securely!
+     * Tasks are easily overwritten, use other methods to queue tasks securely!
+     *
      * @param t
      * @param execute
      */
     public void queueTask(Task t, boolean execute) {
         taskqueue.add(t);
-        if (execute) doTask();
+        if (execute) {
+            doTask();
+        }
     }
 
     private int tasksThisFrame = 0;
     private int thisFrame = 0;
 
     protected void doTask() {
+
         
         if (getCommand().getCurrentFrame() != thisFrame) {
             tasksThisFrame = 0;
@@ -144,12 +153,16 @@ public abstract class AITroop {
                 handler.troopIdle(this);
             }
         }
-        
+
+    }
+
+    public AITroop(Command cmd) {
+        this(new DevNullHandler(cmd, cmd.getCallback()));
     }
 
     public AITroop(AIUnitHandler handler) {
-        if (handler == null) {
-            handler = new DevNullHandler(null, null);
+        if (handler == null || handler.getCommand() == null) {
+            throw new AssertionError("AITroop without handler | handler has no command");
         } else {
             this.areaManager = handler.getCommand().areaManager;
         }
@@ -158,7 +171,7 @@ public abstract class AITroop {
 
     public Command getCommand() {
         Command ret = handler.getCommand();
-        if (ret == null){
+        if (ret == null) {
             throw new AssertionError(handler.getClass().getName() + " has command==null");
         }
         return ret;
@@ -179,7 +192,7 @@ public abstract class AITroop {
     public void attack(Unit trg, int timeout) {
         attack(trg, OPTION_NONE, timeout);
     }
-    
+
     public void repair(Unit trg, int timeout) {
         repair(trg, OPTION_NONE, timeout);
     }
@@ -195,14 +208,12 @@ public abstract class AITroop {
     public abstract void fight(AIFloat3 trg, short options, int timeout);
 
     public abstract void attack(Unit trg, short options, int timeout);
-    
+
     public abstract void repair(Unit trg, short options, int timeout);
 
     public abstract void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout);
-    
+
     public abstract void wait(int timeout);
-    
-    
-    
+
     public abstract void setTarget(int targetUnitId);
 }
