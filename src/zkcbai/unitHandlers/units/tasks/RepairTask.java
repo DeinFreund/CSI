@@ -24,6 +24,7 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
     private int errors = 0;
     private Set<AIUnit> workers = new HashSet<>();
     private Command command;
+    private boolean finished = false;
 
     public RepairTask(AIUnit target, TaskIssuer issuer, Command command) {
         super(issuer);
@@ -34,6 +35,7 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
 
     @Override
     public boolean execute(AITroop u) {
+        if (finished) return true;
         workers.add((AIUnit)u);
         if (errors > 10) {
             completed(u);
@@ -87,6 +89,7 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
     public void completed(AITroop au) {
         workers.clear();
         command.removeUnitDestroyedListener(this);
+        finished = true;
         super.completed(au);
     }
 

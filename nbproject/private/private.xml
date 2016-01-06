@@ -3,11 +3,35 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FactoryHandler.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/BuilderHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/RaiderSquad.java</file>
             <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FighterHandler.java</file>
-            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/AI.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/RaiderSquad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/ScoutSquad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/BuildTask.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/Task.java</file>
             <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/ZoneManager.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AITroop.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/DevNullHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/NanoHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AISquad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/GridPlannerThread.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/WaitTask.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/RepairListener.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/DefenseManager.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/BuilderHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/Command.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AIUnit.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/Enemy.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FactoryHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/AssaultSquad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/SquadManager.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/CommanderHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AIUnitHandler.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/FightTask.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/GenericSquad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/RepairTask.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/AssaultSquad.java</file>
+            <file>file:/C:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/ScoutSquad.java</file>
         </group>
     </open-files>
 </project-private>

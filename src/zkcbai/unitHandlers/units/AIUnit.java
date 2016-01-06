@@ -31,8 +31,8 @@ import zkcbai.unitHandlers.units.tasks.WaitTask;
  */
 public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
-    private static final float repairPercentage = 0.4f;
-    private static final float repairHP = 1000f;
+    private static final float repairPercentage = 0.45f;
+    private static final float repairHP = 4000f;
 
     private final Unit unit;
     private final int unitId;
@@ -129,7 +129,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
                 @Override
                 public boolean checkArea(ZoneManager.Area a) {
-                    return a.getZone() == ZoneManager.Zone.own;
+                    return a.isSafe() && a.getZone() == ZoneManager.Zone.own;
                 }
             }, getMovementType());
             retreatTask = (new MoveTask(safe.getPos(), getCommand().getCurrentFrame() + 30, this, getCommand()));
@@ -189,7 +189,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
      * @return whether unit still needs repairs
      */
     public boolean repaired() {
-        if (needRepairs && getUnit().getHealth() / getDef().getHealth() > 0.99f) {
+        if (!needRepairs) return true;
+        if (getUnit().getHealth() / getDef().getHealth() > 0.99f) {
             needRepairs = false;
             if (preRepairTask != null) {
                 assignTask(preRepairTask);
@@ -449,18 +450,41 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         if (dead) {
             throw new RuntimeException("polled dead aiunit " + unitId);
         }
-        //handler.getCommand().mark(trg, "fight");
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
         lastCommandTime = handler.getCommand().getCurrentFrame();
         if (handler.getCommand().getCurrentFrame() == lastCall) {
-            //throw new RuntimeException("Double Call to Fight");
-            //getCommand().debug("Warning: Double Call to Fight");
         }
         lastCall = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         unit.fight(trg, options, Integer.MAX_VALUE);
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
+        }
+    }
+    
+    @Override
+    public void attackGround(AIFloat3 trg, short options, int timeout) {
+        if (dead) {
+            throw new RuntimeException("polled dead aiunit " + unitId);
+        }
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
+        if (handler.getCommand().getCurrentFrame() == lastCall) {
+        }
+        lastCall = handler.getCommand().getCurrentFrame();
+        areaManager.executedCommand();
+        List<Float> floats = new ArrayList();
+        floats.add(trg.x);
+        floats.add(trg.y);
+        floats.add(trg.z);
+        unit.executeCustomCommand(20, floats, options, Integer.MAX_VALUE);
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -499,6 +523,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         list.add((float) targetUnitId);
         unit.executeCustomCommand(34923, list, OPTION_NONE, lastIdle);
     }
+    
+   
 
     @Override
     public float getMaxRange() {

@@ -41,13 +41,18 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     private int constructorRequests = 0;
     private Collection<Factory> factories = new HashSet();
     private Map<AIUnit, Factory> facmap = new HashMap();
-    private Collection<SquadManager> squads = new ArrayList();
+    private List<SquadManager> squads = new ArrayList();
+    private Queue<SquadManager> startsquads = new LinkedList();
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         squads.add(new ScoutSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new BuilderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        startsquads.add(squads.get(0));
+        startsquads.add(squads.get(3));
+        startsquads.add(squads.get(1));
         
         //cmd.addSingleUpdateListener(this, assaultFrame);
     }
@@ -174,6 +179,11 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                         best = sq;
                     }
                 }
+                if (!startsquads.isEmpty()){
+                    do {
+                        best = startsquads.poll();
+                    }while(best.getRequiredUnits(fac.getBuildOptions()) == null && !startsquads.isEmpty());
+                }
                 if (best != null){
                     command.debug("Best squad is " + best.getClass().getName());
                     fac.queueUnits(best.getRequiredUnits(fac.getBuildOptions()));
@@ -203,6 +213,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     }
 
     public void requestConstructor() {
+        if (!startsquads.isEmpty()) return;
         constructorRequests = 1;
     }
 
@@ -251,6 +262,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             }
             if (allMovable) {//is factory
                 //command.debug(ud.getHumanName() + " is a fac");
+                if (ud.getBuildOptions().get(0).getCost(command.metal)>1000) continue; //no strider plop pls
                 MovementType mt = MovementType.getMovementType(ud.getBuildOptions().get(0));
                 Set<Area> bestset = new HashSet();
                 int bestsize = 0;

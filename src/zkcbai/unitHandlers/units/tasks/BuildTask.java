@@ -15,15 +15,17 @@ import java.util.Collections;
 import java.util.List;
 import zkcbai.Command;
 import zkcbai.UnitCreatedListener;
+import zkcbai.UnitDestroyedListener;
 import zkcbai.UnitFinishedListener;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
+import zkcbai.unitHandlers.units.Enemy;
 
 /**
  *
  * @author User
  */
-public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener, UnitCreatedListener {
+public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener, UnitCreatedListener, UnitDestroyedListener {
 
     UnitDef building;
     Unit result;
@@ -38,6 +40,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     public static AIFloat3 findClosestBuildSite(UnitDef building, AIFloat3 approxPos, int minDist, int facing, Command command) {
         return findClosestBuildSite(building, approxPos, minDist, facing, command, -1f);
     }
+
     /**
      *
      * @param building
@@ -193,12 +196,14 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
          }*/
         command.addUnitFinishedListener(this);
         command.addUnitCreatedListener(this);
+        command.addUnitDestroyedListener(this);
     }
 
     private void cleanup() {
 
         command.removeUnitFinishedListener(this);
         command.removeUnitCreatedListener(this);
+        command.removeUnitDestroyedListener(this);
         List<AIUnit> auc = new ArrayList();
         Collections.copy(assignedUnits, auc);
         assignedUnits.clear();
@@ -398,6 +403,17 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     public void cancel() {
 
         cleanup();
+    }
+
+    @Override
+    public void unitDestroyed(AIUnit u, Enemy killer) {
+        if (u.equals(result)) {
+            result = null;
+        }
+    }
+
+    @Override
+    public void unitDestroyed(Enemy e, AIUnit killer) {
     }
 
 }

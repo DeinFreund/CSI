@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.UUID;
 import javax.swing.Timer;
 import zkcbai.helpers.DefenseManager;
 import zkcbai.helpers.EconomyManager;
@@ -45,6 +44,7 @@ import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.unitHandlers.BuilderHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.NanoHandler;
+import zkcbai.unitHandlers.TurretHandler;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeEnemy;
 import zkcbai.unitHandlers.units.FakeMex;
@@ -85,6 +85,7 @@ public class Command implements AI {
     private final Collection<CommanderHandler> comHandlers = new HashSet<>();
     private final FactoryHandler facHandler;
     private final FighterHandler fighterHandler;
+    private final TurretHandler turretHandler;
     private final BuilderHandler builderHandler;
     private final NanoHandler nanoHandler;
 
@@ -106,6 +107,7 @@ public class Command implements AI {
             energy = clbk.getResources().get(1);
             economyManager = new EconomyManager(this, clbk);
             fighterHandler = new FighterHandler(this, clbk);
+            turretHandler = new TurretHandler(this, clbk);
             facHandler = new FactoryHandler(this, callback); //req: fighterHandler
             losManager = new LosManager(this, clbk);
             areaManager = new ZoneManager(this, clbk);
@@ -205,6 +207,9 @@ public class Command implements AI {
     List<AIUnit> unitList;
 
     public AIUnit getRandomUnit() {
+        if (units.isEmpty()) {
+            return null;
+        }
         if (getCurrentFrame() - lastRandomUnitUpdate > 300) {
             unitList = new ArrayList(getUnits());
             lastRandomUnitUpdate = getCurrentFrame();
@@ -422,8 +427,10 @@ public class Command implements AI {
                 att = enemies.get(attacker.getUnitId());
             }
             AIUnit def = units.get(unit.getUnitId());
-            if (def == null){
-                if (unit.isBeingBuilt()) return 0;
+            if (def == null) {
+                if (unit.isBeingBuilt()) {
+                    return 0;
+                }
                 mark(unit.getPos(), "unknown unit");
             }
             for (UnitDamagedListener listener : unitDamagedListeners) {
@@ -637,7 +644,7 @@ public class Command implements AI {
              //                debug("IDLEBUG Exception unknown unit " + unit.getUnitId());
              return 0;
              }*/
-            if (units.get(unit.getUnitId()).isDead()) {
+            if (!units.containsKey(unit.getUnitId())) {
                 mark(unit.getPos(), "zombie?");
                 debug("zombie " + unit.getUnitId());
                 return 0;
@@ -728,16 +735,18 @@ public class Command implements AI {
             }
             AIUnit aiunit;
             switch (unit.getDef().getName()) {
-                case "armcom1":
-                    CommanderHandler comHandler = new CommanderHandler(this, clbk);
-                    comHandlers.add(comHandler);
-                    aiunit = comHandler.addUnit(unit);
-                    break;
                 case "armnanotc":
                     aiunit = nanoHandler.addUnit(unit);
                     break;
                 default:
-                    if (unit.getDef().getBuildOptions().size() > 0) {
+                    if (unit.getDef().getCustomParams().containsKey("commtype")) {
+                        debug("Identified a commander with unitdef: " + unit.getDef().getName());
+                        CommanderHandler comHandler = new CommanderHandler(this, clbk);
+                        comHandlers.add(comHandler);
+                        aiunit = comHandler.addUnit(unit);
+                        break;
+                    }
+                    if (unit.getDef().getBuildOptions().size() > 5) {
                         if (unit.getDef().getSpeed() < 0.1) {
                             aiunit = facHandler.addUnit(unit);
                         } else {
@@ -745,8 +754,12 @@ public class Command implements AI {
                         }
                         break;
                     }
-                    if (!unit.getDef().isAbleToRepair() && unit.getDef().getSpeed() > 0) {
+                    if (unit.getDef().isAbleToAttack() && unit.getDef().getSpeed() > 0) {
                         aiunit = fighterHandler.addUnit(unit);
+                        break;
+                    }
+                    if (unit.getDef().isAbleToAttack() && unit.getDef().getSpeed() < 0.1) {
+                        aiunit = turretHandler.addUnit(unit);
                         break;
                     }
                     //debug("Unused UnitDef " + unit.getDef().getName() + " in UnitFinished");

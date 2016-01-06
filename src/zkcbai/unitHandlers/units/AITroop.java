@@ -66,6 +66,12 @@ public abstract class AITroop {
         return res;
     }
 
+    public float distanceTo3D(AIFloat3 trg) {
+        AIFloat3 pos = new AIFloat3(getPos());
+        pos.sub(trg);
+        return pos.length();
+    }
+    
     public float distanceTo(AIFloat3 trg) {
         AIFloat3 pos = new AIFloat3(getPos());
         pos.sub(trg);
@@ -206,6 +212,8 @@ public abstract class AITroop {
     public abstract void patrolTo(AIFloat3 trg, short options, int timeout);
 
     public abstract void fight(AIFloat3 trg, short options, int timeout);
+    
+    public abstract void attackGround(AIFloat3 trg, short options, int timeout);
 
     public abstract void attack(Unit trg, short options, int timeout);
 

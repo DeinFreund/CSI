@@ -10,6 +10,7 @@ import com.springrts.ai.oo.clb.GameRulesParam;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Team;
 import com.springrts.ai.oo.clb.TeamRulesParam;
+import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.awt.Color;
 import java.awt.FontMetrics;
@@ -51,7 +52,6 @@ import static zkcbai.helpers.ZoneManager.Zone.neutral;
 import static zkcbai.helpers.ZoneManager.Zone.own;
 import zkcbai.unitHandlers.BuilderHandler.GridNode;
 import zkcbai.unitHandlers.FactoryHandler.Factory;
-import zkcbai.unitHandlers.betterSquads.ScoutSquad;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeCommander;
@@ -344,21 +344,23 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         //MovementType movementType = MovementType.getMovementType(command.getFactoryHandler().getNextFac(new HashSet()).getBuildOptions().get(0));
         for (int i = 0; i < ITERATIONS; i++) {
             final AIUnit own = command.getRandomUnit();
+            final int units = command.getUnits().size();
             getArea(own.getPos()).randomWalk(PATH_LENGTH, new AreaChecker() {
 
                 @Override
                 public boolean checkArea(zkcbai.helpers.ZoneManager.Area a) {
-                    a.addFlow(own.getMetalCost() / (500 * ITERATIONS * PATH_LENGTH));
+                    a.addFlow(own.getMetalCost() * units / (500 * ITERATIONS * PATH_LENGTH));
                     return true;
                     //return !own.isBuilding() || a.distanceTo(own.getPos()) < own.getMaxRange();
                 }
             }, own.isBuilding() ? MovementType.bot : own.getMovementType());
             final Enemy enemy = command.getRandomEnemy();
+            final int enemies = command.getEnemyUnits(true).size();
             getArea(enemy.getPos()).randomWalk(PATH_LENGTH, new AreaChecker() {
 
                 @Override
                 public boolean checkArea(zkcbai.helpers.ZoneManager.Area a) {
-                    a.addFlow(-enemy.getMetalCost() / (500 * ITERATIONS * PATH_LENGTH));
+                    a.addFlow(-enemy.getMetalCost() * enemies / (500 * ITERATIONS * PATH_LENGTH));
                     return true;
                     //return !enemy.isBuilding() || a.distanceTo(enemy.getPos()) < enemy.getMaxRange();
                 }
@@ -488,6 +490,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         private Set<DebugConnection> debugConns = new HashSet();
         private int lastPathCalcTime = -100000;
         private float flow = 0;
+        private float negativeFlow = 0;
+        private float positiveFlow = 0;
 
         public Area(int x, int y, int index) {
             this.x = x;
@@ -527,10 +531,20 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public void addFlow(float amt) {
             totalFlow += Math.abs(amt);
             flow += amt;
+            negativeFlow += Math.max(0, -amt);
+            positiveFlow += Math.max(0, amt);
         }
 
         public float getFlow() {
-            return 10 * flow / totalFlow;
+            return flow;
+        }
+
+        public float getNegativeFlow() {
+            return negativeFlow;
+        }
+
+        public float getPositiveFlow() {
+            return positiveFlow;
         }
 
         public Collection<Connection> getConnections(MovementType mt) {
@@ -735,9 +749,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         private final Queue<Area> _gna_pq = new LinkedList();
-        
+
         private final Set<Area> _gna_visited = new HashSet<>();
-            
+
         public Area getNearestArea(AreaChecker checker, MovementType md, boolean notNull) {
             Queue<Area> pq = _gna_pq;
             pq.clear();
@@ -802,11 +816,22 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             return nearbyEnemiesArr;
         }
 
+        private int lastDefDPSCache = -1000;
+        private float DefDPSCache = 0;
+
+        public float getDefenseDPS() {
+            if (command.getCurrentFrame() - lastDefDPSCache > -1) {
+                DefDPSCache = command.getBuilderHandler()._getDefenseDPS(pos);
+                lastDefDPSCache = command.getCurrentFrame();
+            }
+            return DefDPSCache;
+        }
+
         /**
          * forces cache update. cpu heavy!
          */
         public void updateEnemies() {
-            lastDangerCache = -1;
+            lastDangerCache = -100;
             getDanger();
         }
 
@@ -844,23 +869,37 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         int lastEnemyValueCache = -100;
         float enemyValueCache = 0;
 
+        private int lastIsFrontCache = -200;
+        private boolean isFrontCache;
+
         public boolean isFront() {
-            int hostile = 0;
-            int neutral = 0;
-            for (int dx = -1; dx < 2; dx++) {
-                for (int dy = -1; dy < 2; dy++) {
-                    if (x + dx >= map.length || y + dy >= map[0].length || x + dx < 0 || y + dy < 0) {
-                        continue;
-                    }
-                    Zone zone = map[x + dx][y + dy].getZone();
-                    if (zone == Zone.hostile || zone == Zone.fortified) {
-                        hostile++;
-                    } else {
-                        neutral++;
+            if (getZone() != Zone.own) {
+                return false;
+            }
+            if (command.getCurrentFrame() - lastIsFrontCache > 100) {
+                int hostile = 0;
+                int neutral = 0;
+                int own = 0;
+                int radius = 5;
+                for (int dx = -radius; dx <= radius; dx++) {
+                    for (int dy = -radius; dy <= radius; dy++) {
+                        if (x + dx >= map.length || y + dy >= map[0].length || x + dx < 0 || y + dy < 0) {
+                            continue;
+                        }
+                        Zone zone = map[x + dx][y + dy].getZone();
+                        if (zone == Zone.hostile || zone == Zone.fortified) {
+                            hostile++;
+                        } else if (zone == Zone.neutral) {
+                            neutral++;
+                        } else if (zone == Zone.own) {
+                            own++;
+                        }
                     }
                 }
+                lastIsFrontCache = command.getCurrentFrame();
+                isFrontCache = (neutral + hostile) / (float) (neutral + hostile + own) > 0.2;
             }
-            return hostile > 0 && neutral > 0;
+            return isFrontCache;
         }
 
         public float getValue() {
@@ -945,10 +984,16 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
              if (owner == Owner.enemy) {
              //    return Zone.hostile;
              }*/
-            if (getFlow() > 1e-3) {
+            boolean inEnemyTurretRange = false;
+            for (Enemy e : getNearbyEnemies()) {
+                if (e.isBuilding() && e.distanceTo(pos) < e.getMaxRange()) {
+                    inEnemyTurretRange = true;
+                }
+            }
+            if (getFlow() > 1e-1 && !inEnemyTurretRange) {
                 return Zone.own;
             }
-            if (getFlow() < -1e-3) {
+            if (getFlow() < -1e-1) {
                 return Zone.hostile;
             }
             return Zone.neutral;
@@ -966,6 +1011,17 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 }
             }
             return neighbours;
+        }
+
+        public boolean isSafe() {
+
+            boolean inEnemyTurretRange = false;
+            for (Enemy e : getNearbyEnemies()) {
+                if (e.distanceTo(pos) < 1.5 * e.getMaxRange()) {
+                    inEnemyTurretRange = true;
+                }
+            }
+            return !inEnemyTurretRange;
         }
 
         /**
@@ -998,6 +1054,17 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             return nearbyBuildings;
         }
 
+        public Collection<AIUnit> getNearbyUnits(float range) {
+            List<Unit> units = clbk.getFriendlyUnitsIn(pos, range);
+            List<AIUnit> aiunits = new ArrayList();
+            for (Unit u : units) {
+                if (command.getAIUnit(u) != null) {
+                    aiunits.add(command.getAIUnit(u));
+                }
+            }
+            return aiunits;
+        }
+
         public void addDebugConnection(Area target, Color color, int timeout) {
             debugConns.add(new DebugConnection(target, color, timeout));
         }
@@ -1011,6 +1078,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             getZone();
             totalFlow -= Math.abs(flow * (1 - flowDecay));
             flow *= flowDecay;
+            negativeFlow *= flowDecay;
+            positiveFlow *= flowDecay;
             command.addSingleUpdateListener(this, command.getCurrentFrame() + 100);
         }
 
@@ -1146,11 +1215,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public BuildTask getBuildTask() {
+            if (buildTask != null && buildTask.isDone()) buildTask = null;
             return buildTask;
         }
 
         public BuildTask createBuildTask(TaskIssuer t) {
-            if (buildTask == null && command.isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0)) {
+            if (getBuildTask() == null && command.isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0)) {
                 buildTask = new BuildTask(clbk.getUnitDefByName("cormex"), pos, t, clbk, command, 0);
                 buildTask.setInfo("mex");
             }
@@ -1207,24 +1277,28 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                             stringcol = Color.white;
                             break;
                     }
+                    if (map[x][y].isFront()) {
+                        g.setColor(new Color(190, 0, 190));
+                        stringcol = Color.white;
+                    }
                     /*
-                    if (ScoutSquad.dangerChecker.checkArea(map[x][y])) {
-                        g.setColor(Color.green);
-                    } else {
-                        g.setColor(Color.red);
-                    }*/
+                     if (ScoutSquad.dangerChecker.checkArea(map[x][y])) {
+                     g.setColor(Color.green);
+                     } else {
+                     g.setColor(Color.red);
+                     }*/
 
                     float minFlow = -0.3f;
                     float maxFlow = 0.3f;
                     float flow = Math.signum(map[x][y].getFlow()) * (float) Math.pow(Math.abs(map[x][y].getFlow()), 0.4f);
                     //g.setColor(interpolate(Color.green, Color.red, Math.min(2 * maxFlow, Math.max(0, flow - minFlow)) / (2 * maxFlow)));
-                    
-                     if (!command.losManager.isInLos(map[x][y].getPos())) {
-                     g.setColor(g.getColor().darker());
-                     if (!command.radarManager.isInRadar(map[x][y].getPos())) {
-                     g.setColor(g.getColor().darker());
-                     }
-                     }
+
+                    if (!command.losManager.isInLos(map[x][y].getPos())) {
+                        g.setColor(g.getColor().darker());
+                        if (!command.radarManager.isInRadar(map[x][y].getPos())) {
+                            g.setColor(g.getColor().darker());
+                        }
+                    }
                     float danger = map[x][y].getDanger() / maxDanger;
                     float value = map[x][y].getValue() / maxValue;
                     /*float[] hsb = new float[3];
