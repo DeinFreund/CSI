@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
+import zkcbai.UpdateListener;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -18,7 +19,7 @@ import zkcbai.unitHandlers.units.Enemy;
  *
  * @author User
  */
-public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListener {
+public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListener, UpdateListener{
 
     private AIUnit target;
     private int errors = 0;
@@ -31,6 +32,7 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
         this.target = target;
         this.command = command;
         command.addUnitDestroyedListener(this);
+        command.addSingleUpdateListener(this, command.getCurrentFrame() + 50);
     }
 
     @Override
@@ -117,6 +119,16 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
 
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
+    }
+
+    @Override
+    public void update(int frame) {
+        if (finished) return;
+        command.addSingleUpdateListener(this, command.getCurrentFrame() + 50);
+        if (target.repaired()) {
+            completed(null);
+            issuer.finishedTask(this);
+        }
     }
 
 }

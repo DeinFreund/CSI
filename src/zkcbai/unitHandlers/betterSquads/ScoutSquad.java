@@ -53,7 +53,7 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
 
     }
 
-    final private String[] scoutIds = {"fighter", "armpw", "corak", "corfav", "blastwing", "amphraider3", "shipscout", "corsh", "armflea"};
+    final private String[] scoutIds = {"fighter", "armpw", "corak", "corfav", "blastwing", "amphraider3", "shipscout", "corsh", "armflea", "puppy"};
 
     final private List<UnitDef> scouts = new ArrayList();
 

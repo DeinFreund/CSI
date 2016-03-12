@@ -1215,7 +1215,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public BuildTask getBuildTask() {
-            if (buildTask != null && buildTask.isDone()) buildTask = null;
+            if (buildTask != null && (buildTask.isDone() && !isBuilt())) buildTask = null;
             return buildTask;
         }
 

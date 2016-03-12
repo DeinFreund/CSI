@@ -46,7 +46,7 @@ public class AssaultSquad extends SquadManager {
         }
     }
 
-    final private String[] assaultIds = {"armzeus", "corthud", "corraid", "correap", "armbrawl", "amphassault", "shipraider", "hoverassault","spiderassault"};
+    final private String[] assaultIds = {"armzeus", "corthud", "corraid", "correap", "armbrawl", "amphassault", "shipraider", "hoverassault","spiderassault","corcan"};
     final private List<UnitDef> assaults = new ArrayList();
 
     final private String[] porcIds = {"corrl", "armllt", "armdeva" , "corhlt", "armpb"};
