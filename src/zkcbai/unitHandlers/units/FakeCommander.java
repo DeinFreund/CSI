@@ -19,6 +19,7 @@ public class FakeCommander extends FakeEnemy {
 
     public FakeCommander(AIFloat3 pos, Command cmd, OOAICallback clbk) {
         super(getComDef(cmd), pos, cmd, clbk);
+        cmd.debug("New fake commander created at " + pos);
     }
 
     private static UnitDef getComDef(Command cmd) {

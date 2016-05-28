@@ -12,12 +12,11 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Queue;
 import zkcbai.Command;
-import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager;
+import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.DevNullHandler;
 import static zkcbai.unitHandlers.units.AIUnit.OPTION_NONE;
-import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
@@ -41,6 +40,10 @@ public abstract class AITroop {
     public abstract float getMaxRange();
 
     public abstract float getMaxSlope();
+    
+    public Area getArea(){
+        return getCommand().areaManager.getArea(getPos());
+    }
 
     public abstract AIFloat3 getPos();
 

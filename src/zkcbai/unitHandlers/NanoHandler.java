@@ -5,24 +5,29 @@
  */
 package zkcbai.unitHandlers;
 
-import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import zkcbai.Command;
+import zkcbai.UpdateListener;
+import zkcbai.unitHandlers.FactoryHandler.Factory;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
+import zkcbai.unitHandlers.units.tasks.BuildTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
  *
  * @author User
  */
-public class NanoHandler extends UnitHandler{
+public class NanoHandler extends UnitHandler implements UpdateListener {
+
+    BuildTask nanoTask = null;
 
     public NanoHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
+        cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 30);
     }
 
     @Override
@@ -40,13 +45,14 @@ public class NanoHandler extends UnitHandler{
     @Override
     public void troopIdle(AIUnit u) {
         AIUnit closest = null;
-        for (AIUnit fac : command.getFactoryHandler().getUnits()){
-            if (closest == null || closest.distanceTo(u.getPos()) > fac.distanceTo(u.getPos())){
+        for (AIUnit fac : command.getFactoryHandler().getUnits()) {
+            if (closest == null || closest.distanceTo(u.getPos()) > fac.distanceTo(u.getPos())) {
                 closest = fac;
             }
         }
-        if (closest != null){
-            u.getUnit().guard(closest.getUnit(), (short)0, Integer.MAX_VALUE);
+        if (closest != null) {
+            //u.getUnit().guard(closest.getUnit(), (short)0, Integer.MAX_VALUE);
+            u.getUnit().patrolTo(closest.getPos(), (short) 0, Integer.MAX_VALUE);
         }
         /*
         AIFloat3 offset = new AIFloat3(u.getPos());
@@ -78,5 +84,16 @@ public class NanoHandler extends UnitHandler{
     public boolean retreatForRepairs(AITroop u) {
         return false;
     }
-    
+
+    @Override
+    public void update(int frame) {
+
+        if (aiunits.size() * 10 + 15 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome) && (nanoTask == null || nanoTask.isAborted() || nanoTask.isDone())) {
+            nanoTask = command.getBuilderHandler().requestCaretaker(command.getFactoryHandler().getFacs().toArray(new Factory[0])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos());
+
+        }
+
+        command.addSingleUpdateListener(this, frame + 15);
+    }
+
 }

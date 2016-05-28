@@ -46,13 +46,13 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
-        squads.add(new ScoutSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        /*squads.add(new ScoutSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
-        squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));*/
         squads.add(new BuilderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new CCRSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         startsquads.add(squads.get(0));
-        startsquads.add(squads.get(3));
-        startsquads.add(squads.get(1));
+        startsquads.add(squads.get(0));
         
         //cmd.addSingleUpdateListener(this, assaultFrame);
     }
@@ -76,7 +76,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     public void troopIdle(AIUnit u) {
         if (facmap.containsKey(u)) {
             if (!factoryIdle(facmap.get(u))){
-                u.wait(command.getCurrentFrame() + 60);
+                u.wait(command.getCurrentFrame() + 30);
                 
             }
         } else {
@@ -91,7 +91,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
      */
     public boolean factoryIdle(Factory fac) {
         //if (!u.getUnit().getCurrentCommands().isEmpty()) throw new AssertionError("Unit not really idle");
-        if (constructorRequests > 0) {
+        if (constructorRequests > 0 && false) {
 
             for (UnitDef ud : fac.getBuildOptions()) {
                 if (!ud.getBuildOptions().isEmpty()) {
@@ -111,10 +111,10 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             float efficiencyMult = 1f / (-Math.min(0, (float) Math.log(unitDensity / targetDensity + 1e-6)) + 1);
             command.debug("Unit density is " + unitDensity + " / " + targetDensity + " -> mult: " + efficiencyMult);
 
-            if (command.economyManager.getRemainingOffenseBudget() > 500 && (lastCaretakerRequest == null || lastCaretakerRequest.getResult() != null)
-                    && command.getCurrentFrame() > 1000) {
+            /*if (command.economyManager.getRemainingOffenseBudget() > 500 && (lastCaretakerRequest == null || lastCaretakerRequest.getResult() != null)
+                    && command.getCurrentFrame() > 30*60*5) {
                 lastCaretakerRequest = command.getBuilderHandler().requestCaretaker(fac.unit.getPos());
-            }
+            }*/
             /*Enemy worst = null;
             float mi = Float.MAX_VALUE;
             for (Enemy e : command.getEnemyUnits(false)) {
@@ -179,12 +179,14 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                         best = sq;
                     }
                 }
+                boolean isStartSquad = false;
                 if (!startsquads.isEmpty()){
                     do {
                         best = startsquads.poll();
+                        isStartSquad = true;
                     }while(best.getRequiredUnits(fac.getBuildOptions()) == null && !startsquads.isEmpty());
                 }
-                if (best != null){
+                if (best != null && (best.getUsefulness() > 0.001f || isStartSquad)){
                     command.debug("Best squad is " + best.getClass().getName());
                     fac.queueUnits(best.getRequiredUnits(fac.getBuildOptions()));
                     float cost = 0;
@@ -196,6 +198,9 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                     return true;
                 }
             }
+        }
+        if (fac.getBuildQueue().isEmpty()){
+            command.debug("Nothing to build in " + fac.unit.getDef().getHumanName());
         }
         return !fac.getBuildQueue().isEmpty();
     }
@@ -262,7 +267,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             }
             if (allMovable) {//is factory
                 //command.debug(ud.getHumanName() + " is a fac");
-                if (ud.getBuildOptions().get(0).getCost(command.metal)>1000) continue; //no strider plop pls
+                if (ud.getBuildOptions().get(0).getCost(command.metal)>900) continue; //no strider plop pls
                 MovementType mt = MovementType.getMovementType(ud.getBuildOptions().get(0));
                 Set<Area> bestset = new HashSet();
                 int bestsize = 0;
@@ -297,6 +302,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
         buildPositions.clear();
         buildPositions.addAll(position);
+        bestFac = clbk.getUnitDefByName("factoryveh"); //hardcode light vehicle factory 
         return bestFac;
     }
 

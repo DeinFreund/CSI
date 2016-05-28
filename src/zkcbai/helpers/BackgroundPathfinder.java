@@ -33,7 +33,7 @@ public class BackgroundPathfinder implements Runnable {
                 PathfinderRequest request = pathfinder.getPathfinderRequests().poll();
                 request.listener.foundPath(pathfinder.findPath(request.start, request.target, request.movementType, request.costs, request.markReachable));
             } catch (Throwable ex) {
-                pathfinder.command.debug("pathfinding error: ", ex);
+                //pathfinder.command.debug("pathfinding error: ", ex);
             }
         }
     }

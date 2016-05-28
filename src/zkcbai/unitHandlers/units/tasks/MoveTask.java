@@ -96,7 +96,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
             updatePath(u);
         }
         if (path == null && requestingPath) {
-            u.wait(command.getCurrentFrame() + 6);
+            u.moveTo(target, command.getCurrentFrame() + 21);
             return false;
         }
         if (errors > 15) {
@@ -169,7 +169,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         requestingPath = false;
         lastPath = command.getCurrentFrame();
         this.path = path;
-        command.debug("path has " + path.size() + " steps");
+        //command.debug("path has " + path.size() + " steps");
         
         if (path.size() <= 1) {
             lastPath = command.getCurrentFrame() - repathTime + 30;

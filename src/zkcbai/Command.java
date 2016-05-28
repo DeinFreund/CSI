@@ -44,6 +44,7 @@ import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.unitHandlers.BuilderHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.NanoHandler;
+import zkcbai.unitHandlers.SlasherHandler;
 import zkcbai.unitHandlers.TurretHandler;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeEnemy;
@@ -57,18 +58,18 @@ public class Command implements AI {
 
     public static final boolean WRITE_LOG = true;
 
-    private final OOAICallback clbk;
-    private final int ownTeamId;
-    public final Resource metal;
-    public final Resource energy;
+    private  OOAICallback clbk;
+    private  int ownTeamId;
+    public  Resource metal;
+    public  Resource energy;
 
-    public final LosManager losManager;
-    public final RadarManager radarManager;
-    public final ZoneManager areaManager;
-    public final DefenseManager defenseManager;
-    public final Pathfinder pathfinder;
-    public final KillCounter killCounter;
-    public final EconomyManager economyManager;
+    public  LosManager losManager;
+    public  RadarManager radarManager;
+    public  ZoneManager areaManager;
+    public  DefenseManager defenseManager;
+    public  Pathfinder pathfinder;
+    public  KillCounter killCounter;
+    public  EconomyManager economyManager;
 
     private final Collection<EnemyEnterRadarListener> enemyEnterRadarListeners = new HashSet<>();
     private final Collection<EnemyEnterLOSListener> enemyEnterLOSListeners = new HashSet<>();
@@ -82,12 +83,13 @@ public class Command implements AI {
     private final Collection<UnitDamagedListener> unitDamagedListeners = new HashSet<>();
     private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap<>();
 
-    private final Collection<CommanderHandler> comHandlers = new HashSet<>();
-    private final FactoryHandler facHandler;
-    private final FighterHandler fighterHandler;
-    private final TurretHandler turretHandler;
-    private final BuilderHandler builderHandler;
-    private final NanoHandler nanoHandler;
+    private  Collection<CommanderHandler> comHandlers = new HashSet<>();
+    private  FactoryHandler facHandler;
+    private  FighterHandler fighterHandler;
+    private  SlasherHandler slasherHandler;
+    private  TurretHandler turretHandler;
+    private  BuilderHandler builderHandler;
+    private  NanoHandler nanoHandler;
 
     private final Map<Integer, AIUnit> units = new HashMap<>();
     private final Map<Integer, Enemy> enemies = new HashMap<>();
@@ -106,18 +108,21 @@ public class Command implements AI {
             metal = clbk.getResources().get(0);
             energy = clbk.getResources().get(1);
             economyManager = new EconomyManager(this, clbk);
-            fighterHandler = new FighterHandler(this, clbk);
-            turretHandler = new TurretHandler(this, clbk);
-            facHandler = new FactoryHandler(this, callback); //req: fighterHandler
             losManager = new LosManager(this, clbk);
             areaManager = new ZoneManager(this, clbk);
             radarManager = new RadarManager(this, clbk);
             defenseManager = new DefenseManager(this, clbk);
             pathfinder = new Pathfinder(this, clbk);
             killCounter = new KillCounter(this, clbk);
+            
+            fighterHandler = new FighterHandler(this, clbk);
+            slasherHandler = new SlasherHandler(this, clbk);
+            turretHandler = new TurretHandler(this, clbk);
+            facHandler = new FactoryHandler(this, callback); //req: fighterHandler
             builderHandler = new BuilderHandler(this, clbk);
             nanoHandler = new NanoHandler(this, clbk);
 
+            
             economyManager.init();
             losManager.init();
             radarManager.init();
@@ -137,7 +142,7 @@ public class Command implements AI {
 
         } catch (Throwable e) {
             debug("Exception in init:", e);
-            throw new RuntimeException();// no point in continuing execution
+            //throw new RuntimeException();// no point in continuing execution
         }
     }
 
@@ -147,6 +152,10 @@ public class Command implements AI {
 
     public BuilderHandler getBuilderHandler() {
         return builderHandler;
+    }
+    
+    public NanoHandler getNanoHandler() {
+        return nanoHandler;
     }
 
     public FighterHandler getFighterHandler() {
@@ -224,11 +233,16 @@ public class Command implements AI {
     int lastRandomEnemyUpdate = -100000;
     List<Enemy> enemyList;
 
+    /**
+     * 
+     * @return null if no enemy known
+     */
     public Enemy getRandomEnemy() {
-        if (getCurrentFrame() - lastRandomEnemyUpdate > 150) {
+        if (getCurrentFrame() - lastRandomEnemyUpdate > 150 || enemyList.isEmpty()) {
             enemyList = new ArrayList(getEnemyUnits(true));
             lastRandomEnemyUpdate = getCurrentFrame();
         }
+        if (enemyList.isEmpty()) return null;
         Enemy randomEnemy;
         do {
             randomEnemy = enemyList.get(random.nextInt(enemyList.size()));
@@ -245,9 +259,21 @@ public class Command implements AI {
      */
     public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
         Set<Enemy> list = new HashSet();
-        /*for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
-         list.add(enemies.get(u.getUnitId()));
-         }*/
+        for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
+            list.add(enemies.get(u.getUnitId()));
+        }
+        return list;
+    }
+    
+    /**
+     * Returns enemy unit in radius that haven't timed out
+     *
+     * @param pos
+     * @param radius
+     * @return
+     */
+    public Set<Enemy> getEnemyUnitsIn_Slow(AIFloat3 pos, float radius) {
+        Set<Enemy> list = new HashSet();
         for (Area a : areaManager.getAreas()) {
             if (a.distanceTo(pos) > radius) {
                 continue;
@@ -263,6 +289,8 @@ public class Command implements AI {
         }
         return list;
     }
+    
+    
 
     public Set<UnitDef> getEnemyUnitDefs() {
         return enemyDefs;
@@ -432,6 +460,7 @@ public class Command implements AI {
                     return 0;
                 }
                 mark(unit.getPos(), "unknown unit");
+                return 0;
             }
             for (UnitDamagedListener listener : unitDamagedListeners) {
                 listener.unitDamaged(def, att, damage);
@@ -666,9 +695,9 @@ public class Command implements AI {
 
                 @Override
                 public void actionPerformed(ActionEvent ae) {
-                    debug("Lagging out, printing stack trace: ");
+                    debug("Lagging out, printing stack trace: ", false);
                     for (StackTraceElement ste : mainThread.getStackTrace()) {
-                        debug(ste.toString());
+                        debug(ste.toString(), false);
                     }
                     mainThread.stop(new RuntimeException("Lockup"));
                 }
@@ -706,11 +735,13 @@ public class Command implements AI {
         } finally {
             timer.stop();
         }
+        
         return 0;
     }
 
     @Override
     public int unitCreated(Unit unit, Unit builderunit) {
+        debug("unit created");
         try {
             AIUnit builder = builderunit == null ? null : units.get(builderunit.getUnitId());
 
@@ -723,11 +754,13 @@ public class Command implements AI {
             debug("Exception in unitCreated: ", e);
 
         }
+        debug("unit created finished");
         return 0;
     }
 
     @Override
     public int unitFinished(Unit unit) {
+        debug("unit finished");
         try {
 //            debug("IDLEBUG finished " + unit.getUnitId());
             if (startPos == null) {
@@ -752,6 +785,10 @@ public class Command implements AI {
                         } else {
                             aiunit = builderHandler.addUnit(unit);
                         }
+                        break;
+                    }
+                    if (unit.getDef().getName().equalsIgnoreCase("cormist")){
+                        aiunit = slasherHandler.addUnit(unit);
                         break;
                     }
                     if (unit.getDef().isAbleToAttack() && unit.getDef().getSpeed() > 0) {
@@ -802,6 +839,7 @@ public class Command implements AI {
         } catch (Throwable e) {
             debug("Exception in unitFinished: ", e);
         }
+        debug("unit finished finished");
         return 0;
 
     }
@@ -831,8 +869,12 @@ public class Command implements AI {
         }
     }
 
-    public void debug(String s) {
-        clbk.getGame().sendTextMessage(s, 0);
+    public synchronized void debug(String s) {
+        debug(s, true);
+    }
+    
+    public synchronized void debug(String s, boolean intoInfolog) {
+        if (intoInfolog) clbk.getGame().sendTextMessage(s, 0);
         if (!WRITE_LOG) {
             return;
         }
@@ -843,7 +885,7 @@ public class Command implements AI {
                 }
                 debugWriter = new PrintWriter(new BufferedWriter(new FileWriter("CSI.log", true)));
             }
-            debugWriter.println(s);
+            debugWriter.println("[" + String.format("%06d", getCurrentFrame()) +"] " + s);
             debugWriter.flush();
 
         } catch (IOException e) {
@@ -857,7 +899,7 @@ public class Command implements AI {
         debug("add mark at " + pos.toString() + ": " + s);
     }
 
-    private final float mexradius;
+    private float mexradius;
 
     public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing) {
         boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
@@ -873,7 +915,7 @@ public class Command implements AI {
             }
         }
         for (AIUnit au : facHandler.getUnits()) {
-            if (au.distanceTo(pos) < au.getDef().getRadius() * 1.7 + building.getRadius() * 1.5) {
+            if (au.distanceTo(pos) < 200 + building.getRadius() * 1.5) {
                 return false;
             }
         }

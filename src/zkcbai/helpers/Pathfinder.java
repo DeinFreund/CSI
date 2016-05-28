@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
 import zkcbai.Command;
 import static zkcbai.helpers.Helper.command;
 import zkcbai.helpers.ZoneManager.Area;
@@ -84,7 +85,7 @@ public class Pathfinder extends Helper {
         return findPath(start, target, maxSlope, FAST_PATH).size() > 1;
     }
 
-    private Queue<PathfinderRequest> requests = new LinkedList<>();
+    private Queue<PathfinderRequest> requests = new LinkedBlockingQueue<>();
 
     public Queue<PathfinderRequest> getPathfinderRequests() {
         return requests;
@@ -144,6 +145,7 @@ public class Pathfinder extends Helper {
      *
      */
     public void requestPath(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs, boolean markReachable, PathfindingCompleteListener listener) {
+        //listener.foundPath(findPath(start, target, mt, costs, markReachable));
         requests.add(new PathfinderRequest(start, target, mt, costs, markReachable, listener));
     }
 

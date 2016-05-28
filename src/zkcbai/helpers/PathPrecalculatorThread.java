@@ -64,7 +64,7 @@ public class PathPrecalculatorThread implements Runnable {
         }
         try {
             while (!countdown.await(25, TimeUnit.MILLISECONDS)) {
-                pnl.updateUI();
+                if (pnl != null) pnl.updateUI();
             }
         } catch (InterruptedException ex) {
             command.debug("Exception while calculating paths ", ex);
@@ -115,7 +115,7 @@ public class PathPrecalculatorThread implements Runnable {
 
             };
             float[] minCost = new float[slopeMap.length];
-            command.debug("Initialized thread " + offset);
+            command.debug("Initialized thread " + offset, false);
             while (index < myTasks.length) {
                 //command.debug("thread " + offset + ": " + index);
                 long time = System.nanoTime();
@@ -203,7 +203,7 @@ public class PathPrecalculatorThread implements Runnable {
                 loopcounter += System.nanoTime() - time;
             }
 
-            command.debug("Thread " + offset + " finished queueing " + (initcounter / 1e9) + " - " + (loopcounter / 1e9));
+            command.debug("Thread " + offset + " finished queueing " + (initcounter / 1e9) + " - " + (loopcounter / 1e9), false);
             queuingDone.countDown();
             queuingDone.await();
             int sum = 0;

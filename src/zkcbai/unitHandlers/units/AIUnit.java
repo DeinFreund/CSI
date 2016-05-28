@@ -96,7 +96,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public List<AIUnit> getUnits() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         List<AIUnit> res = new ArrayList();
         res.add(this);
@@ -156,14 +157,16 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public UnitDef getDef() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         return unit.getDef();
     }
 
     public UnitType getType() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (unit.getDef().getName().equalsIgnoreCase("armpw")) {
             return UnitType.raider;
@@ -213,7 +216,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
      * @param damage float representing absolute damage
      */
     public void damaged(Enemy attacker, float damage) {
-        if (autoRepair && getUnit().getHealth() / getDef().getHealth() < repairPercentage && getUnit().getHealth() < repairHP) {
+        if (autoRepair && getUnit().getHealth() / getDef().getHealth() < repairPercentage && getUnit().getHealth() < repairHP && !isBuilding()) {
             needRepairs = true;
             preRepairTask = task;
             repairTask = getCommand().getBuilderHandler().requestRepairs(this);
@@ -224,7 +227,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     public void checkIdle() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (handler instanceof DevNullHandler) {
             return;
@@ -256,7 +260,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void idle() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (handler.getCommand() == null) {
             return;
@@ -294,7 +299,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     public void moveFailed() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (task != null) {
             task.moveFailed(this);
@@ -307,7 +313,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public float getEfficiencyAgainst(Enemy e) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         return getEfficiencyAgainst(e.getDef());
     }
@@ -315,7 +322,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public float getEfficiencyAgainst(UnitDef ud) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         return handler.getCommand().killCounter.getEfficiency(unit.getDef(), ud);
     }
@@ -323,14 +331,16 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public AIFloat3 getPos() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         return new AIFloat3(unit.getPos());
     }
 
     public Unit getUnit() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         return unit;
     }
@@ -348,7 +358,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void moveTo(AIFloat3 trg, short options, int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
@@ -368,7 +379,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void attack(Unit trg, short options, int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         //handler.getCommand().mark(trg, "move");
         if (timeout < 0) {
@@ -389,7 +401,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void repair(Unit trg, short options, int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
@@ -409,7 +422,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void patrolTo(AIFloat3 trg, short options, int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
@@ -428,7 +442,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void wait(int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         //handler.getCommand().mark(trg, "fight");
         if (timeout < 0) {
@@ -448,7 +463,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void fight(AIFloat3 trg, short options, int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
@@ -470,7 +486,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void attackGround(AIFloat3 trg, short options, int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
@@ -496,7 +513,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         //handler.getCommand().mark(trg, "build " + building.getHumanName());
         if (timeout < 0) {
@@ -517,7 +535,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public void setTarget(int targetUnitId) {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         List<Float> list = new ArrayList();
         list.add((float) targetUnitId);
@@ -529,7 +548,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public float getMaxRange() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         return unit.getMaxRange();
     }
@@ -537,14 +557,16 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     @Override
     public float getMaxSlope() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         return unit.getDef().getMoveData().getMaxSlope();
     }
 
     public float getMakesEnergy() {
         if (dead) {
-            throw new RuntimeException("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
         }
         if (getDef().getName().contains("com")) {
             return 6;

@@ -217,7 +217,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     List<String> errorMessages = new ArrayList();
 
     public boolean isDone() {
-        return resultFinished;
+        return resultFinished || aborted;
     }
 
     public boolean isAborted() {
@@ -401,7 +401,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void cancel() {
-
+        aborted = true;
         cleanup();
     }
 
