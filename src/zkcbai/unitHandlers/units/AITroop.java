@@ -63,8 +63,13 @@ public abstract class AITroop {
 
     public float getMetalCost() {
         float res = 0;
-        for (AIUnit u : getUnits()) {
-            res += u.getDef().getCost(handler.getCommand().metal);
+        for (AIUnit u : getUnits().toArray(new AIUnit[0])) {
+            if (u.getDef() != null){
+                res += u.getDef().getCost(handler.getCommand().metal);
+            }else{
+                handler.getCommand().debug("Requested MetalCost but UnitDef is null");
+                handler.getCommand().unitDestroyed(u.getUnit(), null);
+            }
         }
         return res;
     }
@@ -205,6 +210,10 @@ public abstract class AITroop {
     public void repair(Unit trg, int timeout) {
         repair(trg, OPTION_NONE, timeout);
     }
+    
+    public void reclaimArea(AIFloat3 pos, float radius, int timeout){
+        reclaimArea(pos, radius, OPTION_NONE, timeout);
+    }
 
     public void build(UnitDef building, int facing, AIFloat3 trg, int timeout) {
         build(building, facing, trg, OPTION_NONE, timeout);
@@ -221,6 +230,8 @@ public abstract class AITroop {
     public abstract void attack(Unit trg, short options, int timeout);
 
     public abstract void repair(Unit trg, short options, int timeout);
+    
+    public abstract void reclaimArea(AIFloat3 pos, float radius, short options, int timeout);
 
     public abstract void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout);
 

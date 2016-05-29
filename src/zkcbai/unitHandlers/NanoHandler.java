@@ -7,6 +7,8 @@ package zkcbai.unitHandlers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
+import java.util.HashSet;
+import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
 import zkcbai.unitHandlers.FactoryHandler.Factory;
@@ -23,7 +25,7 @@ import zkcbai.unitHandlers.units.tasks.Task;
  */
 public class NanoHandler extends UnitHandler implements UpdateListener {
 
-    BuildTask nanoTask = null;
+    Set<BuildTask> nanoTasks = new HashSet<>();
 
     public NanoHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
@@ -88,9 +90,14 @@ public class NanoHandler extends UnitHandler implements UpdateListener {
     @Override
     public void update(int frame) {
 
-        if (aiunits.size() * 10 + 15 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome) && (nanoTask == null || nanoTask.isAborted() || nanoTask.isDone())) {
-            nanoTask = command.getBuilderHandler().requestCaretaker(command.getFactoryHandler().getFacs().toArray(new Factory[0])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos());
-
+        for (BuildTask bt : nanoTasks.toArray(new BuildTask[0])){
+            if (bt.isAborted() || bt.isDone()){
+                nanoTasks.remove(bt);
+            }
+        }
+        if ((aiunits.size() + nanoTasks.size()) * 10 + 15 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome) ) {
+            nanoTasks.add(command.getBuilderHandler().requestCaretaker(command.getFactoryHandler().getFacs().toArray(new Factory[0])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
+            command.debug(nanoTasks.size() + " Caretakers under construction");
         }
 
         command.addSingleUpdateListener(this, frame + 15);

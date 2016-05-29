@@ -128,7 +128,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         return false;
     }
 
-    private AIFloat3 randomize(AIFloat3 f, float amt) {
+    public static AIFloat3 randomize(AIFloat3 f, float amt) {
         return new AIFloat3(f.x + rnd.nextFloat() * amt - amt / 2, f.y + rnd.nextFloat() * amt - amt / 2, f.z + rnd.nextFloat() * amt - amt / 2);
     }
 

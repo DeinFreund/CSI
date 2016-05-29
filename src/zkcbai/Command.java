@@ -49,6 +49,8 @@ import zkcbai.unitHandlers.TurretHandler;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeEnemy;
 import zkcbai.unitHandlers.units.FakeMex;
+import zkcbai.unitHandlers.units.FakeSlasher;
+import zkcbai.unitHandlers.units.tasks.BuildTask;
 
 /**
  *
@@ -56,20 +58,20 @@ import zkcbai.unitHandlers.units.FakeMex;
  */
 public class Command implements AI {
 
-    public static final boolean WRITE_LOG = true;
+    public static final boolean LOG_TO_INFOLOG = false;
 
-    private  OOAICallback clbk;
-    private  int ownTeamId;
-    public  Resource metal;
-    public  Resource energy;
+    private OOAICallback clbk;
+    private int ownTeamId;
+    public Resource metal;
+    public Resource energy;
 
-    public  LosManager losManager;
-    public  RadarManager radarManager;
-    public  ZoneManager areaManager;
-    public  DefenseManager defenseManager;
-    public  Pathfinder pathfinder;
-    public  KillCounter killCounter;
-    public  EconomyManager economyManager;
+    public LosManager losManager;
+    public RadarManager radarManager;
+    public ZoneManager areaManager;
+    public DefenseManager defenseManager;
+    public Pathfinder pathfinder;
+    public KillCounter killCounter;
+    public EconomyManager economyManager;
 
     private final Collection<EnemyEnterRadarListener> enemyEnterRadarListeners = new HashSet<>();
     private final Collection<EnemyEnterLOSListener> enemyEnterLOSListeners = new HashSet<>();
@@ -83,18 +85,19 @@ public class Command implements AI {
     private final Collection<UnitDamagedListener> unitDamagedListeners = new HashSet<>();
     private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap<>();
 
-    private  Collection<CommanderHandler> comHandlers = new HashSet<>();
-    private  FactoryHandler facHandler;
-    private  FighterHandler fighterHandler;
-    private  SlasherHandler slasherHandler;
-    private  TurretHandler turretHandler;
-    private  BuilderHandler builderHandler;
-    private  NanoHandler nanoHandler;
+    private Collection<CommanderHandler> comHandlers = new HashSet<>();
+    private FactoryHandler facHandler;
+    private FighterHandler fighterHandler;
+    private SlasherHandler slasherHandler;
+    private TurretHandler turretHandler;
+    private BuilderHandler builderHandler;
+    private NanoHandler nanoHandler;
 
     private final Map<Integer, AIUnit> units = new HashMap<>();
     private final Map<Integer, Enemy> enemies = new HashMap<>();
     private final Set<UnitDef> enemyDefs = new HashSet<>();
     private final Set<FakeEnemy> fakeEnemies = new HashSet<>();
+    private final Map<BuildTask, Area> buildTasks = new HashMap<>();
     private final TreeMap<Float, UnitDef> defSpeedMap = new TreeMap<>();
 
     private int frame;
@@ -114,7 +117,7 @@ public class Command implements AI {
             defenseManager = new DefenseManager(this, clbk);
             pathfinder = new Pathfinder(this, clbk);
             killCounter = new KillCounter(this, clbk);
-            
+
             fighterHandler = new FighterHandler(this, clbk);
             slasherHandler = new SlasherHandler(this, clbk);
             turretHandler = new TurretHandler(this, clbk);
@@ -122,7 +125,6 @@ public class Command implements AI {
             builderHandler = new BuilderHandler(this, clbk);
             nanoHandler = new NanoHandler(this, clbk);
 
-            
             economyManager.init();
             losManager.init();
             radarManager.init();
@@ -137,6 +139,7 @@ public class Command implements AI {
             for (String s : importantSpeedDefs) {
                 defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
             }
+            //clbk.getGame().sendStartPosition(true, new  AIFloat3(5588, 0 , 1100));
             debug(clbk.getUnitDefByName("armcom1").getSpeed());
             debug("ZKCBAI successfully initialized.");
 
@@ -153,7 +156,7 @@ public class Command implements AI {
     public BuilderHandler getBuilderHandler() {
         return builderHandler;
     }
-    
+
     public NanoHandler getNanoHandler() {
         return nanoHandler;
     }
@@ -234,7 +237,7 @@ public class Command implements AI {
     List<Enemy> enemyList;
 
     /**
-     * 
+     *
      * @return null if no enemy known
      */
     public Enemy getRandomEnemy() {
@@ -242,7 +245,9 @@ public class Command implements AI {
             enemyList = new ArrayList(getEnemyUnits(true));
             lastRandomEnemyUpdate = getCurrentFrame();
         }
-        if (enemyList.isEmpty()) return null;
+        if (enemyList.isEmpty()) {
+            return null;
+        }
         Enemy randomEnemy;
         do {
             randomEnemy = enemyList.get(random.nextInt(enemyList.size()));
@@ -259,12 +264,14 @@ public class Command implements AI {
      */
     public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
         Set<Enemy> list = new HashSet();
-        for (Unit u : clbk.getEnemyUnitsIn(pos, radius)){
-            list.add(enemies.get(u.getUnitId()));
+        for (Unit u : clbk.getEnemyUnitsIn(pos, radius)) {
+            if (enemies.containsKey(u.getUnitId())) {
+                list.add(enemies.get(u.getUnitId()));
+            }
         }
         return list;
     }
-    
+
     /**
      * Returns enemy unit in radius that haven't timed out
      *
@@ -289,8 +296,6 @@ public class Command implements AI {
         }
         return list;
     }
-    
-    
 
     public Set<UnitDef> getEnemyUnitDefs() {
         return enemyDefs;
@@ -451,6 +456,13 @@ public class Command implements AI {
     public synchronized int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
             Enemy att = null;
+            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn_Slow(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01){
+                AIFloat3 npos = new AIFloat3(unit.getPos());
+                dir.normalize();
+                dir.scale(400);
+                npos.add(dir);
+                addFakeEnemy(new FakeSlasher(npos, this, clbk));
+            }
             if (attacker != null) {
                 att = enemies.get(attacker.getUnitId());
             }
@@ -460,6 +472,7 @@ public class Command implements AI {
                     return 0;
                 }
                 mark(unit.getPos(), "unknown unit");
+                if (unit.getDef() != null && unit.getHealth() > 0f) unitFinished(unit);
                 return 0;
             }
             for (UnitDamagedListener listener : unitDamagedListeners) {
@@ -676,6 +689,7 @@ public class Command implements AI {
             if (!units.containsKey(unit.getUnitId())) {
                 mark(unit.getPos(), "zombie?");
                 debug("zombie " + unit.getUnitId());
+                if (unit.getDef() != null && unit.getHealth() > 0) unitFinished(unit);
                 return 0;
             }
             units.get(unit.getUnitId()).idle();
@@ -735,7 +749,7 @@ public class Command implements AI {
         } finally {
             timer.stop();
         }
-        
+
         return 0;
     }
 
@@ -787,7 +801,7 @@ public class Command implements AI {
                         }
                         break;
                     }
-                    if (unit.getDef().getName().equalsIgnoreCase("cormist")){
+                    if (unit.getDef().getName().equalsIgnoreCase("cormist")) {
                         aiunit = slasherHandler.addUnit(unit);
                         break;
                     }
@@ -872,11 +886,10 @@ public class Command implements AI {
     public synchronized void debug(String s) {
         debug(s, true);
     }
-    
+
     public synchronized void debug(String s, boolean intoInfolog) {
-        if (intoInfolog) clbk.getGame().sendTextMessage(s, 0);
-        if (!WRITE_LOG) {
-            return;
+        if (intoInfolog && LOG_TO_INFOLOG) {
+            clbk.getGame().sendTextMessage(s, 0);
         }
         try {
             if (debugWriter == null) {
@@ -885,7 +898,7 @@ public class Command implements AI {
                 }
                 debugWriter = new PrintWriter(new BufferedWriter(new FileWriter("CSI.log", true)));
             }
-            debugWriter.println("[" + String.format("%06d", getCurrentFrame()) +"] " + s);
+            debugWriter.println("[" + String.format("%06d", getCurrentFrame()) + "] " + s);
             debugWriter.flush();
 
         } catch (IOException e) {
@@ -899,12 +912,43 @@ public class Command implements AI {
         debug("add mark at " + pos.toString() + ": " + s);
     }
 
+    public void registerBuildTask(BuildTask bt) {
+        if (bt == null) throw new NullPointerException("BuildTask is null");
+        buildTasks.put(bt, areaManager.getArea(bt.getPos()));
+        buildTasks.get(bt).getBuildTasks().add(bt);
+        if (buildTasks.size() > 50) {
+            debug(buildTasks.size() + " BuildTasks registered");
+        }
+    }
+
+    public void clearBuildTask(BuildTask bt) {
+        if (!buildTasks.containsKey(bt)) {
+            debug("Unregistered BuildTask for " + bt.getBuilding().getHumanName());
+            return;
+        }
+        buildTasks.get(bt).getBuildTasks().remove(bt);
+        buildTasks.remove(bt);
+    }
+
     private float mexradius;
 
     public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing) {
         boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
         if (!ret || building.getName().equalsIgnoreCase("cormex")) {
             return ret;
+        }
+        List<BuildTask> outdated = new ArrayList();
+        for (BuildTask bt : areaManager.getArea(pos).getNearbyBuildTasks()) {
+            if (bt.isBeingWorkedOn(getCurrentFrame() - 30 * 60 * 5)) {
+                if (distance2D(bt.getPos(), pos) < bt.getBuilding().getRadius() + building.getRadius() + 50) {
+                    return false;
+                }
+            } else {
+                outdated.add(bt);
+            }
+        }
+        for (BuildTask bt : outdated) {
+            buildTasks.remove(bt);
         }
         //debug(areaManager.getMexes().size() + " mexes");
         float mindist = Float.MAX_VALUE;

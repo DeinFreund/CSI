@@ -102,7 +102,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             }
         }
 
-        if (command.economyManager.getRemainingOffenseBudget() > 0) {
+        if (command.economyManager.getRemainingOffenseBudget() > 0 || clbk.getEconomy().getCurrent(command.metal) > 250) {
 
             float unitDensity = 1000000 * command.getFighterHandler().getFighters().size()
                     / command.getCallback().getMap().getWidth() * command.getCallback().getMap().getHeight();

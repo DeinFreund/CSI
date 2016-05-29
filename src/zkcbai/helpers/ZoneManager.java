@@ -387,6 +387,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             if (!own.isBuilding()) {
                 value /= 3f;
             }
+            if (own.getDef().getName().contains("factory")) {
+                value = 1500;
+            }
             if (own.getDef().getName().equalsIgnoreCase("cormex")) {
                 value = 600;
             }
@@ -540,6 +543,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         private float flow = 0;
         private float negativeFlow = 0;
         private float positiveFlow = 0;
+        private HashSet<BuildTask> buildTasks = new HashSet<>();
 
         public Area(int x, int y, int index) {
             this.x = x;
@@ -593,6 +597,18 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         public float getPositiveFlow() {
             return positiveFlow;
+        }
+        
+        public Set<BuildTask> getBuildTasks(){
+            return buildTasks;
+        }
+        
+        public Collection<BuildTask> getNearbyBuildTasks(){
+            Collection<BuildTask> nearby = new ArrayList<>();
+            for (Area a : getNeighbours()){
+                nearby.addAll(a.getBuildTasks());
+            }
+            return nearby;
         }
 
         public Collection<Connection> getConnections(MovementType mt) {
@@ -1271,13 +1287,13 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         public BuildTask createBuildTask(TaskIssuer t) {
             if (getBuildTask() == null && command.isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0)) {
-                buildTask = new BuildTask(clbk.getUnitDefByName("cormex"), pos, t, clbk, command, 0);
+                buildTask = new BuildTask(clbk.getUnitDefByName("cormex"), pos, 0, t, clbk, command);
                 buildTask.setInfo("mex");
             }
             if (buildTask == null) {
-                for (Unit u : clbk.getFriendlyUnitsIn(pos, 50)) {
+                /*for (Unit u : clbk.getFriendlyUnitsIn(pos, 50)) {
                     u.selfDestruct((short) 0, Integer.MAX_VALUE);
-                }
+                }*/
             }
             return buildTask;
         }

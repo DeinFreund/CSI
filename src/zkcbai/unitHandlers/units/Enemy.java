@@ -221,7 +221,7 @@ public class Enemy implements UpdateListener {
         if (!alive) {
             polledDead();
         }
-        return timeSinceLastSeen() > 1000 * 100 / Math.max(getDef().getSpeed(), 0.1);
+        return timeSinceLastSeen() > 1500 * 100 / Math.max(getDef().getSpeed(), 0.1);
     }
 
     @Override

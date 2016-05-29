@@ -90,6 +90,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     }
 
     public boolean isBuilding() {
+        if (getDef() == null) return false;
         return getDef().getSpeed() < 0.1f;
     }
 
@@ -122,8 +123,11 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
                     best = au;
                 }
             }
-            if (best.distanceTo(getPos()) < 200) retreatTask = new WaitTask(getCommand().getCurrentFrame() + 30, this);
-            else retreatTask = (new MoveTask(best.getPos(),getCommand().getCurrentFrame() + 30, this, getCommand()));
+            if (best.distanceTo(getPos()) < 200) {
+                retreatTask = new WaitTask(getCommand().getCurrentFrame() + 30, this);
+            } else {
+                retreatTask = (new MoveTask(best.getPos(), getCommand().getCurrentFrame() + 30, this, getCommand()));
+            }
         } else {
 
             ZoneManager.Area safe = getCommand().areaManager.getArea(getPos()).getNearestArea(new AreaChecker() {
@@ -192,7 +196,9 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
      * @return whether unit still needs repairs
      */
     public boolean repaired() {
-        if (!needRepairs) return true;
+        if (!needRepairs) {
+            return true;
+        }
         if (getUnit().getHealth() / getDef().getHealth() > 0.99f) {
             needRepairs = false;
             if (preRepairTask != null) {
@@ -270,6 +276,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             if (distanceTo(au.getPos()) < 70 && getDef().getSpeed() > 0) {
                 AIFloat3 npos = new AIFloat3(au.getPos());
                 npos.x += 350;
+                npos = MoveTask.randomize(npos, 150);
                 moveTo(npos, getCommand().getCurrentFrame() + 100);
                 return;
             }
@@ -366,7 +373,12 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         }
         lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
-        unit.moveTo(trg, options, Integer.MAX_VALUE);
+        try {
+            unit.moveTo(trg, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -388,7 +400,12 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         }
         lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
-        unit.attack(trg, options, Integer.MAX_VALUE);
+        try {
+            unit.attack(trg, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -409,7 +426,38 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         }
         lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
-        unit.repair(trg, options, Integer.MAX_VALUE);
+        try {
+            unit.repair(trg, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+                //handler.getCommand().debug("set wakeUpFrame to " + wakeUpFrame);
+            }
+        }
+    }
+
+    @Override
+    public void reclaimArea(AIFloat3 pos, float radius, short options, int timeout) {
+        if (dead) {
+            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        lastCommandTime = handler.getCommand().getCurrentFrame();
+        areaManager.executedCommand();
+        try {
+            unit.reclaimInArea(pos, radius, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -430,7 +478,12 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         }
         lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
-        unit.patrolTo(trg, options, Integer.MAX_VALUE);
+        try {
+            unit.patrolTo(trg, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -474,7 +527,12 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         }
         lastCall = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
-        unit.fight(trg, options, Integer.MAX_VALUE);
+        try {
+            unit.fight(trg, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -482,7 +540,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             }
         }
     }
-    
+
     @Override
     public void attackGround(AIFloat3 trg, short options, int timeout) {
         if (dead) {
@@ -501,7 +559,12 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         floats.add(trg.x);
         floats.add(trg.y);
         floats.add(trg.z);
-        unit.executeCustomCommand(20, floats, options, Integer.MAX_VALUE);
+        try {
+            unit.executeCustomCommand(20, floats, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -522,7 +585,12 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         }
         lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
-        unit.build(building, trg, facing, options, Integer.MAX_VALUE);
+        try {
+            unit.build(building, trg, facing, options, Integer.MAX_VALUE);
+        } catch (Exception ex) {
+            handler.getCommand().debug("AIUnit exception: ", ex);
+            handler.getCommand().unitDestroyed(unit, null);
+        }
 
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
@@ -542,8 +610,6 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         list.add((float) targetUnitId);
         unit.executeCustomCommand(34923, list, OPTION_NONE, lastIdle);
     }
-    
-   
 
     @Override
     public float getMaxRange() {
@@ -568,6 +634,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             handler.getCommand().debug("polled dead aiunit " + unitId);
             handler.getCommand().unitDestroyed(unit, null);
         }
+        if (getDef() == null) return 0f;
         if (getDef().getName().contains("com")) {
             return 6;
         }

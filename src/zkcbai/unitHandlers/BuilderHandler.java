@@ -1,6 +1,7 @@
 package zkcbai.unitHandlers;
 
 import com.springrts.ai.oo.AIFloat3;
+import com.springrts.ai.oo.clb.Feature;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
@@ -37,6 +38,7 @@ import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.BuildTask;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
+import zkcbai.unitHandlers.units.tasks.ReclaimTask;
 import zkcbai.unitHandlers.units.tasks.RepairTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 import zkcbai.utility.Pair;
@@ -188,11 +190,27 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if (u.equals(rt.getTarget())) {
                 continue;
             }
-            float score = -u.distanceTo(rt.getTarget().getPos()) - rt.getWorkers().size() * 500 - command.areaManager.getArea(rt.getTarget().getPos()).getDanger() * 0.1000f;
+            float score = -u.distanceTo(rt.getTarget().getPos()) / 3f - rt.getWorkers().size() * 500 - command.areaManager.getArea(rt.getTarget().getPos()).getDanger() * 0.1000f;
 
             if (best == null || score > bestscore) {
                 bestscore = score;
                 best = rt;
+            }
+        }
+        for (Feature f : clbk.getFeaturesIn(u.getPos(), 1800)){
+            if (!reachable.contains(command.areaManager.getArea(f.getPosition()))) {
+                continue;
+            }
+            if (command.areaManager.getArea(f.getPosition()).getZone() != Zone.own) {
+                continue;
+            }
+            if (f.getReclaimLeft() < 10 || f.getDef().getContainedResource(command.metal) < 10){
+                continue;
+            }
+            float score = -u.distanceTo(f.getPosition()) + f.getReclaimLeft() - 100;
+            if (best == null || score > bestscore) {
+                bestscore = score;
+                best = new ReclaimTask(f, this, command);
             }
         }
         if (best != null) {
@@ -432,7 +450,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     pos.add(edge.end.pos);
                     pos.scale(0.5f);
                     if (!command.isPossibleToBuildAt(building, pos, 0)) {
-                        pos.set(BuildTask.findClosestBuildSite(building, pos, 3, 0, command));
+                        pos.set(BuildTask.findClosestBuildSite(building, pos, 3, 0, command, true));
                     }
 
                     if (command.isPossibleToBuildAt(building, pos, 0)
@@ -458,7 +476,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
                         @Override
                         public boolean checkArea(ZoneManager.Area a) {
-                            AIFloat3 bpos = BuildTask.findClosestBuildSite(building, a.getPos(), 3, 0, command);
+                            AIFloat3 bpos = BuildTask.findClosestBuildSite(building, a.getPos(), 3, 0, command, true);
                             return a.isReachable() && command.isPossibleToBuildAt(building, bpos, 0)
                                     && Command.distance2D(bpos, edge.start.pos) < 0.92 * (edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange")));
                         }
@@ -466,7 +484,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     if (buildArea == null) {
                         continue;
                     }
-                    AIFloat3 bpos = BuildTask.findClosestBuildSite(building, buildArea.getPos(), 3, 0, command);
+                    AIFloat3 bpos = BuildTask.findClosestBuildSite(building, buildArea.getPos(), 3, 0, command, true);
                     float efficiency = distance(bpos, edge.start.pos) / (edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange")));
                     if (pos.x > 0 && distance(bpos, edge.start.pos) < edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange"))
                             && //has to reduce distance between circles(greedy):
@@ -497,6 +515,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
             buildTask = new BuildTask(best.building, best.pos, 0, this, clbk, command);
             buildTask.setInfo("new");
+            command.registerBuildTask(buildTask);
         } else {
             //command.debug("No build possibility found for energy!");
         }
@@ -588,10 +607,11 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     public BuildTask requestCaretaker(AIFloat3 pos) {
         BuildTask bt;
         if (command.getNanoHandler().getUnits().size() > command.getFactoryHandler().getUnits().size() * 4){
-            bt = new BuildTask(command.getCallback().getUnitDefByName("factoryveh"), new AIFloat3(pos.x + 250, pos.y, pos.z), this, clbk, command, 7);
+            bt = new BuildTask(command.getCallback().getUnitDefByName("factoryveh"), new AIFloat3(pos.x + 250, pos.y, pos.z), this, clbk, command, 7, true);
         }else{
-            bt = new BuildTask(command.getCallback().getUnitDefByName("armnanotc"), pos, this, clbk, command, 7);
+            bt = new BuildTask(command.getCallback().getUnitDefByName("armnanotc"), pos, this, clbk, command, 7, true);
         }
+        command.registerBuildTask(bt);
         bt.setInfo("nano");
         constructions.add(bt);
         return bt;
@@ -627,8 +647,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
          }
          });
          }*/
-        BuildTask bt = new BuildTask(command.getCallback().getUnitDefByName("corrad"), pos, this, clbk, command, 4, 300);
+        BuildTask bt = new BuildTask(command.getCallback().getUnitDefByName("corrad"), pos, this, clbk, command, 4, 300, true);
         bt.setInfo("radar");
+        command.registerBuildTask(bt);
         constructions.add(bt);
         buildingRadar = true;
         time = System.currentTimeMillis() - time;
@@ -700,9 +721,10 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         for (Factory fac : unprotectedFacs) {
-            BuildTask bt = new BuildTask(llt, fac.unit.getPos(), this, clbk, command, 5);
+            BuildTask bt = new BuildTask(llt, fac.unit.getPos(), this, clbk, command, 5, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("fac llt");
+            command.registerBuildTask(bt);
             constructions.add(bt);
             this.defenseNodes.add(gn);
             taskDefenseNodeFinder.put(bt.getTaskId(), gn);
@@ -719,9 +741,10 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         if (worst != null) {
-            BuildTask bt = new BuildTask(defender, worst.getPos(), this, clbk, command, 5, 400);
+            BuildTask bt = new BuildTask(defender, worst.getPos(), this, clbk, command, 5, 400, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("front defender");
+            command.registerBuildTask(bt);
             constructions.add(bt);
             this.defenseNodes.add(gn);
             taskDefenseNodeFinder.put(bt.getTaskId(), gn);
@@ -836,8 +859,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         planQueue.clear();
         if (energyIncome > fusions * 90 + 40) {
             fusions++;
-            BuildTask bt = new BuildTask(clbk.getUnitDefByName("armfus"), command.getFactoryHandler().getFacs().iterator().next().unit.getPos(), this, clbk, command, 5);
+            BuildTask bt = new BuildTask(clbk.getUnitDefByName("armfus"), command.getFactoryHandler().getFacs().iterator().next().unit.getPos(), this, clbk, command, 5, true);
             GridNode gn = new GridNode(bt);
+            command.registerBuildTask(bt);
             constructions.add(bt);
             this.gridNodes.add(gn);
             taskGridNodeFinder.put(bt.getTaskId(), gn);
@@ -928,7 +952,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         long time2 = System.currentTimeMillis();
-        if (time2 - time > 4000) {
+        if (time2 - time > 400) {
             if (PLANNING > MIN_PLANNING) {
                 PLANNING -= 3;
             } else {

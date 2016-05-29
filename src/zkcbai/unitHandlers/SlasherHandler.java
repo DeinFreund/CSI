@@ -117,7 +117,7 @@ public class SlasherHandler extends UnitHandler implements UpdateListener {
             }
             Random rnd = new Random();
             int smart = 0;
-            for (AIUnit slasher : aiunits.values()) {
+            for (AIUnit slasher : aiunits.values().toArray(new AIUnit[0])) {
 
                 if (System.currentTimeMillis() - time < 180) {
                     smart ++;
@@ -132,8 +132,8 @@ public class SlasherHandler extends UnitHandler implements UpdateListener {
                         }
                     }
                     if (closestEnemy != null) {
-                        if (closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || closestEnemy.getDef().getName().equalsIgnoreCase("armsolar")
-                                || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor")) {
+                        if ((closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || closestEnemy.getDef().getName().equalsIgnoreCase("armsolar")
+                                || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor") || rnd.nextInt(8) < 1) && closestEnemy.getUnit() != null) {
                             slasher.attack(closestEnemy.getUnit(), command.getCurrentFrame() + 100);
                         } else {
                             slasher.fight(closestEnemy.getPos(), command.getCurrentFrame() + 100);

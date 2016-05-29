@@ -52,7 +52,7 @@ public class CCRSquad extends SquadManager {
         required.add(clbk.getUnitDefByName("cormist"));
         required.add(clbk.getUnitDefByName("cormist"));
         required.add(clbk.getUnitDefByName("cormist"));
-        required.add(clbk.getUnitDefByName("corned"));
+        if (command.getBuilderHandler().getBuilders().size() < 20) required.add(clbk.getUnitDefByName("corned"));
         
         return required;
     }

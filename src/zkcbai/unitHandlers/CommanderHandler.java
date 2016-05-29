@@ -69,7 +69,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
                     AIFloat3 bpos = clbk.getMap().findClosestBuildSite(fac, a.getPos(), 1000, 0, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0);
                     return command.isPossibleToBuildAt(fac, bpos, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0) && facareas.contains(a);
                 }
-            }).getPos(), this, clbk, command,0).setInfo("plop"));
+            }).getPos(), this, clbk, command,0, false).setInfo("plop"));
 
             lastBuildTask = com.getTask();
         } else {
