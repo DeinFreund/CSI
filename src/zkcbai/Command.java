@@ -908,7 +908,7 @@ public class Command implements AI {
     }
 
     public void mark(AIFloat3 pos, String s) {
-        clbk.getMap().getDrawer().addPoint(pos, s);
+        if (LOG_TO_INFOLOG) clbk.getMap().getDrawer().addPoint(pos, s);
         debug("add mark at " + pos.toString() + ": " + s);
     }
 
