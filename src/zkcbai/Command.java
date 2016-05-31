@@ -100,6 +100,8 @@ public class Command implements AI {
     private final Map<BuildTask, Area> buildTasks = new HashMap<>();
     private final TreeMap<Float, UnitDef> defSpeedMap = new TreeMap<>();
 
+    private final Set<UnitDef> ignoredEnemyDefs = new HashSet();
+
     private int frame;
     private AIFloat3 startPos = null;
 
@@ -138,6 +140,10 @@ public class Command implements AI {
             String[] importantSpeedDefs = new String[]{"bomberdive", "fighter", "corawac", "corvamp", "blackdawn", "armbrawl", "armpw", "armflea", "corak"};
             for (String s : importantSpeedDefs) {
                 defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
+            }
+            String[] ignoreDefs = new String[]{"wolverine_mine"};
+            for (String s : ignoreDefs) {
+                ignoredEnemyDefs.add(clbk.getUnitDefByName(s));
             }
             //clbk.getGame().sendStartPosition(true, new  AIFloat3(5588, 0 , 1100));
             debug(clbk.getUnitDefByName("armcom1").getSpeed());
@@ -456,7 +462,7 @@ public class Command implements AI {
     public synchronized int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
             Enemy att = null;
-            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn_Slow(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01){
+            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn_Slow(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01) {
                 AIFloat3 npos = new AIFloat3(unit.getPos());
                 dir.normalize();
                 dir.scale(400);
@@ -472,7 +478,9 @@ public class Command implements AI {
                     return 0;
                 }
                 mark(unit.getPos(), "unknown unit");
-                if (unit.getDef() != null && unit.getHealth() > 0f) unitFinished(unit);
+                if (unit.getDef() != null && unit.getHealth() > 0f) {
+                    unitFinished(unit);
+                }
                 return 0;
             }
             for (UnitDamagedListener listener : unitDamagedListeners) {
@@ -492,7 +500,15 @@ public class Command implements AI {
     public synchronized int enemyEnterLOS(Unit enemy) {
         try {
             if (!enemies.containsKey(enemy.getUnitId())) {
+
+                if (ignoredEnemyDefs.contains(enemy.getDef())) {
+                    return 0;
+                }
                 enemyDiscovered(new Enemy(enemy, this, clbk));
+                
+            } else if (ignoredEnemyDefs.contains(enemy.getDef())) {
+                enemyDestroyed(enemies.get(enemy.getUnitId()), null);
+                return 0;
             }
             Enemy aiEnemy = enemies.get(enemy.getUnitId());
             FakeEnemy closest = null;
@@ -689,7 +705,9 @@ public class Command implements AI {
             if (!units.containsKey(unit.getUnitId())) {
                 mark(unit.getPos(), "zombie?");
                 debug("zombie " + unit.getUnitId());
-                if (unit.getDef() != null && unit.getHealth() > 0) unitFinished(unit);
+                if (unit.getDef() != null && unit.getHealth() > 0) {
+                    unitFinished(unit);
+                }
                 return 0;
             }
             units.get(unit.getUnitId()).idle();
@@ -908,12 +926,16 @@ public class Command implements AI {
     }
 
     public void mark(AIFloat3 pos, String s) {
-        if (LOG_TO_INFOLOG) clbk.getMap().getDrawer().addPoint(pos, s);
+        if (LOG_TO_INFOLOG) {
+            clbk.getMap().getDrawer().addPoint(pos, s);
+        }
         debug("add mark at " + pos.toString() + ": " + s);
     }
 
     public void registerBuildTask(BuildTask bt) {
-        if (bt == null) throw new NullPointerException("BuildTask is null");
+        if (bt == null) {
+            throw new NullPointerException("BuildTask is null");
+        }
         buildTasks.put(bt, areaManager.getArea(bt.getPos()));
         buildTasks.get(bt).getBuildTasks().add(bt);
         if (buildTasks.size() > 50) {
