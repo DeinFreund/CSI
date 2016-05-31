@@ -42,6 +42,7 @@ import zkcbai.helpers.RadarManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.unitHandlers.BuilderHandler;
+import zkcbai.unitHandlers.DropHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.NanoHandler;
 import zkcbai.unitHandlers.SlasherHandler;
@@ -58,7 +59,7 @@ import zkcbai.unitHandlers.units.tasks.BuildTask;
  */
 public class Command implements AI {
 
-    public static final boolean LOG_TO_INFOLOG = false;
+    public static final boolean LOG_TO_INFOLOG = true;
 
     private OOAICallback clbk;
     private int ownTeamId;
@@ -92,6 +93,7 @@ public class Command implements AI {
     private TurretHandler turretHandler;
     private BuilderHandler builderHandler;
     private NanoHandler nanoHandler;
+    private DropHandler dropHandler;
 
     private final Map<Integer, AIUnit> units = new HashMap<>();
     private final Map<Integer, Enemy> enemies = new HashMap<>();
@@ -124,6 +126,7 @@ public class Command implements AI {
             facHandler = new FactoryHandler(this, callback); //req: fighterHandler
             builderHandler = new BuilderHandler(this, clbk);
             nanoHandler = new NanoHandler(this, clbk);
+            dropHandler = new DropHandler(this, clbk);
 
             economyManager.init();
             losManager.init();
@@ -139,7 +142,6 @@ public class Command implements AI {
             for (String s : importantSpeedDefs) {
                 defSpeedMap.put(clbk.getUnitDefByName(s).getSpeed(), clbk.getUnitDefByName(s));
             }
-            //clbk.getGame().sendStartPosition(true, new  AIFloat3(5588, 0 , 1100));
             debug(clbk.getUnitDefByName("armcom1").getSpeed());
             debug("ZKCBAI successfully initialized.");
 
@@ -212,6 +214,18 @@ public class Command implements AI {
     public Collection<AIUnit> getUnits() {
 
         return units.values();
+    }
+
+    public Collection<AIUnit> getUnitsIn(AIFloat3 pos, float range) {
+        List<Unit> units = clbk.getFriendlyUnitsIn(pos, range);
+        List<AIUnit> aiunits = new ArrayList();
+        for (Unit u : units) {
+            if (getAIUnit(u) != null) {
+                aiunits.add(getAIUnit(u));
+            }
+        }
+        return aiunits;
+
     }
 
     private Random random = new Random();
@@ -456,7 +470,7 @@ public class Command implements AI {
     public synchronized int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
             Enemy att = null;
-            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn_Slow(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01){
+            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn_Slow(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01) {
                 AIFloat3 npos = new AIFloat3(unit.getPos());
                 dir.normalize();
                 dir.scale(400);
@@ -472,7 +486,9 @@ public class Command implements AI {
                     return 0;
                 }
                 mark(unit.getPos(), "unknown unit");
-                if (unit.getDef() != null && unit.getHealth() > 0f) unitFinished(unit);
+                if (unit.getDef() != null && unit.getHealth() > 0f) {
+                    unitFinished(unit);
+                }
                 return 0;
             }
             for (UnitDamagedListener listener : unitDamagedListeners) {
@@ -689,7 +705,9 @@ public class Command implements AI {
             if (!units.containsKey(unit.getUnitId())) {
                 mark(unit.getPos(), "zombie?");
                 debug("zombie " + unit.getUnitId());
-                if (unit.getDef() != null && unit.getHealth() > 0) unitFinished(unit);
+                if (unit.getDef() != null && unit.getHealth() > 0) {
+                    unitFinished(unit);
+                }
                 return 0;
             }
             units.get(unit.getUnitId()).idle();
@@ -755,7 +773,6 @@ public class Command implements AI {
 
     @Override
     public int unitCreated(Unit unit, Unit builderunit) {
-        debug("unit created");
         try {
             AIUnit builder = builderunit == null ? null : units.get(builderunit.getUnitId());
 
@@ -768,13 +785,11 @@ public class Command implements AI {
             debug("Exception in unitCreated: ", e);
 
         }
-        debug("unit created finished");
         return 0;
     }
 
     @Override
     public int unitFinished(Unit unit) {
-        debug("unit finished");
         try {
 //            debug("IDLEBUG finished " + unit.getUnitId());
             if (startPos == null) {
@@ -803,6 +818,10 @@ public class Command implements AI {
                     }
                     if (unit.getDef().getName().equalsIgnoreCase("cormist")) {
                         aiunit = slasherHandler.addUnit(unit);
+                        break;
+                    }
+                    if (unit.getDef().getName().equalsIgnoreCase("corvalk") || unit.getDef().getName().equalsIgnoreCase("corroach")) {
+                        aiunit = dropHandler.addUnit(unit);
                         break;
                     }
                     if (unit.getDef().isAbleToAttack() && unit.getDef().getSpeed() > 0) {
@@ -853,7 +872,6 @@ public class Command implements AI {
         } catch (Throwable e) {
             debug("Exception in unitFinished: ", e);
         }
-        debug("unit finished finished");
         return 0;
 
     }
@@ -908,12 +926,16 @@ public class Command implements AI {
     }
 
     public void mark(AIFloat3 pos, String s) {
-        clbk.getMap().getDrawer().addPoint(pos, s);
+        if (LOG_TO_INFOLOG) {
+            clbk.getMap().getDrawer().addPoint(pos, s);
+        }
         debug("add mark at " + pos.toString() + ": " + s);
     }
 
     public void registerBuildTask(BuildTask bt) {
-        if (bt == null) throw new NullPointerException("BuildTask is null");
+        if (bt == null) {
+            throw new NullPointerException("BuildTask is null");
+        }
         buildTasks.put(bt, areaManager.getArea(bt.getPos()));
         buildTasks.get(bt).getBuildTasks().add(bt);
         if (buildTasks.size() > 50) {
@@ -923,7 +945,7 @@ public class Command implements AI {
 
     public void clearBuildTask(BuildTask bt) {
         if (!buildTasks.containsKey(bt)) {
-            debug("Unregistered BuildTask for " + bt.getBuilding().getHumanName());
+            if (bt.getBuilding().getSpeed() <= 0.1f) debug("Unregistered BuildTask for " + bt.getBuilding().getHumanName());
             return;
         }
         buildTasks.get(bt).getBuildTasks().remove(bt);

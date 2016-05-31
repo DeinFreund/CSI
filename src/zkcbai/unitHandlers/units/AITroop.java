@@ -206,9 +206,22 @@ public abstract class AITroop {
     public void attack(Unit trg, int timeout) {
         attack(trg, OPTION_NONE, timeout);
     }
+    
+    public void fireDGun(AIFloat3 target, int timeout) {
+        fireDGun(target, OPTION_NONE, timeout);
+    }
+
+    public void dropPayload(int timeout) {
+        dropPayload(OPTION_NONE, timeout);
+    }
+
 
     public void repair(Unit trg, int timeout) {
         repair(trg, OPTION_NONE, timeout);
+    }
+    
+    public void loadUnit(Unit trg, int timeout) {
+        loadUnit(trg, OPTION_NONE, timeout);
     }
     
     public void reclaimArea(AIFloat3 pos, float radius, int timeout){
@@ -234,6 +247,12 @@ public abstract class AITroop {
     public abstract void reclaimArea(AIFloat3 pos, float radius, short options, int timeout);
 
     public abstract void build(UnitDef building, int facing, AIFloat3 trg, short options, int timeout);
+    
+    public abstract void loadUnit(Unit unit, short options, int timeout);
+    
+    public abstract void fireDGun(AIFloat3 target, short options, int timeout);
+    
+    public abstract void dropPayload(short options, int timeout);
 
     public abstract void wait(int timeout);
 

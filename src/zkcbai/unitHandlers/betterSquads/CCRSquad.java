@@ -41,25 +41,28 @@ public class CCRSquad extends SquadManager {
 
     }
 
-
     private AISquad aisquad;
 
     @Override
     public List<UnitDef> getRequiredUnits(Collection<UnitDef> availableUnits) {
-        
+
         List<UnitDef> required = new ArrayList<>();
-        required.add(clbk.getUnitDefByName("cormist"));
-        required.add(clbk.getUnitDefByName("cormist"));
-        required.add(clbk.getUnitDefByName("cormist"));
-        required.add(clbk.getUnitDefByName("cormist"));
-        if (command.getBuilderHandler().getBuilders().size() < 20) required.add(clbk.getUnitDefByName("corned"));
-        
+        if (command.getBuilderHandler().getBuilders().size() < 20 && availableUnits.contains(clbk.getUnitDefByName("corned"))) {
+            required.add(clbk.getUnitDefByName("corned"));
+        }
+        if (availableUnits.contains(clbk.getUnitDefByName("cormist"))) {
+            required.add(clbk.getUnitDefByName("cormist"));
+            required.add(clbk.getUnitDefByName("cormist"));
+            required.add(clbk.getUnitDefByName("cormist"));
+            required.add(clbk.getUnitDefByName("cormist"));
+        }
+
         return required;
     }
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() < 30 * 60 * 1) {
+        if (command.getCurrentFrame() < 30 * 60 * 2) {
             return 0f;
         }
         return 1f;

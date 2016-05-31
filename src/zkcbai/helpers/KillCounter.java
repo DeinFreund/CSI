@@ -63,16 +63,16 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
     @Override
     public void update(int frame) {
         if (frame % 500 == 0) {
-            command.debug("Saving...");
+            //command.debug("Saving...");
             try {
                 FileOutputStream fileOut = new FileOutputStream(path);
                 ObjectOutputStream out = new ObjectOutputStream(fileOut);
                 out.writeObject(kills);
                 out.close();
                 fileOut.close();
-                command.debug("Saved to " + path);
+                //command.debug("Saved to " + path);
             } catch (IOException i) {
-                command.debug("Saving failed!");
+                command.debug("Saving to " + path + " failed!");
             }
         }
     }
@@ -91,7 +91,7 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
         if (killer == null) {
-            command.debug("Unknown friendly killer.");
+            //command.debug("Unknown friendly killer.");
             return;
         }
         unitDestroyed(e.getDef(), killer.getUnit().getDef());
@@ -100,7 +100,7 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
     @Override
     public void unitDestroyed(AIUnit u, Enemy e) {
         if (e == null) {
-            command.debug("Unknown hostile killer.");
+            //command.debug("Unknown hostile killer.");
             return;
         }
         if (!u.getUnit().isParalyzed()) {
@@ -127,8 +127,7 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
         }
         kills.get(killer.getName()).put(attacker.getName(),
                 kills.get(killer.getName()).get(attacker.getName()) + (int) attacker.getCost(command.metal));
-        command.debug( ": Efficiency of " + killer.getHumanName() + " against " + attacker.getHumanName() + 
-                ": " + getEfficiency(killer, attacker));
+        //command.debug( ": Efficiency of " + killer.getHumanName() + " against " + attacker.getHumanName() + ": " + getEfficiency(killer, attacker));
     }
 
 }

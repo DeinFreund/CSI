@@ -23,6 +23,12 @@ public class FakeCommander extends FakeEnemy {
     }
 
     private static UnitDef getComDef(Command cmd) {
+
+        for (UnitDef ud : cmd.getCallback().getUnitDefs()) {
+            if (ud.getCustomParams().containsKey("commtype")) {
+                return ud;
+            }
+        }
         UnitDef com = cmd.getCallback().getUnitDefByName("armcom1");
         if (com != null) {
             return com;
@@ -31,20 +37,14 @@ public class FakeCommander extends FakeEnemy {
         if (com != null) {
             return com;
         }
-        for (UnitDef ud : cmd.getCallback().getUnitDefs()) {
-            if (ud.getName().contains("com")) {
-                return ud;
-            }
-        }
         throw new AssertionError("Com UnitDef not found");
     }
 
     @Override
     public boolean isUnit(Unit u) {
-        return u.getDef().getName().contains("com");
+        return u.getDef().getCustomParams().containsKey("commtype");
     }
-    
-    
+
     @Override
     public int timeSinceLastSeen() {
         return 0;

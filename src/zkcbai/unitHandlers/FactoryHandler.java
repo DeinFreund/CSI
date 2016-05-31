@@ -46,11 +46,12 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
-        /*squads.add(new ScoutSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
-        squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
-        squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));*/
+        //squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        //squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new BuilderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new CCRSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new ScoutSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        startsquads.add(squads.get(0));
         startsquads.add(squads.get(0));
         startsquads.add(squads.get(0));
         
@@ -109,7 +110,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
             final float targetDensity = 1;
             float efficiencyMult = 1f / (-Math.min(0, (float) Math.log(unitDensity / targetDensity + 1e-6)) + 1);
-            command.debug("Unit density is " + unitDensity + " / " + targetDensity + " -> mult: " + efficiencyMult);
+            //command.debug("Unit density is " + unitDensity + " / " + targetDensity + " -> mult: " + efficiencyMult);
 
             /*if (command.economyManager.getRemainingOffenseBudget() > 500 && (lastCaretakerRequest == null || lastCaretakerRequest.getResult() != null)
                     && command.getCurrentFrame() > 30*60*5) {
@@ -200,7 +201,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             }
         }
         if (fac.getBuildQueue().isEmpty()){
-            command.debug("Nothing to build in " + fac.unit.getDef().getHumanName());
+            //command.debug("Nothing to build in " + fac.unit.getDef().getHumanName());
         }
         return !fac.getBuildQueue().isEmpty();
     }
@@ -245,6 +246,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
     }
 
+    
+    private int facsPlanned = 0;
     /**
      *
      * @param buildPositions container in which the possible building areas are
@@ -302,7 +305,11 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
         buildPositions.clear();
         buildPositions.addAll(position);
-        bestFac = clbk.getUnitDefByName("factoryveh"); //hardcode light vehicle factory 
+        if (facsPlanned == 1)
+            bestFac = clbk.getUnitDefByName("factorygunship"); //hardcode light vehicle factory 
+        if (facsPlanned == 2)
+            bestFac = clbk.getUnitDefByName("factoryshield"); //hardcode light vehicle factory 
+        facsPlanned++;
         return bestFac;
     }
 

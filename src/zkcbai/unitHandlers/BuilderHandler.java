@@ -438,7 +438,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 cost -= 0.25 * (building.getCustomParams().containsKey("income_energy") ? Float.valueOf(building.getCustomParams().get("income_energy")) : 0f);
                 cost += 0.25f * building.getCost(command.metal) / 35f;
                 if (building.getName().equals("armestor")) {
-                    if (command.getCallback().getEconomy().getIncome(command.energy) > MIN_PYLON_ENERGY_INCOME) {
+                    if (energyIncome > MIN_PYLON_ENERGY_INCOME) {
                         cost *= 0.5;
                     } else {
                         cost *= 2;

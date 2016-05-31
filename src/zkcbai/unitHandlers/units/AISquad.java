@@ -306,6 +306,23 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         }
     }
     
+    @Override
+    public void loadUnit(Unit trg, short options, int timeout) {
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        areaManager.executedCommand();
+        for (AIUnit u : activeUnits) {
+            u.loadUnit(trg, options, Integer.MAX_VALUE);
+        }
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
+        }
+    }
+    
     
     @Override
     public void reclaimArea(AIFloat3 pos, float radius, short options, int timeout) {
@@ -340,7 +357,41 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             }
         }
     }
+    
+    @Override
+    public void fireDGun(AIFloat3 trg, short options, int timeout) {
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        areaManager.executedCommand();
+        for (AIUnit u : activeUnits) {
+            u.fireDGun(trg, options, Integer.MAX_VALUE);
+        }
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
+        }
+    }
 
+    @Override
+    public void dropPayload(short options, int timeout) {
+        if (timeout < 0) {
+            timeout = Integer.MAX_VALUE;
+        }
+        areaManager.executedCommand();
+        for (AIUnit u : activeUnits) {
+            u.dropPayload(options, Integer.MAX_VALUE);
+        }
+        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+            clearUpdateListener();
+            if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
+                wakeUpFrame = timeout;
+            }
+        }
+    }
+    
     @Override
     public void wait(int timeout) {
         if (timeout < 0) {

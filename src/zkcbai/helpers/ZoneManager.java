@@ -63,7 +63,7 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
  */
 public class ZoneManager extends Helper implements UnitDestroyedListener {
 
-    private static final boolean GUI = false;
+    private static final boolean GUI = true;
 
     private Area[][] map;
     private List<Area> areas;//for simplified iterating
@@ -339,7 +339,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 areaCacheUpdateIndex %= areas.size();
             }
         }
-        if (frame % 60 == 32) {
+        if (System.currentTimeMillis() - time1 > 10) {
             command.debug("Updated " + areacounter + " Area caches in " + (System.currentTimeMillis() - time1) + "ms.");
         }
 
@@ -347,7 +347,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             long time2 = System.currentTimeMillis();
             pnl.updateFramebuffer();
             pnl.updateUI();
-            if (System.currentTimeMillis() - time2 > 10) {
+            if (System.currentTimeMillis() - time2 > 150) {
                 command.debug("Updating Framebuffer took " + (System.currentTimeMillis() - time2) + "ms.");
             }
         }
@@ -598,14 +598,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public float getPositiveFlow() {
             return positiveFlow;
         }
-        
-        public Set<BuildTask> getBuildTasks(){
+
+        public Set<BuildTask> getBuildTasks() {
             return buildTasks;
         }
-        
-        public Collection<BuildTask> getNearbyBuildTasks(){
+
+        public Collection<BuildTask> getNearbyBuildTasks() {
             Collection<BuildTask> nearby = new ArrayList<>();
-            for (Area a : getNeighbours()){
+            for (Area a : getNeighbours()) {
                 nearby.addAll(a.getBuildTasks());
             }
             return nearby;
@@ -1119,14 +1119,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public Collection<AIUnit> getNearbyUnits(float range) {
-            List<Unit> units = clbk.getFriendlyUnitsIn(pos, range);
-            List<AIUnit> aiunits = new ArrayList();
-            for (Unit u : units) {
-                if (command.getAIUnit(u) != null) {
-                    aiunits.add(command.getAIUnit(u));
-                }
-            }
-            return aiunits;
+            return command.getUnitsIn(pos, range);
         }
 
         public void addDebugConnection(Area target, Color color, int timeout) {
@@ -1500,10 +1493,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             }
 
             long time5 = System.currentTimeMillis();
-            for (Enemy e : command.getEnemyUnitsIn_Slow(new AIFloat3(), 10000)) {
+            Graphics2D g2d = (Graphics2D) g;
+            FontMetrics fm = g2d.getFontMetrics();
+            for (Enemy e : command.getEnemyUnits(true)) {
                 String name = e.getDef().getHumanName() + " " + Math.ceil(e.getRelativeHealth() * 100) + "%";
-                Graphics2D g2d = (Graphics2D) g;
-                FontMetrics fm = g2d.getFontMetrics();
                 Rectangle2D r = fm.getStringBounds(name, g2d);
                 int x = (int) Math.round(e.getPos().x * getWidth() / mwidth) - (int) r.getWidth() / 2;
                 int y = (int) Math.round(e.getPos().z * getHeight() / mheight) - (int) r.getHeight() / 2 + fm.getAscent();

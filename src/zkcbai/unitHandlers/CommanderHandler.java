@@ -62,14 +62,22 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             }
             final Set<Area> facareas = new HashSet();
             final UnitDef fac = command.getFactoryHandler().getNextFac(facareas);
-            com.assignTask(new BuildTask(fac,command.areaManager.getArea(com.getPos()).getNearestArea(new AreaChecker() {
+            AIFloat3 compos = new AIFloat3(com.getPos().x + 100, com.getPos().y, com.getPos().z);
+            AIFloat3 bpos = BuildTask.findClosestBuildSite(fac, compos, 4, (compos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, false);
+            if (command.isPossibleToBuildAt(fac, bpos, (compos.z > clbk.getMap().getHeight() * 4) ? 2 : 0) && facareas.contains(command.areaManager.getArea(bpos))) {
 
-                @Override
-                public boolean checkArea(ZoneManager.Area a) {
-                    AIFloat3 bpos = clbk.getMap().findClosestBuildSite(fac, a.getPos(), 1000, 0, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0);
-                    return command.isPossibleToBuildAt(fac, bpos, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0) && facareas.contains(a);
-                }
-            }).getPos(), this, clbk, command,0, false).setInfo("plop"));
+            } else {
+                bpos = command.areaManager.getArea(compos).getNearestArea(new AreaChecker() {
+
+                    @Override
+                    public boolean checkArea(ZoneManager.Area a) {
+                        AIFloat3 bpos = BuildTask.findClosestBuildSite(fac, a.getPos(), 4, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, false);
+                        return command.isPossibleToBuildAt(fac, bpos, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0) && facareas.contains(a);
+                    }
+                }).getPos();
+            }
+            com.assignTask(new BuildTask(fac, bpos, this, clbk, command, 0, false).setInfo("plop"));
+            command.registerBuildTask((BuildTask)com.getTask());
 
             lastBuildTask = com.getTask();
         } else {
@@ -90,14 +98,14 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
         //command.debug("Commander aborted a task");
         finishedTask(t);
     }
-    
-    public AIUnit getCommander(){
+
+    public AIUnit getCommander() {
         return com;
     }
 
     @Override
     public void finishedTask(Task t) {
-        
+
         //command.debug("Commander finished a task");
         switch (t.getInfo()) {
             case "plop":
@@ -167,7 +175,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
         }
         if (best != null) {
             //command.mark(best.getPos(), "com: " + best.timeSinceLastSeen());
-            com.assignTask(new AttackTask(best, frame+50,this, command));
+            com.assignTask(new AttackTask(best, frame + 50, this, command));
             com.queueTask(lastBuildTask);
         }
         command.addSingleUpdateListener(this, frame + 40);

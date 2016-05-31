@@ -77,7 +77,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
             costSupplier = u.getCommand().pathfinder.FAST_PATH;
         }
         requestingPath = true;
-        u.getCommand().pathfinder.requestPath(u.getPos(), target, u.getMaxSlope(), costSupplier, this);
+        u.getCommand().pathfinder.requestPath(u.getPos(), target, u.getMovementType(), costSupplier, this);
 
     }
 
@@ -96,7 +96,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
             updatePath(u);
         }
         if (path == null && requestingPath) {
-            u.moveTo(target, command.getCurrentFrame() + 21);
+            if (u.getUnits().iterator().next().getUnit().getCurrentCommands().isEmpty()) u.moveTo(target, command.getCurrentFrame() + 21);
             return false;
         }
         if (errors > 15) {

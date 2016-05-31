@@ -102,9 +102,9 @@ public class RadarManager extends Helper {
 
         int index = gridX + gridZ * gridWidth;
 
-        /*if (index > radarMap.size()) { // exception helps debug
+        if (index > radarMap.size() || index < 0) { // exception helps debug
             return false;
-        }*/
+        }
         return (radarMap.get(index) > level);
     }
 

@@ -273,6 +273,7 @@ public class Enemy implements UpdateListener {
             isBuilding = unit.getDef().getSpeed() <= 0;
         }
         neverSeen = false;
+        lastSeen = command.getCurrentFrame();
     }
 
     public float getMetalCost() {
@@ -321,13 +322,15 @@ public class Enemy implements UpdateListener {
     }
 
     public void enterRadar() {
-
+        lastSeen = command.getCurrentFrame();
     }
 
     public void leaveLOS() {
+        lastSeen = command.getCurrentFrame();
     }
 
     public void leaveRadar() {
+        lastSeen = command.getCurrentFrame();
     }
 
     public void destroyed() {
