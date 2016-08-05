@@ -12,7 +12,6 @@ import zkcbai.unitHandlers.units.AIUnit;
 
 public class LosManager extends Helper {
 
-    Command command;
 
     private List<Integer> losMap;
     private BufferedImage losImage;
@@ -47,7 +46,7 @@ public class LosManager extends Helper {
     public void update(int frame) {
 
         try {
-            if (frame % 5 == 0) {
+            if (frame % 5 == 2) {
                 this.losMap = map.getLosMap();
                 updateLosImage();
             }

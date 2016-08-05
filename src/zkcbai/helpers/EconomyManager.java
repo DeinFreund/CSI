@@ -13,53 +13,53 @@ import zkcbai.unitHandlers.units.AIUnit;
  *
  * @author User
  */
-public class EconomyManager extends Helper{
+public class EconomyManager extends Helper {
 
     final float ENERGY = 0.3f;
     final float OVERDRIVE = 0.05f;
     final float DEFENSE = 0.2f;
     final float OFFENSE = 0.5f;
-    
+
     float generosity = 0;
-    float adaption = 3e-3f;
-    
+    float adaption = 5e-4f;
+
     float energy = 0;
     float offense = 0;
     float defense = 0;
     float overdrive = 0;
-    
-    public void useEnergyBudget(float amt){
+
+    public void useEnergyBudget(float amt) {
         energy += amt;
     }
-    
-    public float getRemainingEnergyBudget(){
-        return  ENERGY * (totalMetal + generosity) - energy;
+
+    public float getRemainingEnergyBudget() {
+        return ENERGY * (totalMetal + generosity) - energy;
     }
-    
-    public void useOffenseBudget(float amt){
+
+    public void useOffenseBudget(float amt) {
         offense += amt;
     }
-    
-    public float getRemainingOffenseBudget(){
-        return  OFFENSE * (totalMetal + generosity) - offense;
+
+    public float getRemainingOffenseBudget() {
+        return OFFENSE * (totalMetal + generosity) - offense;
     }
-    
-    public void useDefenseBudget(float amt){
+
+    public void useDefenseBudget(float amt) {
         defense += amt;
     }
-    
-    public float getRemainingDefenseBudget(){
-        return  DEFENSE * (totalMetal + generosity) - defense;
+
+    public float getRemainingDefenseBudget() {
+        return DEFENSE * (totalMetal + generosity) - defense;
     }
-    
-    public void useOverdriveBudget(float amt){
+
+    public void useOverdriveBudget(float amt) {
         overdrive += amt;
     }
-    
-    public float getRemainingOverdriveBudget(){
-        return  OVERDRIVE * (totalMetal + generosity) - overdrive;
+
+    public float getRemainingOverdriveBudget() {
+        return OVERDRIVE * (totalMetal + generosity) - overdrive;
     }
-    
+
     public EconomyManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         totalMetal = clbk.getEconomy().getCurrent(command.metal);
@@ -68,26 +68,28 @@ public class EconomyManager extends Helper{
     @Override
     public void unitFinished(AIUnit u) {
     }
-    
-    public float getTotalMetal(){
+
+    public float getTotalMetal() {
         return totalMetal;
     }
-    
+
     float totalMetal = 500;
 
     int lastFrame = 0;
-    
+
     @Override
     public void update(int frame) {
         totalMetal += clbk.getEconomy().getIncome(command.metal) / 30f * (frame - lastFrame);
         lastFrame = frame;
-        if (frame % 200 == 0){
-            command.debug("Current generosity: " + generosity);
+        if (frame % 200 == 0) {
+            //command.debug("Current generosity: " + generosity);
         }
-        float mid = 50;
-        generosity += Math.signum(clbk.getEconomy().getCurrent(command.metal) - mid) * 
-                adaption * Math.pow(Math.abs(Math.min(mid*2,clbk.getEconomy().getCurrent(command.metal)) - mid), 2.2)/ 20f;
-        
+        if (frame > 30 * 60 * 3) {
+            float mid = 50;
+            generosity += Math.signum(clbk.getEconomy().getCurrent(command.metal) - mid)
+                    * adaption * Math.pow(Math.abs(Math.min(mid * 2, clbk.getEconomy().getCurrent(command.metal)) - mid), 1.7) / 20f;
+        }
+
     }
-    
+
 }

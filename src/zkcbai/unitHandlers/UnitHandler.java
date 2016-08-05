@@ -38,8 +38,8 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
     }
 
     public abstract AIUnit addUnit(Unit u);
-    
-    public void addUnit(AIUnit au){
+
+    public void addUnit(AIUnit au) {
         aiunits.put(au.hashCode(), au);
         au.assignAIUnitHandler(this);
     }
@@ -54,7 +54,9 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
 
     @Override
     public void unitDestroyed(AIUnit u, Enemy e) {
-        removeUnit(u);
+        if (aiunits.containsKey(u.getUnit().getUnitId())) {
+            removeUnit(u);
+        }
     }
 
     public abstract void troopIdle(AIUnit u);
@@ -63,7 +65,7 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
 
     @Override
     public void troopIdle(AITroop u) {
-        if (u == null){
+        if (u == null) {
             throw new RuntimeException("AITroop is null!");
         }
         if (u instanceof AIUnit) {
@@ -75,8 +77,8 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
         }
 
     }
-    
-    public Collection<AIUnit> getUnits(){
+
+    public Collection<AIUnit> getUnits() {
         return aiunits.values();
     }
 

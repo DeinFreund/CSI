@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.helpers.AreaChecker;
@@ -41,46 +42,42 @@ public class AssaultSquad extends SquadManager {
         for (String s : assaultIds) {
             assaults.add(command.getCallback().getUnitDefByName(s));
         }
+        for (String s : riotIds) {
+            riots.add(command.getCallback().getUnitDefByName(s));
+        }
         for (String s : porcIds) {
             porc.add(command.getCallback().getUnitDefByName(s));
         }
     }
 
     final private String[] assaultIds = {"armzeus", "corthud", "corraid", "correap", "armbrawl", "amphassault", "shipraider", "hoverassault","spiderassault","corcan"};
-    final private List<UnitDef> assaults = new ArrayList();
+    final static Set<UnitDef> assaults = new HashSet();
+    final private String[] riotIds = {"armwar", "cormak", "arm_venom", "spiderriot", "amphriot", "corlevlr", "tawf114", "shipraider", "hoverriot"};
+    final static Set<UnitDef> riots = new HashSet();
 
     final private String[] porcIds = {"corrl", "armllt", "armdeva" , "corhlt", "armpb"};
-    final private List<UnitDef> porc = new ArrayList();
+    final private Set<UnitDef> porc = new HashSet();
 
     private AISquad aisquad;
+    private Random rnd = new Random();
 
     @Override
     public List<UnitDef> getRequiredUnits(Collection<UnitDef> availableUnits) {
-        float reqmet = 700;
-        for (AIUnit au : units) {
-            if (assaults.contains(au.getDef())) {
-                reqmet -= au.getMetalCost();
-            }
+        List<UnitDef> possAssault = new ArrayList();
+        List<UnitDef> possRiot = new ArrayList();
+        for (UnitDef ud : availableUnits){
+            if (riots.contains(ud)) possRiot.add(ud);
+            if (assaults.contains(ud)) possAssault.add(ud);
         }
-        if (this.aisquad != null && units.size() != aisquad.getUnits().size()) {
-            throw new AssertionError("didnt add all units correctly to assaultsquad " + aisquad.getUnits().size() + " / " + units.size());
+        List<UnitDef> retval = new ArrayList();
+        if (!possAssault.isEmpty()){
+            retval.add(possAssault.get(rnd.nextInt(possAssault.size())));
+            retval.add(possAssault.get(rnd.nextInt(possAssault.size())));
         }
-        Set<UnitDef> unitset = new HashSet(availableUnits);
-        for (UnitDef ud : assaults) {
-            if (unitset.contains(ud)) {
-                List<UnitDef> req = new ArrayList();
-                while (reqmet > 0) {
-                    req.add(ud);
-                    reqmet -= ud.getCost(command.metal);
-                }
-                return req;
-            }
+        if (!possRiot.isEmpty()){
+            retval.add(possRiot.get(rnd.nextInt(possRiot.size())));
         }
-        command.debug("Warning(AssaultSquad): Couldn't find any required units in set of available Units: ");
-        for (UnitDef ud : availableUnits) {
-            command.debug(ud.getHumanName());
-        }
-        return null;
+        return retval;
     }
 
     @Override
@@ -137,11 +134,11 @@ public class AssaultSquad extends SquadManager {
 
     @Override
     public void troopIdle(AITroop t) {
-        if (!getRequiredUnits(availableUnits).isEmpty() && !finished) {
+        if (!getRequiredUnits(availableUnits).isEmpty() && !finishedBuilding) {
             t.wait(command.getCurrentFrame() + 60);
             return;
         } else {
-            finished = true;
+            finishedBuilding = true;
         }
         if (t instanceof AIUnit) {
             throw new AssertionError("all units should be in aisquad instead of single aiunits");
@@ -149,7 +146,7 @@ public class AssaultSquad extends SquadManager {
             //command.debug("assaultsquad has " + ((AISquad)t).getUnits().size() + " units");
         }
 
-        final Set<Area> reachableAreas = command.areaManager.getArea(t.getPos()).getConnectedAreas(t.getMovementType(), dangerChecker);
+        final Set<Area> reachableAreas = t.getArea().getConnectedAreas(t.getMovementType(), dangerChecker);
         AreaChecker reachableChecker = new AreaChecker() {
 
             @Override

@@ -14,6 +14,7 @@ import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaChecker;
+import zkcbai.helpers.PositionChecker;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.units.AISquad;
@@ -63,21 +64,15 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             final Set<Area> facareas = new HashSet();
             final UnitDef fac = command.getFactoryHandler().getNextFac(facareas);
             AIFloat3 compos = new AIFloat3(com.getPos().x + 100, com.getPos().y, com.getPos().z);
-            AIFloat3 bpos = BuildTask.findClosestBuildSite(fac, compos, 4, (compos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, false);
-            if (command.isPossibleToBuildAt(fac, bpos, (compos.z > clbk.getMap().getHeight() * 4) ? 2 : 0) && facareas.contains(command.areaManager.getArea(bpos))) {
 
-            } else {
-                bpos = command.areaManager.getArea(compos).getNearestArea(new AreaChecker() {
-
-                    @Override
-                    public boolean checkArea(ZoneManager.Area a) {
-                        AIFloat3 bpos = BuildTask.findClosestBuildSite(fac, a.getPos(), 4, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, false);
-                        return command.isPossibleToBuildAt(fac, bpos, (a.getPos().z > clbk.getMap().getHeight() * 4) ? 2 : 0) && facareas.contains(a);
-                    }
-                }).getPos();
-            }
-            com.assignTask(new BuildTask(fac, bpos, this, clbk, command, 0, false).setInfo("plop"));
-            command.registerBuildTask((BuildTask)com.getTask());
+            Task bt = new BuildTask(fac, compos, this, clbk, command, 10, -1f, false, new PositionChecker() {
+                @Override
+                public boolean checkPosition(AIFloat3 pos) {
+                    return (facareas.contains(command.areaManager.getArea(pos)));
+                }
+            }).setInfo("plop");
+            com.assignTask(bt);
+            command.registerBuildTask((BuildTask) bt);
 
             lastBuildTask = com.getTask();
         } else {
@@ -111,7 +106,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             case "plop":
                 command.debug("Commander plopped fac");
                 plopped = t.getResult() != null;
-                //lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
+                lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
                 break;
             /*case "win1":
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win2"));
@@ -138,9 +133,8 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win4"));
                 break;*/
         }
-        //com.assignTask(lastBuildTask);
+        com.assignTask(lastBuildTask);
         //command.debug("New task has info " + lastBuildTask.getInfo());
-
     }
 
     @Override

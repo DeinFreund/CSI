@@ -56,7 +56,7 @@ public class ScoutSquad extends SquadHandler implements TaskIssuer {
             }
             target = new AIFloat3((float) Math.random() * clbk.getMap().getWidth() * 8, 0, (float) Math.random() * clbk.getMap().getHeight() * 8);
         } while (command.losManager.isInLos(target) || command.radarManager.isInRadar(target)
-                || (command.pathfinder.findPath(u.getPos(), target, u.getUnit().getDef().getMoveData().getMaxSlope(),
+                || (command.pathfinder.findPath(u.getPos(), target, u.getMaxSlope(),
                         command.pathfinder.AVOID_ENEMIES).size() <= 1));
 
         u.assignTask(new MoveTask(target, Integer.MAX_VALUE, this, command.pathfinder.AVOID_ENEMIES,command));

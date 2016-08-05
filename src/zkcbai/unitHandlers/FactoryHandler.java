@@ -46,15 +46,15 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     public FactoryHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
-        //squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
-        //squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new BuilderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new CCRSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new ScoutSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new AvengerSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         startsquads.add(squads.get(0));
         startsquads.add(squads.get(0));
-        startsquads.add(squads.get(0));
-        
+
         //cmd.addSingleUpdateListener(this, assaultFrame);
     }
 
@@ -76,9 +76,9 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     @Override
     public void troopIdle(AIUnit u) {
         if (facmap.containsKey(u)) {
-            if (!factoryIdle(facmap.get(u))){
-                u.wait(command.getCurrentFrame() + 30);
-                
+            if (!factoryIdle(facmap.get(u))) {
+                u.wait(command.getCurrentFrame() + 15);
+
             }
         } else {
             throw new AssertionError("Unknown unit in FacHandler");
@@ -116,7 +116,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                     && command.getCurrentFrame() > 30*60*5) {
                 lastCaretakerRequest = command.getBuilderHandler().requestCaretaker(fac.unit.getPos());
             }*/
-            /*Enemy worst = null;
+ /*Enemy worst = null;
             float mi = Float.MAX_VALUE;
             for (Enemy e : command.getEnemyUnits(false)) {
                 float counter = 0;
@@ -171,36 +171,37 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                     }
                 }
             }
-            */
-            
+             */
             if (fac.getBuildQueue().isEmpty()) {
+                Collection<UnitDef> buildOptions = getBuildOptions();
                 SquadManager best = null;
-                for (SquadManager sq : squads){
-                    if ((best == null || sq.getUsefulness() > best.getUsefulness()) && sq.getRequiredUnits(fac.getBuildOptions()) != null){
+                for (SquadManager sq : squads) {
+                    if ((best == null || sq.getUsefulness() > best.getUsefulness()) && sq.getRequiredUnits(fac.getBuildOptions()) != null
+                            && !sq.getRequiredUnits(fac.getBuildOptions()).isEmpty()) {
                         best = sq;
                     }
                 }
                 boolean isStartSquad = false;
-                if (!startsquads.isEmpty()){
+                if (!startsquads.isEmpty()) {
                     do {
                         best = startsquads.poll();
                         isStartSquad = true;
-                    }while(best.getRequiredUnits(fac.getBuildOptions()) == null && !startsquads.isEmpty());
+                    } while (best.getRequiredUnits(fac.getBuildOptions()) == null && !startsquads.isEmpty());
                 }
-                if (best != null && (best.getUsefulness() > 0.001f || isStartSquad)){
+                if (best != null && (best.getUsefulness() > 0.001f || isStartSquad)) {
                     command.debug("Best squad is " + best.getClass().getName());
                     fac.queueUnits(best.getRequiredUnits(fac.getBuildOptions()));
                     float cost = 0;
-                    for (UnitDef ud : best.getRequiredUnits(fac.getBuildOptions())){
+                    for (UnitDef ud : best.getRequiredUnits(fac.getBuildOptions())) {
                         cost += ud.getCost(command.metal);
-                    }   
+                    }
                     command.economyManager.useOffenseBudget(cost);
                     best.getInstance(fac.getBuildOptions());
                     return true;
                 }
             }
         }
-        if (fac.getBuildQueue().isEmpty()){
+        if (fac.getBuildQueue().isEmpty()) {
             //command.debug("Nothing to build in " + fac.unit.getDef().getHumanName());
         }
         return !fac.getBuildQueue().isEmpty();
@@ -212,14 +213,16 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
         for (AIUnit au : aiunits.values()) {
             MovementType mt = Pathfinder.MovementType.getMovementType(au.getDef().getBuildOptions().get(0));
-            for (Area a : command.areaManager.getArea(au.getPos()).getConnectedAreas(mt)) {
+            for (Area a : au.getArea().getConnectedAreas(mt)) {
                 a.setReachable();
             }
         }
     }
 
     public void requestConstructor() {
-        if (!startsquads.isEmpty()) return;
+        if (!startsquads.isEmpty()) {
+            return;
+        }
         constructorRequests = 1;
     }
 
@@ -229,6 +232,14 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void finishedTask(Task t) {
+    }
+
+    public Collection<UnitDef> getBuildOptions() {
+        Collection<UnitDef> retval = new HashSet();
+        for (Factory f : getFacs()) {
+            retval.addAll(f.getBuildOptions());
+        }
+        return retval;
     }
 
     protected float getMovementTypeMultiplier(MovementType mt) {
@@ -246,8 +257,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
     }
 
-    
     private int facsPlanned = 0;
+
     /**
      *
      * @param buildPositions container in which the possible building areas are
@@ -270,7 +281,9 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             }
             if (allMovable) {//is factory
                 //command.debug(ud.getHumanName() + " is a fac");
-                if (ud.getBuildOptions().get(0).getCost(command.metal)>900) continue; //no strider plop pls
+                if (ud.getBuildOptions().get(0).getCost(command.metal) > 900) {
+                    continue; //no strider plop pls
+                }
                 MovementType mt = MovementType.getMovementType(ud.getBuildOptions().get(0));
                 Set<Area> bestset = new HashSet();
                 int bestsize = 0;
@@ -286,7 +299,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                             size--;
                         }
                     }
-                    if (size > bestset.size()) {
+                    if (size > bestsize || (size >= bestsize && set.size() > bestset.size())) {
                         bestset = set;
                         bestsize = size;
                     }
@@ -303,12 +316,24 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         if (bestFac == null) {
             throw new AssertionError("Didn't find any valid fac to build");
         }
+        if (position.size() < 10) {
+            command.debug("Warning, only " + position.size() + " fac build areas");
+        }
         buildPositions.clear();
         buildPositions.addAll(position);
-        if (facsPlanned == 1)
+        if (facsPlanned == 1) {
             bestFac = clbk.getUnitDefByName("factorygunship"); //hardcode light vehicle factory 
-        if (facsPlanned == 2)
-            bestFac = clbk.getUnitDefByName("factoryshield"); //hardcode light vehicle factory 
+            buildPositions.clear();
+            buildPositions.addAll(command.areaManager.getAreas());
+        }
+        if (facsPlanned == 2) {
+            bestFac = clbk.getUnitDefByName("factoryjump"); //hardcode light vehicle factory 
+        }
+        if (facsPlanned == 3) {
+            bestFac = clbk.getUnitDefByName("factoryplane"); //hardcode light vehicle factory 
+            buildPositions.clear();
+            buildPositions.addAll(command.areaManager.getAreas());
+        }
         facsPlanned++;
         return bestFac;
     }
@@ -365,16 +390,15 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         protected Queue<UnitDef> buildOrders;
         protected BuildTask currentTask;
 
-        
         public Factory(AIUnit unit) {
             this.unit = unit;
             buildOrders = new LinkedList<>();
         }
-        
-        public BuildTask getCurrentTask(){
+
+        public BuildTask getCurrentTask() {
             return currentTask;
         }
-        
+
         public Queue<UnitDef> getBuildQueue() {
             return buildOrders;
         }
@@ -392,12 +416,12 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             return sum;
         }
 
-        public void queueUnits(Collection<UnitDef> ud){
-            for (UnitDef u : ud){
+        public void queueUnits(Collection<UnitDef> ud) {
+            for (UnitDef u : ud) {
                 queueUnit(u);
             }
         }
-        
+
         public void queueUnit(UnitDef ud) {
             command.debug("queued " + ud.getHumanName());
             if (!unit.getDef().getBuildOptions().contains(ud)) {
@@ -406,7 +430,6 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             buildOrders.add(ud);
             buildNextUnit();
         }
-
 
         public void buildUnit(UnitDef unit) {
             buildUnit(unit, false);
@@ -427,7 +450,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         public void buildNextUnit() {
             if (!buildOrders.isEmpty()) {
                 buildUnit(buildOrders.peek());
-            }else{
+            } else {
                 troopIdle(unit);
             }
         }

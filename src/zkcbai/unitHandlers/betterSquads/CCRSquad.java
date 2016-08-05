@@ -65,7 +65,21 @@ public class CCRSquad extends SquadManager {
         if (command.getCurrentFrame() < 30 * 60 * 2) {
             return 0f;
         }
-        return 1f;
+        float assaults = 0;
+        float all = 0;
+        for (Enemy e : command.getEnemyUnits(true)){
+            if (e.getDPS() < 0.1) continue;
+            if (AssaultSquad.assaults.contains(e.getDef())){
+                assaults += e.getMetalCost();
+            }
+            if (e.isBuilding() && e.getDef() != null && !e.getDef().getWeaponMounts().isEmpty() 
+                    && e.getDef().getWeaponMounts().get(0).getWeaponDef().isAbleToAttackGround()
+                    && e.getMetalCost() > 300){
+                assaults += e.getMetalCost() * 3;
+            }
+            all += e.getMetalCost();
+        }
+        return 1f - assaults/all;
     }
 
     @Override
@@ -151,6 +165,6 @@ public class CCRSquad extends SquadManager {
 
     @Override
     public boolean retreatForRepairs(AITroop u) {
-        return command.areaManager.getArea(u.getPos()).getZone() != Zone.hostile;
+        return u.getArea().getZone() != Zone.hostile;
     }
 }

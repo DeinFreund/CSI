@@ -5,36 +5,55 @@
         <group>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/CommanderHandler.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/RaiderSquad.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/MoveTask.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/NanoHandler.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/ZKCBAI.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/ScoutSquad.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/DropTask.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/GridPlannerThread.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/BackgroundPathfinder.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/UnitHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/TurretHandler.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/ZoneManager.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FactoryHandler.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/utility/Pair.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AIUnit.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/SlasherHandler.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/Pathfinder.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/DevNullHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AITroop.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/CounterAvoidance.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/SquadManager.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/BuilderSquad.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/utility/OrderedSet.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/LosManager.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/PathfindingCompleteListener.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/BuildTask.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/FighterHandler.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/FakeCommander.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/AI.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/EconomyManager.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/AssaultSquad.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/Helper.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/ReclaimTask.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/DefenseManager.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/SquadHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/AttackTask.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/BuilderHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/CreepHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/MoveTask.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/NanoHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/ZKCBAI.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/BackgroundPathfinder.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/UnitHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/MLViewer/MLViewer.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AIUnit.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/SlasherHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/Pathfinder.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/BuilderSquad.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/BuildTask.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/AISquad.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/KillCounter.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/FakeMex.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/Task.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/tasks/RepairTask.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/squads/SquadHandler.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/Command.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/PathPrecalculatorThread.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/helpers/RadarManager.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/Enemy.java</file>
             <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/betterSquads/CCRSquad.java</file>
-            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/BuilderHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/DropHandler.java</file>
+            <file>file:/F:/Users/User/Documents/NetBeansProjects/ZKCBAI/src/zkcbai/unitHandlers/units/FakeSlasher.java</file>
         </group>
     </open-files>
 </project-private>

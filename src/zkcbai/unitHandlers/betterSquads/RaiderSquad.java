@@ -17,13 +17,17 @@ import java.util.Set;
 import zkcbai.Command;
 import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.ZoneManager.Area;
+import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.FighterHandler;
+import static zkcbai.unitHandlers.betterSquads.ScoutSquad.dangerChecker;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
+import zkcbai.unitHandlers.units.tasks.AttackTask;
 import zkcbai.unitHandlers.units.tasks.FightTask;
+import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
@@ -48,10 +52,10 @@ public class RaiderSquad extends SquadManager {
     }
 
     final static private String[] raiderIds = {"armpw", "corak", "corgator", "logkoda", "armkam", "amphraider3", "subraider", "corsh", "corpyro"};
-    final static List<UnitDef> raiders = new ArrayList();
+    final static Set<UnitDef> raiders = new HashSet();
 
     final static private String[] porcIds = {"corrl", "armllt"};
-    final static private List<UnitDef> porc = new ArrayList();
+    final static Set<UnitDef> porc = new HashSet();
 
     private AISquad aisquad;
 
@@ -76,11 +80,11 @@ public class RaiderSquad extends SquadManager {
                 }
                 return req;
             }
-        }
+        }/*
         command.debug("Warning(RaiderSquad): Couldn't find any required units in set of available Units: ");
         for (UnitDef ud : availableUnits) {
             command.debug(ud.getHumanName());
-        }
+        }*/
         return null;
     }
 
@@ -158,8 +162,10 @@ public class RaiderSquad extends SquadManager {
 
         Area best = null;
         float bestscore = -Float.MAX_VALUE;
+        /*
+        //ATTACK NEAREST ENEMY
         for (Area a : command.areaManager.getAreas()) {
-            if (a.getZone() == Zone.hostile) {
+            if (a.getZone() != Zone.own) {
                 continue;
             }
             float score = 0;
@@ -181,7 +187,9 @@ public class RaiderSquad extends SquadManager {
         if (best != null) {
             t.fight(best.getPos(), command.getCurrentFrame() + 30);
             return;
-        }
+        }*/
+        /*
+        //INTERCEPT
         if (target != null && command.areaManager.getArea(target.getPos()).getNearestArea(nearestOwnedChecker).distanceTo(target.getPos()) > 800) {
             target = null;
         }
@@ -191,7 +199,7 @@ public class RaiderSquad extends SquadManager {
             Queue<Enemy> dangerousEnemies = new LinkedList();
             for (Enemy e : command.getEnemyUnits(false)) {
                 float dist = command.areaManager.getArea(e.getPos()).getNearestArea(nearestOwnedChecker).distanceTo(e.getPos());
-                if (dist < 800 && !e.isBuilding()) {
+                if (dist < 500 && !e.isBuilding()) {
                     totdanger += e.getDPS() * e.getHealth();
                     dangers.add(e.getDPS() * e.getHealth());
                     dangerousEnemies.add(e);
@@ -217,7 +225,7 @@ public class RaiderSquad extends SquadManager {
             return;
         }
         for (AIUnit au : command.getBuilderHandler().getBuilders()) {
-            if (best == null || best.getDanger() < command.areaManager.getArea(au.getPos()).getDanger()){
+            if (best == null || best.getDanger() < command.areaManager.getArea(au.getPos()).getDanger()) {
                 best = command.areaManager.getArea(au.getPos());
             }
         }
@@ -225,79 +233,78 @@ public class RaiderSquad extends SquadManager {
             t.fight(best.getPos(), command.getCurrentFrame() + 30);
             return;
         }
-        t.assignTask(new FightTask(t.getPos(), command.getCurrentFrame() +20, this));
-        
-        /*
-         //RAIDING (disabled)
-         final Set<Area> reachableAreas = command.areaManager.getArea(t.getPos()).getConnectedAreas(t.getMovementType(), dangerChecker);
-         AreaChecker reachableChecker = new AreaChecker() {
+        t.assignTask(new FightTask(t.getPos(), command.getCurrentFrame() + 20, this));
+        */
+        //RAIDING (disabled)
+        final Set<Area> reachableAreas = command.areaManager.getArea(t.getPos()).getConnectedAreas(t.getMovementType(), dangerChecker);
+        AreaChecker reachableChecker = new AreaChecker() {
 
-         @Override
-         public boolean checkArea(Area a) {
-         return reachableAreas.contains(a);
-         }
-         };
-         Collection<Enemy> enemies = command.getEnemyUnitsIn(t.getPos(), 2200);
-         if (enemies.size()  < command.getCallback().getFriendlyUnitsIn(t.getPos(), 2200).size()) {
-         Enemy best = null;
+            @Override
+            public boolean checkArea(Area a) {
+                return reachableAreas.contains(a);
+            }
+        };
+        Collection<Enemy> enemies = command.getEnemyUnitsIn(t.getPos(), 2200);
+        if (enemies.size() < command.getCallback().getFriendlyUnitsIn(t.getPos(), 2200).size()) {
+            Enemy bestenemy = null;
 
-         for (Enemy e : enemies) {
-         if (best == null || e.getDPS() / e.getHealth() > best.getDPS() / best.getHealth()) {
-         best = e;
-         }
-         }
-         if (best != null) {
-         t.assignTask(new AttackTask(best, command.getCurrentFrame() + 60, this, command));
-         return;
-         }
-         }
-         if (target != null && Math.random() < 0.6) {
-         Enemy best = this.target;
-         for (Enemy e : command.areaManager.getArea(target.getPos()).getNearbyEnemies()) {
-         if (e.getMaxRange() > e.distanceTo(target.getPos())) {
-         if (best == null || e.getDPS() / e.getHealth() > best.getDPS() / best.getHealth()) {
-         best = e;
-         }
-         }
-         }
-         if (t.distanceTo(best.getPos()) > Math.max(500, t.getMaxRange())) {
-         t.assignTask(new MoveTask(best.getPos(), command.getCurrentFrame() + 150, this, command.pathfinder.AVOID_ENEMIES, command));
-         } else {
-         t.assignTask(new AttackTask(best, command.getCurrentFrame() + 200, this, command));
-         }
-         return;
-         }
-         Enemy best = null;
-         for (Mex m : command.areaManager.getMexes()) {
-         if (command.areaManager.getArea(m.pos).getNearestArea(reachableChecker).distanceTo(m.pos) > 1500) {
-         continue;
-         }
-         if (best == null || m.distanceTo(t.getPos()) < best.distanceTo(t.getPos()) ) {
-         best = m.getEnemy();
-         }
-         }
-         for (Enemy e : command.getEnemyUnits(false)) {
-         if (e.getDPS() > 40) {
-         continue;
-         }
-         if (command.areaManager.getArea(e.getPos()).getNearestArea(reachableChecker).distanceTo(e.getPos()) > 1500) {
-         continue;
-         }
-         if (best == null || e.distanceTo(t.getPos()) < best.distanceTo(t.getPos()) ) {
-         best = e;
-         }
-         }
-         if (best != null) {
-         target = best;
-         troopIdle(t);
-         return;
-         }
-         for (Area a : command.areaManager.getAreas()) {
-         if (!a.isInLOS()) {
-         t.assignTask(new MoveTask(a.getPos(), command.getCurrentFrame() + 150, this, command.pathfinder.AVOID_ENEMIES, command));
-         return;
-         }
-         }*/
+            for (Enemy e : enemies) {
+                if (bestenemy == null || e.getDPS() / e.getHealth() > bestenemy.getDPS() / bestenemy.getHealth()) {
+                    bestenemy = e;
+                }
+            }
+            if (bestenemy != null) {
+                t.assignTask(new AttackTask(bestenemy, command.getCurrentFrame() + 60, this, command));
+                return;
+            }
+        }
+        if (target != null && Math.random() < 0.6) {
+            Enemy bestenemy = this.target;
+            for (Enemy e : command.areaManager.getArea(target.getPos()).getNearbyEnemies()) {
+                if (e.getMaxRange() > e.distanceTo(target.getPos())) {
+                    if (bestenemy == null || e.getDPS() / e.getHealth() > bestenemy.getDPS() / bestenemy.getHealth()) {
+                        bestenemy = e;
+                    }
+                }
+            }
+            if (t.distanceTo(bestenemy.getPos()) > Math.max(500, t.getMaxRange())) {
+                t.assignTask(new MoveTask(bestenemy.getPos(), command.getCurrentFrame() + 150, this, command.pathfinder.AVOID_ENEMIES, command));
+            } else {
+                t.assignTask(new AttackTask(bestenemy, command.getCurrentFrame() + 200, this, command));
+            }
+            return;
+        }
+        Enemy bestenemy = null;
+        for (Mex m : command.areaManager.getMexes()) {
+            if (command.areaManager.getArea(m.pos).getNearestArea(reachableChecker).distanceTo(m.pos) > 1500) {
+                continue;
+            }
+            if (bestenemy == null || m.distanceTo(t.getPos()) < bestenemy.distanceTo(t.getPos())) {
+                bestenemy = m.getEnemy();
+            }
+        }
+        for (Enemy e : command.getEnemyUnits(false)) {
+            if (e.getDPS() > 40) {
+                continue;
+            }
+            if (command.areaManager.getArea(e.getPos()).getNearestArea(reachableChecker).distanceTo(e.getPos()) > 1500) {
+                continue;
+            }
+            if (bestenemy == null || e.distanceTo(t.getPos()) < bestenemy.distanceTo(t.getPos())) {
+                bestenemy = e;
+            }
+        }
+        if (bestenemy != null) {
+            target = bestenemy;
+            troopIdle(t);
+            return;
+        }
+        for (Area a : command.areaManager.getAreas()) {
+            if (!a.isInLOS()) {
+                t.assignTask(new MoveTask(a.getPos(), command.getCurrentFrame() + 150, this, command.pathfinder.AVOID_ENEMIES, command));
+                return;
+            }
+        }
     }
 
     @Override
@@ -323,6 +330,6 @@ public class RaiderSquad extends SquadManager {
 
     @Override
     public boolean retreatForRepairs(AITroop u) {
-        return command.areaManager.getArea(u.getPos()).getZone() != Zone.hostile;
+        return u.getArea().getZone() != Zone.hostile;
     }
 }

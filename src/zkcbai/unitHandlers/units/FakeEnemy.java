@@ -33,7 +33,6 @@ public abstract class FakeEnemy extends Enemy{
         if (unitDef.getName().equals("cormex")) {
             command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
         }
-        command.debug(getDef().toString());
         isBuilding = getDef().getSpeed() <= 0;
     }
     

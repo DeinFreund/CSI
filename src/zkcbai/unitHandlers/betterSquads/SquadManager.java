@@ -22,7 +22,7 @@ public abstract class SquadManager extends SquadHandler {
     
     protected Collection<UnitDef> availableUnits;
     
-    protected boolean finished = false; //whether squad has been completely built
+    protected boolean finishedBuilding = false; //whether squad has been completely built
 
     /**
      *
@@ -47,7 +47,7 @@ public abstract class SquadManager extends SquadHandler {
      * @return whether the squad has been completely built
      */
     public boolean isFinished(){
-        return finished;
+        return finishedBuilding;
     }
     /**
      *

@@ -23,15 +23,17 @@ import zkcbai.unitHandlers.units.Enemy;
  */
 public class ReclaimTask extends Task implements TaskIssuer{
 
-    private Feature target;
+    private AIFloat3 target;
+    private float range;
     private int errors = 0;
     private Set<AIUnit> workers = new HashSet<>();
     private Command command;
     private boolean finished = false;
 
-    public ReclaimTask(Feature target, TaskIssuer issuer, Command command) {
+    public ReclaimTask(AIFloat3 target, float range, TaskIssuer issuer, Command command) {
         super(issuer);
         this.target = target;
+        this.range = range;
         this.command = command;
     }
 
@@ -44,20 +46,20 @@ public class ReclaimTask extends Task implements TaskIssuer{
             issuer.abortedTask(this);
             return true;
         }
-        if (target.getReclaimLeft()< 0.01f) {
+        if (command.areaManager.getArea(target).getReclaim() < 0.1f || (u.distanceTo(target) < u.getDef().getBuildDistance() * 1.5 && command.getCallback().getFeaturesIn(target, range).isEmpty()) ) {
             completed(u);
             issuer.finishedTask(this);
             return true;
         }
-        if (u.distanceTo(target.getPosition()) > u.getDef().getBuildDistance()) {
-            u.assignTask(new MoveTask(target.getPosition(), u.getCommand().getCurrentFrame() + 60, this, u.getCommand().pathfinder.AVOID_ENEMIES, u.getCommand()).queue(this));
+        if (u.distanceTo(target) > u.getDef().getBuildDistance()) {
+            u.assignTask(new MoveTask(target, u.getCommand().getCurrentFrame() + 60, this, u.getCommand().pathfinder.AVOID_ENEMIES, u.getCommand()).queue(this));
             return false;
         }
-        u.reclaimArea(target.getPosition(), 250, u.getCommand().getCurrentFrame() + 60);
+        u.reclaimArea(target, range, u.getCommand().getCurrentFrame() + 60);
         return false;
     }
 
-    public Feature getTarget() {
+    public AIFloat3 getTarget() {
         return target;
     }
 
@@ -72,7 +74,7 @@ public class ReclaimTask extends Task implements TaskIssuer{
 
     @Override
     public ReclaimTask clone() {
-        ReclaimTask as = new ReclaimTask(target, issuer, command);
+        ReclaimTask as = new ReclaimTask(target, range, issuer, command);
         as.queued = this.queued;
         return as;
     }

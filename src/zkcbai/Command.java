@@ -41,12 +41,14 @@ import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.RadarManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
+import zkcbai.unitHandlers.AvengerHandler;
 import zkcbai.unitHandlers.BuilderHandler;
 import zkcbai.unitHandlers.DropHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.NanoHandler;
-import zkcbai.unitHandlers.SlasherHandler;
+import zkcbai.unitHandlers.CreepHandler;
 import zkcbai.unitHandlers.TurretHandler;
+import zkcbai.unitHandlers.betterSquads.AvengerSquad;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeEnemy;
 import zkcbai.unitHandlers.units.FakeMex;
@@ -89,7 +91,8 @@ public class Command implements AI {
     private Collection<CommanderHandler> comHandlers = new HashSet<>();
     private FactoryHandler facHandler;
     private FighterHandler fighterHandler;
-    private SlasherHandler slasherHandler;
+    private CreepHandler creepHandler;
+    private AvengerHandler avengerHandler;
     private TurretHandler turretHandler;
     private BuilderHandler builderHandler;
     private NanoHandler nanoHandler;
@@ -121,7 +124,8 @@ public class Command implements AI {
             killCounter = new KillCounter(this, clbk);
 
             fighterHandler = new FighterHandler(this, clbk);
-            slasherHandler = new SlasherHandler(this, clbk);
+            creepHandler = new CreepHandler(this, clbk);
+            avengerHandler = new AvengerHandler(this, clbk);
             turretHandler = new TurretHandler(this, clbk);
             facHandler = new FactoryHandler(this, callback); //req: fighterHandler
             builderHandler = new BuilderHandler(this, clbk);
@@ -158,9 +162,17 @@ public class Command implements AI {
     public BuilderHandler getBuilderHandler() {
         return builderHandler;
     }
+    
+    public AvengerHandler getAvengerHandler(){
+        return avengerHandler;
+    }
 
     public NanoHandler getNanoHandler() {
         return nanoHandler;
+    }
+
+    public DropHandler getDropHandler() {
+        return dropHandler;
     }
 
     public FighterHandler getFighterHandler() {
@@ -277,13 +289,14 @@ public class Command implements AI {
      * @return
      */
     public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
-        Set<Enemy> list = new HashSet();
+        return areaManager.getEnemyUnitsIn(pos, radius);
+        /*Set<Enemy> list = new HashSet();
         for (Unit u : clbk.getEnemyUnitsIn(pos, radius)) {
             if (enemies.containsKey(u.getUnitId())) {
                 list.add(enemies.get(u.getUnitId()));
             }
         }
-        return list;
+        return list;*/
     }
 
     /**
@@ -293,6 +306,7 @@ public class Command implements AI {
      * @param radius
      * @return
      */
+    /*
     public Set<Enemy> getEnemyUnitsIn_Slow(AIFloat3 pos, float radius) {
         Set<Enemy> list = new HashSet();
         for (Area a : areaManager.getAreas()) {
@@ -310,6 +324,7 @@ public class Command implements AI {
         }
         return list;
     }
+    */
 
     public Set<UnitDef> getEnemyUnitDefs() {
         return enemyDefs;
@@ -470,7 +485,7 @@ public class Command implements AI {
     public synchronized int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
             Enemy att = null;
-            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn_Slow(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01) {
+            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01) {
                 AIFloat3 npos = new AIFloat3(unit.getPos());
                 dir.normalize();
                 dir.scale(400);
@@ -485,8 +500,8 @@ public class Command implements AI {
                 if (unit.isBeingBuilt()) {
                     return 0;
                 }
-                mark(unit.getPos(), "unknown unit");
                 if (unit.getDef() != null && unit.getHealth() > 0f) {
+                    mark(unit.getPos(), "unknown unit");
                     unitFinished(unit);
                 }
                 return 0;
@@ -639,6 +654,7 @@ public class Command implements AI {
             AIUnit aiunit = units.get(unit.getUnitId());
             if (aiunit != null) {
 
+                units.remove(unit.getUnitId());
                 Enemy enemy = null;
                 if (attacker != null && enemies.containsKey(attacker.getUnitId())) {
                     enemy = enemies.get(attacker.getUnitId());
@@ -648,7 +664,6 @@ public class Command implements AI {
                     listener.unitDestroyed(aiunit, enemy);
                 }
                 aiunit.destroyed();
-                units.remove(unit.getUnitId());
 
             }
             Enemy e = enemies.get(unit.getUnitId());
@@ -717,10 +732,14 @@ public class Command implements AI {
         return 0;
     }
 
+    private int checkedIdle = 0;
+    public float avgUpdateTime = 0;
+
     @Override
     public int update(int frame) {
         Timer timer = new Timer(5000, null);
         try {
+            long updateStart = System.currentTimeMillis();
             final Thread mainThread = Thread.currentThread();
             timer.setRepeats(false);
             timer.addActionListener(new ActionListener() {
@@ -757,11 +776,29 @@ public class Command implements AI {
             }
 
             //Check for forgotten units
-            if (frame % 242 == 0) {
-                for (AIUnit u : units.values()) {
-                    u.checkIdle();
+            if (frame % 150 == 100) {
+                if (checkedIdle < 50) {
+                    debug("Only checked " + checkedIdle + " units in the last 5 seconds");
+                    debug("Avg update time: " + avgUpdateTime + "ms");
                 }
+                checkedIdle = 0;
             }
+
+            while (System.currentTimeMillis() - updateStart < 5) {
+                if (getRandomUnit() != null) {
+                    for (int i = 0; i < 7; i++) {
+                        getRandomUnit().checkIdle();
+                    }
+                }
+                if (getRandomEnemy() != null) {
+                    for (int i = 0; i < 7; i++) {
+                        getRandomEnemy().update(frame);
+                    }
+                }
+                checkedIdle += 20;
+            }
+            avgUpdateTime = (System.currentTimeMillis() - updateStart) * 0.02f + avgUpdateTime * 0.98f;
+
         } catch (Throwable e) {
             debug("Exception in update: ", e);
         } finally {
@@ -816,16 +853,16 @@ public class Command implements AI {
                         }
                         break;
                     }
-                    if (unit.getDef().getName().equalsIgnoreCase("cormist")) {
-                        aiunit = slasherHandler.addUnit(unit);
+                    if (AvengerSquad.fighters.contains(unit.getDef())) {
+                        aiunit = avengerHandler.addUnit(unit);
                         break;
                     }
-                    if (unit.getDef().getName().equalsIgnoreCase("corvalk") || unit.getDef().getName().equalsIgnoreCase("corroach")) {
+                    if (unit.getDef().equals(dropHandler.VALK) || unit.getDef().equals(dropHandler.SKUTTLE) || unit.getDef().equals(dropHandler.ROACH) || unit.getDef().equals(dropHandler.GNAT)) {
                         aiunit = dropHandler.addUnit(unit);
                         break;
                     }
                     if (unit.getDef().isAbleToAttack() && unit.getDef().getSpeed() > 0) {
-                        aiunit = fighterHandler.addUnit(unit);
+                        aiunit = creepHandler.addUnit(unit);
                         break;
                     }
                     if (unit.getDef().isAbleToAttack() && unit.getDef().getSpeed() < 0.1) {
@@ -908,6 +945,9 @@ public class Command implements AI {
     public synchronized void debug(String s, boolean intoInfolog) {
         if (intoInfolog && LOG_TO_INFOLOG) {
             clbk.getGame().sendTextMessage(s, 0);
+            if (!s.contains("DebugStack")){
+                //debugStackTrace();
+            }
         }
         try {
             if (debugWriter == null) {
@@ -945,7 +985,9 @@ public class Command implements AI {
 
     public void clearBuildTask(BuildTask bt) {
         if (!buildTasks.containsKey(bt)) {
-            if (bt.getBuilding().getSpeed() <= 0.1f) debug("Unregistered BuildTask for " + bt.getBuilding().getHumanName());
+            if (bt.getBuilding().getSpeed() <= 0.1f && !bt.getBuilding().getName().equals("cormex")) {
+                debug("Unregistered BuildTask for " + bt.getBuilding().getHumanName());
+            }
             return;
         }
         buildTasks.get(bt).getBuildTasks().remove(bt);
@@ -976,7 +1018,7 @@ public class Command implements AI {
         float mindist = Float.MAX_VALUE;
         for (Mex m : areaManager.getArea(pos).getNearbyMexes()) {
             mindist = Math.min(mindist, m.distanceTo(pos));
-            if (m.distanceTo(pos) < mexradius + 1.5 * building.getRadius() && !m.isBuilt()) {
+            if (m.distanceTo(pos) < mexradius + 1.5 * building.getRadius() + 50 && !m.isBuilt()) {
                 return false;
             }
         }

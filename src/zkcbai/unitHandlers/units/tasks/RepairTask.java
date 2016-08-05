@@ -70,6 +70,11 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
         errors++;
     }
 
+    
+    public void removeWorker(AIUnit worker){
+        workers.remove(worker);
+    }
+    
     @Override
     public RepairTask clone() {
         RepairTask as = new RepairTask(target, issuer, command);
@@ -131,4 +136,9 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
         }
     }
 
+    @Override
+    public TaskType getTaskType(){
+        return TaskType.RepairTask;
+    }
+    
 }

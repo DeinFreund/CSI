@@ -90,13 +90,13 @@ public class NanoHandler extends UnitHandler implements UpdateListener {
     @Override
     public void update(int frame) {
 
-        for (BuildTask bt : nanoTasks.toArray(new BuildTask[0])){
+        for (BuildTask bt : nanoTasks.toArray(new BuildTask[nanoTasks.size()])){
             if (bt.isAborted() || bt.isDone()){
                 nanoTasks.remove(bt);
             }
         }
         if ((aiunits.size() + nanoTasks.size()) * 10 + 15 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome) ) {
-            nanoTasks.add(command.getBuilderHandler().requestCaretaker(command.getFactoryHandler().getFacs().toArray(new Factory[0])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
+            nanoTasks.add(command.getBuilderHandler().requestCaretaker(command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
             command.debug(nanoTasks.size() + " Caretakers under construction");
         }
 

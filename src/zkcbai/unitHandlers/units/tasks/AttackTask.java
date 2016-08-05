@@ -97,7 +97,7 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
             u.moveTo(pos, command.getCurrentFrame() + 25);
         }
         if (u.getMaxRange() < 400 && u.getDef().getSpeed()<  110) {
-            u.attack(target.getUnit(), command.getCurrentFrame() + 30);
+            u.attack(target, command.getCurrentFrame() + 30);
         } else {
             u.fight(target.getPos(), command.getCurrentFrame() + 70);
         }

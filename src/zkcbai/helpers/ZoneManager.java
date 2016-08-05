@@ -6,9 +6,9 @@
 package zkcbai.helpers;
 
 import com.springrts.ai.oo.AIFloat3;
+import com.springrts.ai.oo.clb.Feature;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Team;
-import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.awt.Color;
 import java.awt.FontMetrics;
@@ -48,6 +48,7 @@ import static zkcbai.helpers.ZoneManager.Zone.fortified;
 import static zkcbai.helpers.ZoneManager.Zone.hostile;
 import static zkcbai.helpers.ZoneManager.Zone.neutral;
 import static zkcbai.helpers.ZoneManager.Zone.own;
+import zkcbai.unitHandlers.AvengerHandler;
 import zkcbai.unitHandlers.BuilderHandler.GridNode;
 import zkcbai.unitHandlers.FactoryHandler.Factory;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -63,7 +64,7 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
  */
 public class ZoneManager extends Helper implements UnitDestroyedListener {
 
-    private static final boolean GUI = true;
+    private static final boolean GUI = false;
 
     private Area[][] map;
     private List<Area> areas;//for simplified iterating
@@ -72,6 +73,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     private MapGUI pnl;
 
     private List<Mex> mexes;
+
+    private Set<Area> reclaimAreas = new HashSet();
 
     private final int mwidth;
     private final int mheight;
@@ -100,6 +103,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         @Override
         public boolean checkArea(Area a) {
             return a.getZone() == Zone.hostile;
+        }
+    };
+    public final AreaChecker FRIENDLY = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return a.getZone() == Zone.own;
         }
     };
     public final AreaChecker HOSTILE_RAIDER_ACCESSIBLE = new AreaChecker() {
@@ -132,6 +141,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         public boolean checkArea(Area a) {
             return command.defenseManager.isAssaultAccessible(a.getPos())
                     && command.pathfinder.isReachable(a.getPos(), command.getStartPos(), clbk.getUnitDefByName("armzeus").getMoveData().getMaxSlope());
+        }
+    };
+    public final AreaChecker ALL = new AreaChecker() {
+        @Override
+        public boolean checkArea(Area a) {
+            return true;
         }
     };
 
@@ -220,6 +235,32 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         zoneChangeListeners.remove(listener);
     }
 
+    public List<AIFloat3> getEnemyStartPositions() {
+        List<AIFloat3> enemystartpos = new ArrayList();
+        Set<Integer> boxIds = new HashSet();
+
+        for (Team t : clbk.getAllyTeams()) {
+            boxIds.add((int) Math.round(t.getRulesParamFloat("start_box_id", -1f)));
+        }
+        int boxes = (int) Math.round(clbk.getGame().getRulesParamFloat("startbox_max_n", 0));
+        command.debug( boxes + " boxes");
+        for (Integer startbox = 0; startbox <= boxes; startbox++) {
+            int startposes = (int) Math.round(clbk.getGame().getRulesParamFloat("startpos_n_" + startbox, 0));
+            for (int myIndex = 0; myIndex < startposes; myIndex++) {
+
+                float startx = (clbk.getGame().getRulesParamFloat("startpos_x_" + startbox + "_" + (myIndex % startposes + 1), 0));
+                float startz = (clbk.getGame().getRulesParamFloat("startpos_z_" + startbox + "_" + (myIndex % startposes + 1), 0));
+                if (boxIds.contains(startbox)) {
+                    command.mark(new AIFloat3(startx, 0, startz), "friendly startpos");
+                } else {
+                    enemystartpos.add(new AIFloat3(startx, 0, startz));
+                    command.mark(new AIFloat3(startx, 0, startz), "enemy startpos");
+                }
+            }
+        }
+        return enemystartpos;
+    }
+
     private void parseStartScript() {
         AIFloat3 compos = null;
         try {
@@ -296,7 +337,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             compos = pos;
         }
         command.addFakeEnemy(new FakeCommander(compos, command, clbk));
-        Mex closest = null;
+        Mex closest = mexes.get(0);
         for (Mex m : mexes) {
             if (closest == null || closest.distanceTo(compos) > m.distanceTo(compos)) {
                 closest = m;
@@ -321,6 +362,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     private boolean calculatedRandomWalks = false;
 
     private int areaCacheUpdateIndex = 0;
+    private int checkCounter = 0;
 
     @Override
     public void update(int frame) {
@@ -329,15 +371,26 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             parseStartScript();
         }
 
+        if (frame % 150 == 100) {
+            if (checkCounter < areas.size()) {
+                command.debug("Area update interval is " + (5 * areas.size() / checkCounter) + " seconds");
+            }
+            checkCounter = 0;
+        }
+
         long time1 = System.currentTimeMillis();
         int areacounter = 0;
-        while (System.currentTimeMillis() - time1 < 5) {
-            for (int i = 0; i < 10; i++) {
+        while (System.currentTimeMillis() - time1 < 1) {
+            for (int i = 0; i < 7; i++) {
                 areacounter++;
+                areas.get(areaCacheUpdateIndex).lastCache = Integer.MIN_VALUE / 10;
+                areas.get(areaCacheUpdateIndex).lastDangerCache = Integer.MIN_VALUE / 10;
                 areas.get(areaCacheUpdateIndex).getZone();
+                areas.get(areaCacheUpdateIndex).isInLOS();
                 areas.get(areaCacheUpdateIndex++).getDanger();
                 areaCacheUpdateIndex %= areas.size();
             }
+            checkCounter += 7;
         }
         if (System.currentTimeMillis() - time1 > 10) {
             command.debug("Updated " + areacounter + " Area caches in " + (System.currentTimeMillis() - time1) + "ms.");
@@ -347,7 +400,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             long time2 = System.currentTimeMillis();
             pnl.updateFramebuffer();
             pnl.updateUI();
-            if (System.currentTimeMillis() - time2 > 150) {
+            if (System.currentTimeMillis() - time2 > 80) {
                 command.debug("Updating Framebuffer took " + (System.currentTimeMillis() - time2) + "ms.");
             }
         }
@@ -395,7 +448,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             }
             final float finvalue = value;
 
-            getArea(own.getPos()).randomWalk(PATH_LENGTH, new AreaChecker() {
+            own.getArea().randomWalk(PATH_LENGTH, new AreaChecker() {
 
                 @Override
                 public boolean checkArea(zkcbai.helpers.ZoneManager.Area a) {
@@ -460,22 +513,57 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         return areas;
     }
 
+    public final Collection<Area> getAreasWithReclaim() {
+        return reclaimAreas;
+    }
+
     public Area getArea(AIFloat3 pos) {
         return map[Math.max(0, Math.min(map.length - 1, map.length * (int) pos.x / mwidth))][Math.max(0, Math.min(map[0].length - 1, map[0].length * (int) pos.z / mheight))];
     }
 
     public List<Area> getAreasInRectangle(AIFloat3 coords, AIFloat3 coords2) {
-        int x1 = (int) (coords.x * map.length / 8 / clbk.getMap().getWidth());
-        int y1 = (int) (coords.z * map[0].length / 8 / clbk.getMap().getHeight());
-        int x2 = (int) (coords2.x * map.length / 8 / clbk.getMap().getWidth());
-        int y2 = (int) (coords2.z * map[0].length / 8 / clbk.getMap().getHeight());
+        int x1 = Math.max(0, (int) (coords.x * map.length / 8 / clbk.getMap().getWidth()));
+        int y1 = Math.max(0, (int) (coords.z * map[0].length / 8 / clbk.getMap().getHeight()));
+        int x2 = Math.min(map.length - 1, (int) (coords2.x * map.length / 8 / clbk.getMap().getWidth()));
+        int y2 = Math.min(map[0].length - 1, (int) (coords2.z * map[0].length / 8 / clbk.getMap().getHeight()));
         List<Area> ret = new ArrayList();
-        for (int x = x1; x <= Math.min(x2, map.length - 1); x++) {
-            for (int y = y1; y <= Math.min(y2, map[x].length - 1); y++) {
+        for (int x = x1; x <= x2; x++) {
+            for (int y = y1; y <= y2; y++) {
                 ret.add(map[x][y]);
             }
         }
         return ret;
+    }
+
+    public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
+        return getEnemyUnitsIn(pos, radius, ALL);
+    }
+
+    public Set<Enemy> getEnemyUnitsInAreas(AreaChecker checker) {
+        return getEnemyUnitsIn(new AIFloat3(), 1000000f, checker);
+    }
+
+    public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius, AreaChecker checker) {
+        Set<Enemy> list = new HashSet();
+        AIFloat3 coords = new AIFloat3(pos.x - radius, pos.y, pos.z - radius);
+        AIFloat3 coords2 = new AIFloat3(pos.x + radius, pos.y, pos.z + radius);
+        int x1 = Math.max(0, (int) (coords.x * map.length / 8 / clbk.getMap().getWidth()));
+        int y1 = Math.max(0, (int) (coords.z * map[0].length / 8 / clbk.getMap().getHeight()));
+        int x2 = Math.min(map.length - 1, (int) (coords2.x * map.length / 8 / clbk.getMap().getWidth()));
+        int y2 = Math.min(map[0].length - 1, (int) (coords2.z * map[0].length / 8 / clbk.getMap().getHeight()));
+        for (int x = x1; x <= x2; x++) {
+            for (int y = y1; y <= y2; y++) {
+                if (!checker.checkArea(map[x][y])) {
+                    continue;
+                }
+                for (Enemy e : map[x][y].getEnemies()) {
+                    if (e.distanceTo(pos) < radius && !e.isTimedOut()) {
+                        list.add(e);
+                    }
+                }
+            }
+        }
+        return list;
     }
 
     @Override
@@ -544,6 +632,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         private float negativeFlow = 0;
         private float positiveFlow = 0;
         private HashSet<BuildTask> buildTasks = new HashSet<>();
+        private int lastVisible = -10000;
 
         public Area(int x, int y, int index) {
             this.x = x;
@@ -597,6 +686,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         public float getPositiveFlow() {
             return positiveFlow;
+        }
+
+        /**
+         *
+         * @return last frame where this area was within LOS
+         */
+        public int getLastVisible() {
+            return lastVisible;
         }
 
         public Set<BuildTask> getBuildTasks() {
@@ -841,6 +938,12 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             return null;
         }
 
+        protected float reclaim = 0;
+
+        public float getReclaim() {
+            return reclaim;
+        }
+
         /**
          *
          * @return whether area is in radar or los
@@ -850,6 +953,22 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public boolean isInLOS() {
+            if (command.losManager.isInLos(pos)) {
+                lastVisible = command.getCurrentFrame();
+                if (command.getCurrentFrame() - lastCache > 1000) {
+                    reclaim = 0;
+                    for (Feature f : clbk.getFeaturesIn(getPos(), Math.max(getHeight(), getWidth()))) {
+                        if (f.getDef().getContainedResource(command.metal) > 0 && getArea(f.getPosition()).equals(this)) {
+                            reclaim += f.getReclaimLeft();
+                        }
+                    }
+                    if (reclaim > 10) {
+                        reclaimAreas.add(this);
+                    } else {
+                        reclaimAreas.remove(this);
+                    }
+                }
+            }
             return command.losManager.isInLos(pos);
         }
 
@@ -865,15 +984,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             reachable = val;
         }
 
-        List<Enemy> enemies;
+        List<Enemy> enemies = new ArrayList();
 
         public final List<Enemy> getEnemies() {
             getDanger();
             return enemies;
         }
 
-        List<Enemy> nearbyEnemies;
-        Enemy[] nearbyEnemiesArr;
+        List<Enemy> nearbyEnemies = new ArrayList();
+        Enemy[] nearbyEnemiesArr = new Enemy[0];
 
         public final Enemy[] getNearbyEnemies() {
             getDanger();
@@ -906,11 +1025,38 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             return 8 * getEnclosingRadius();
         }
 
+        protected float aadps = 0;
+
+        public float getAADPS() {
+            return aadps;
+        }
+
+        private void updateAADPS() {
+            aadps = 0;
+            for (Enemy e : command.getAvengerHandler().getEnemyLongRangeAntiAir()) {
+                if (e.distanceTo(pos) < e.getMaxRange()) {
+                    aadps += e.getDPS();
+                }
+            }
+            for (Enemy e : getEnemyUnitsIn(pos, 1000)) {
+                float mul = -e.distanceTo(pos) / 1000 * 0.3f + 1f;
+                if (e.getDPS() > 0 && !AvengerHandler.AADefs.contains(e.getDef())
+                        && (e.getDef().getWeaponMounts().get(0).getWeaponDef().isAbleToAttackGround() == false
+                        || e.getDef().getName().equals("corrl"))
+                        && (e.distanceTo(pos) < e.getMaxRange() || e.getDef().getSpeed() > 0)) {
+                    aadps += e.getDPS() * mul;
+                } else if (e.distanceTo(pos) < e.getMaxRange() || e.getDef().getSpeed() > 0) {
+                    aadps += e.getDPS() / 7f * mul;
+                }
+            }
+        }
+
         public float getDanger() {
-            if (command.getCurrentFrame() - lastDangerCache > 20) {
+            if (command.getCurrentFrame() - lastDangerCache > 20000) {
+                lastDangerCache = command.getCurrentFrame();
+                updateAADPS();
                 enemies = new ArrayList();
                 nearbyEnemies = new ArrayList();
-                lastDangerCache = command.getCurrentFrame();
                 dangerCache = 0;
                 for (Enemy e : command.getEnemyUnits(false)) {
                     float speed = 3 * Math.max(30, e.getDef().getSpeed());
@@ -923,7 +1069,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                         nearbyEnemies.add(e);
                     }
                 }
-                nearbyEnemiesArr = nearbyEnemies.toArray(new Enemy[0]);
+                nearbyEnemiesArr = nearbyEnemies.toArray(new Enemy[nearbyEnemies.size()]);
             }
             return dangerCache;
         }
@@ -1007,7 +1153,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public Zone getZone() {
-            if (command.getCurrentFrame() - lastCache > 60) {
+            if (command.getCurrentFrame() - lastCache > 60000) {
                 Zone old = zoneCache;
                 zoneCache = _getZone();
                 if (old != zoneCache) {
@@ -1025,6 +1171,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         private Zone _getZone() {
+
             /*
              if (isVisible() && owner == Owner.enemy && getEnemies().isEmpty()) {
              owner = Owner.none;
@@ -1151,7 +1298,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             //command.debug("enemy destroyed " + e.getUnitId());
             if (nearbyEnemies.remove(e)) {
                 //command.debug("removing from list " + e.getUnitId());
-                nearbyEnemiesArr = nearbyEnemies.toArray(new Enemy[0]);
+                nearbyEnemiesArr = nearbyEnemies.toArray(new Enemy[nearbyEnemies.size()]);
             }
         }
 
@@ -1375,8 +1522,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                             g.setColor(g.getColor().darker());
                         }
                     }
-                    float danger = map[x][y].getDanger() / maxDanger;
-                    float value = map[x][y].getValue() / maxValue;
+                    if (command.getCurrentFrame() - map[x][y].getLastVisible() > 30 * 60 * 5) {
+                        g.setColor(Color.black);
+                    }
+                    //float danger = map[x][y].getDanger() / maxDanger;
+                    //float value = map[x][y].getValue() / maxValue;
                     /*float[] hsb = new float[3];
                      Color.RGBtoHSB(g.getColor().getRed(), g.getColor().getGreen(), g.getColor().getBlue(),hsb );
                      if (map[x][y].getZone() != Zone.own){
@@ -1424,15 +1574,21 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                         g.drawLine((int) Math.round(x * w), (int) Math.round(y * h + h),
                                 (int) Math.round((x + 1) * w), (int) Math.round((y) * h));
                     }
+                    //g.drawRect((int)Math.round(x * w), (int)Math.round(y * h), (int)Math.round(w), (int)Math.round(h));
+                    g.setColor(stringcol);
+                    //g.drawString(String.valueOf(Area.map[x][y].guaranteedUnits), x * w + w / 2 - 2, y * h + h / 2 + 4);
+                }
+            }
+
+            for (int x = 0; x < map.length; x++) {
+                for (int y = 0; y < map[x].length; y++) {
+
                     for (DebugConnection dc : map[x][y].getDebugConnections()) {
 
                         g.setColor(dc.color);
                         g.drawLine((int) Math.round((x + 0.5f) * w), (int) Math.round((y + 0.5) * h),
                                 (int) Math.round((dc.endpoint.x + 0.5) * w), (int) Math.round((dc.endpoint.y + 0.5) * h));
                     }
-                    //g.drawRect((int)Math.round(x * w), (int)Math.round(y * h), (int)Math.round(w), (int)Math.round(h));
-                    g.setColor(stringcol);
-                    //g.drawString(String.valueOf(Area.map[x][y].guaranteedUnits), x * w + w / 2 - 2, y * h + h / 2 + 4);
                 }
             }
 
@@ -1462,7 +1618,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             g.drawString("Offense budget: " + Math.round(command.economyManager.getRemainingOffenseBudget()), 10, 25);
             g.drawString("Energy budget: " + Math.round(command.economyManager.getRemainingEnergyBudget()), 10, 40);
             g.drawString("Defense budget: " + Math.round(command.economyManager.getRemainingDefenseBudget()), 10, 55);
-            g.drawString("Grid nodes: " + command.getBuilderHandler().getGridNodes().size(), 10, 70);
+            g.drawString("Generosity: " + Math.round(command.economyManager.getRemainingDefenseBudget()), 10, 70);
+            g.drawString("Grid nodes: " + command.getBuilderHandler().getGridNodes().size(), 10, 85);
             String queue = "";
             String building = "";
             for (Factory f : command.getFactoryHandler().getFacs()) {
@@ -1473,8 +1630,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                     building += f.getCurrentTask().getBuilding().getHumanName() + ", ";
                 }
             }
-            g.drawString("Queue: " + queue, 10, 85);
-            g.drawString("Building: " + building, 10, 100);
+            g.drawString("Avg update time: " + ((int) (10 * command.avgUpdateTime)) / 10.0 + "ms", 10, 100);
+            g.drawString("Queue: " + queue, 10, 115);
+            g.drawString("Building: " + building, 10, 130);
             g.setColor(Color.yellow);
             for (GridNode gn : command.getBuilderHandler().getGridNodes()) {
                 int x = (int) Math.round((gn.pos.x - gn.range) * getWidth() / mwidth);

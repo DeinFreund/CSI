@@ -56,6 +56,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         squads.add(this);
         timeCreated = handler.getCommand().getCurrentFrame();
         this.autoMerge = false;
+        reachableAreas = new HashSet();
     }
 
     public void addUnit(AIUnit u) {
@@ -64,7 +65,9 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         u.addRepairListener(this);
         u.assignAIUnitHandler(this);
         minRange = Math.min(u.getMaxRange(), minRange);
-        minSlope = Math.min(minSlope, u.getUnit().getDef().getMoveData().getMaxSlope());
+        minSlope = Math.min(minSlope, u.getMaxSlope());
+        
+        reachableAreas = u.getReachableAreas();
     }
 
     public void removeUnit(AIUnit u, AIUnitHandler newHandler) {
@@ -79,7 +82,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         minSlope = Float.MAX_VALUE;
         for (AIUnit au : allUnits) {
             minRange = Math.min(au.getMaxRange(), minRange);
-            minSlope = Math.min(minSlope, au.getUnit().getDef().getMoveData().getMaxSlope());
+            minSlope = Math.min(minSlope, au.getMaxSlope());
         }
         if (allUnits.isEmpty()) {
             dead = true;
@@ -272,7 +275,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     }
 
     @Override
-    public void attack(Unit trg, short options, int timeout) {
+    public void attack(Enemy trg, short options, int timeout) {
         //handler.getCommand().mark(trg, "move");
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
@@ -397,6 +400,9 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        for (AIUnit u : activeUnits){
+            u.wait(Integer.MAX_VALUE);
+        }
         if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
@@ -482,6 +488,8 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             }
             //getCommand().debug("all idle doing " + task.toString() +";" + tasks);
             idle();
+        }else{
+            u.wait(handler.getCommand().getCurrentFrame() + 30);
         }
     }
 

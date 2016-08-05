@@ -12,7 +12,6 @@ import zkcbai.unitHandlers.units.AIUnit;
 
 public class RadarManager extends Helper {
 
-    Command command;
 
     private List<Integer> radarMap;
     private BufferedImage radarImage;
@@ -31,7 +30,7 @@ public class RadarManager extends Helper {
         this.map = clbk.getMap();
         this.mapHeight = map.getHeight();
         this.mapWidth = map.getWidth();
-        this.radarResolution = 3;
+        this.radarResolution = clbk.getMod().getRadarMipLevel();
         this.radarGridSize = (int) Math.pow((double) 2, (double) radarResolution);
         this.radarMap = map.getRadarMap();
         this.gridWidth = mapWidth / radarGridSize;
@@ -48,7 +47,7 @@ public class RadarManager extends Helper {
         this.radarMap = map.getRadarMap();
 
         try {
-            if (frame % 5 == 0) {
+            if (frame % 6 == 1) {
                 updateRadarImage();
             }
         } catch (Exception e) {

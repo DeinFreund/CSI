@@ -53,7 +53,7 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
 
     }
 
-    final private String[] scoutIds = {"fighter", "armpw", "corak", "corfav", "blastwing", "amphraider3", "shipscout", "corsh", "armflea", "puppy"};
+    final private String[] scoutIds = {"armpw", "corak", "corfav", "blastwing", "amphraider3", "shipscout", "corsh", "armflea", "puppy"};
 
     final private List<UnitDef> scouts = new ArrayList();
 
@@ -82,10 +82,10 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
                 return req;
             }
         }
-        command.debug("Warning: Couldn't find any required units in set of available Units: ");
+        /*command.debug("Warning(ScoutSquad): Couldn't find any required units in set of available Units: ");
         for (UnitDef ud : availableUnits) {
             command.debug(ud.getHumanName());
-        }
+        }*/
         return null;
     }
 
@@ -163,10 +163,10 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
             AIFloat3 evadepos = command.areaManager.getArea(t.getPos()).getNearestArea(dangerChecker).getPos();
             t.moveTo(evadepos, command.getCurrentFrame() + 70);
             t.assignTask(new MoveTask(evadepos, command.getCurrentFrame() + 70, this, command.pathfinder.AVOID_ENEMIES, command));
-            command.debug("ESCAPING!");
+            //command.debug("ESCAPING!");
             return;
         } else {
-            command.debug("safe");
+            //command.debug("safe");
         }
         if (target != null && reachableAreas.contains(command.areaManager.getArea(target.getPos()))) {
             if (t.distanceTo(target.getPos()) > Math.max(500, t.getMaxRange())) {
@@ -270,7 +270,7 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
     @Override
     public void enemyEnterLOS(Enemy e) {
         if (aisquad != null && e.distanceTo(aisquad.getPos()) < 1000) {
-            command.areaManager.getArea(aisquad.getPos()).updateEnemies();
+            aisquad.getArea().updateEnemies();
             troopIdle(aisquad);
         }
     }

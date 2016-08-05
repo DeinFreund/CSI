@@ -43,7 +43,7 @@ public class BattleManager extends Helper implements EnemyDiscoveredListener, Un
     @Override
     public void update(int frame) {
         if (frame % 13 == 7){
-            for (AIUnit au : freeUnits.toArray(new AIUnit[0])){
+            for (AIUnit au : freeUnits.toArray(new AIUnit[freeUnits.size()])){
                 for (Enemy e : command.getEnemyUnitsIn(au.getPos(), 600)){
                     if (au.distanceTo(e.getPos()) < Math.max(au.getMaxRange(), e.getMaxRange())){
                         freeUnits.remove(au);

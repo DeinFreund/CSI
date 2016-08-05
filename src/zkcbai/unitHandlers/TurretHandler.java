@@ -65,6 +65,7 @@ public class TurretHandler extends UnitHandler {
         } else if (u.getDef().getName().equals("armartic")) {
             freq = 0.3f;
         } else {
+            u.assignTask(new WaitTask(command.getCurrentFrame() + 300, this));
             return;
         }
         boolean valid = false;
@@ -114,7 +115,7 @@ public class TurretHandler extends UnitHandler {
             }
         }
         lastTarget.put(u, unclippedtarget);
-        u.assignTask(new AttackGroundTask(target, command.getCurrentFrame() + (int) Math.ceil(10 / freq), this));
+        u.assignTask(new AttackGroundTask(target, command.getCurrentFrame() + (int) Math.ceil(10 / freq * (tries/ 10f + 1)), this));
         /*
          AIFloat3 offset = new AIFloat3(u.getPos());
          offset.add(new AIFloat3(10,0,10));

@@ -5,6 +5,7 @@
  */
 package zkcbai.unitHandlers;
 
+import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
+import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -29,9 +31,9 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class SlasherHandler extends UnitHandler implements UpdateListener {
+public class CreepHandler extends UnitHandler implements UpdateListener {
 
-    public SlasherHandler(Command cmd, OOAICallback clbk) {
+    public CreepHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         cmd.addUpdateListener(this);
     }
@@ -117,35 +119,52 @@ public class SlasherHandler extends UnitHandler implements UpdateListener {
             }
             Random rnd = new Random();
             int smart = 0;
-            for (AIUnit slasher : aiunits.values().toArray(new AIUnit[aiunits.values().size()])) {
+            for (AIUnit creep : aiunits.values().toArray(new AIUnit[aiunits.values().size()])) {
 
                 if (System.currentTimeMillis() - time < 180) {
-                    smart ++;
-                    Enemy closestEnemy = null;
-                    Set<Enemy> enemies = command.getEnemyUnitsIn(slasher.getPos(), 800);
-                    if (enemies.isEmpty()) {
-                        enemies = command.getEnemyUnitsIn(slasher.getPos(), 1200);
-                    }
-                    for (Enemy e : enemies) {
-                        if (closestEnemy == null || closestEnemy.distanceTo(slasher.getPos()) > e.distanceTo(slasher.getPos())) {
-                            closestEnemy = e;
+                    smart++;
+
+                    AIUnit nearestAlly = null;
+                    for (AIUnit ally : command.getUnitsIn(creep.getPos(), 800)) {
+                        if (ally.equals(creep)) {
+                            continue;
+                        }
+
+                        if (ally.getNearestEnemy() != null
+                                && ally.getNearestEnemy().distanceTo(ally.getPos()) < ally.getNearestEnemy().getMaxRange()
+                                && (nearestAlly == null || nearestAlly.distanceTo(creep.getPos()) > ally.distanceTo(creep.getPos()))) {
+                            nearestAlly = ally;
                         }
                     }
-                    if (closestEnemy != null) {
-                        if ((closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || closestEnemy.getDef().getName().equalsIgnoreCase("armsolar")
-                                || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor") || rnd.nextInt(8) < 1) && closestEnemy.getUnit() != null) {
-                            slasher.attack(closestEnemy, command.getCurrentFrame() + 100);
-                        } else {
-                            slasher.fight(closestEnemy.getPos(), command.getCurrentFrame() + 100);
-                        }
+                    if (nearestAlly != null) {
+                        creep.fight(nearestAlly.getNearestEnemy().getPos(), command.getCurrentFrame() + 80);
+                        command.debug(creep.getDef().getHumanName() +  " helping out " + nearestAlly.getDef().getHumanName() + " against " + nearestAlly.getNearestEnemy().getDef().getHumanName());
+                    }
+
+                    if (creep.getArea().getZone() != Zone.own) {
+                        creep.moveTo(creep.getArea().getNearestArea(command.areaManager.FRIENDLY, creep.getMovementType()).getPos(),
+                                command.getCurrentFrame() + 100);
                         continue;
+                    }
+                    Enemy closestEnemy = creep.getNearestEnemy();
+                    if (closestEnemy != null) {
+                        AIFloat3 closestFriendly = command.areaManager.getArea(closestEnemy.getPos()).getNearestArea(command.areaManager.FRIENDLY, creep.getMovementType()).getPos();
+                        if (closestEnemy.distanceTo(closestFriendly) < closestEnemy.getMaxRange()) {
+                            /*if ((closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || closestEnemy.getDef().getName().equalsIgnoreCase("armsolar")
+                                || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor") || rnd.nextInt(8) < 1) && closestEnemy.getUnit() != null) {
+                            creep.attack(closestEnemy.getUnit(), command.getCurrentFrame() + 100);
+                        } else*/ {
+                                creep.fight(closestEnemy.getPos(), command.getCurrentFrame() + 100);
+                            }
+                            continue;
+                        }
                     }
 
                     ZoneManager.Area best = null;
                     float bestscore = Float.NEGATIVE_INFINITY;
 
                     for (ZoneManager.Area a : unprotectedAreas.keySet()) {
-                        float score = -slasher.distanceTo(a.getPos()) / 100f;
+                        float score = -creep.distanceTo(a.getPos()) / 100f;
                         final Area area = a;
 
                         for (Area a2 : a.getConnectedAreas(Pathfinder.MovementType.spider, new AreaChecker() {
@@ -168,7 +187,7 @@ public class SlasherHandler extends UnitHandler implements UpdateListener {
                     }
                     {
                         if (best != null) {
-                            slasher.fight(best.getPos(), command.getCurrentFrame() + 100);
+                            creep.fight(best.getPos(), command.getCurrentFrame() + 100);
                             for (ZoneManager.Area a : unprotectedAreas.keySet()) {
                                 if (a.distanceTo(best.getPos()) < rtRange) {
                                     unprotectedAreas.put(a, unprotectedAreas.get(a) + 1);
@@ -177,10 +196,10 @@ public class SlasherHandler extends UnitHandler implements UpdateListener {
                         }
                     }
                 } else {
-                    slasher.fight(hostile.get(rnd.nextInt(hostile.size())).getPos(), frame + 100);
+                    creep.fight(hostile.get(rnd.nextInt(hostile.size())).getPos(), frame + 100);
                 }
             }
-            command.debug( (smart* 100 / aiunits.size()) +  "% smart slashers");
+            command.debug((smart * 100 / aiunits.size()) + "% smart creeps");
         }
     }
 }

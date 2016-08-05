@@ -26,6 +26,8 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     private Set<Enemy> defenses = new HashSet();
     private Set<Enemy> riots = new HashSet();
     private Set<Enemy> fighters = new HashSet();
+    
+    private Set<UnitDef> antiair = new HashSet();
 
     private final Set<UnitDef> riotDefs = new HashSet();
 
@@ -41,6 +43,11 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         command.addEnemyEnterLOSListener(this);
         command.addUnitDestroyedListener(this);
         command.addEnemyDiscoveredListener(this);
+        antiair.add(command.getCallback().getUnitDefByName("corrl"));
+        antiair.add(command.getCallback().getUnitDefByName("corrazor"));
+        antiair.add(command.getCallback().getUnitDefByName("corflak"));
+        antiair.add(command.getCallback().getUnitDefByName("armcir"));
+        antiair.add(command.getCallback().getUnitDefByName("screamer"));
     }
 
     public float getDanger(AIFloat3 pos) {
@@ -77,6 +84,19 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
             }
             result += (e.distanceTo(pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getDef().getCost(command.metal);
             result += (e.distanceTo(pos) <= e.getMaxRange() * 2.7 ? 0.5 : 0) * e.getDef().getCost(command.metal);
+        }
+        return result;
+    }
+    
+    public float getAntiAirDanger(AIFloat3 pos) {
+        float result = 0;
+        for (Enemy e : defenses) {
+            if (!antiair.contains(e.getDef())) continue;
+            if (e.getUnit() != null && e.getUnit().isBeingBuilt() && e.getRelativeHealth() < 0.9) {
+                continue;
+            }
+            result += (e.distanceTo(pos) <= e.getMaxRange() * 1.1 ? 0.5 : 0) * e.getDef().getCost(command.metal);
+            result += (e.distanceTo(pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getDef().getCost(command.metal);
         }
         return result;
     }

@@ -54,7 +54,6 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     }
 
     Set<SquadManager> squads = new HashSet();
-    
 
     Map<Integer, SquadHandler> unitSquads = new TreeMap();
 
@@ -69,24 +68,25 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         useUnit(au);
         return au;
     }
-    
+
     /**
      * needed to keep track of squads that are being constructed
+     *
      * @param squad
      */
-    public void addSquad(SquadManager squad){
+    public void addSquad(SquadManager squad) {
         squads.add(squad);
     }
-    
-    public void squadAborted(SquadManager squad){
+
+    public void squadAborted(SquadManager squad) {
         //squadsUnderConstruction.remove(squad);
         squads.remove(squad);
-        for (AIUnit au : squad.disband()){
+        for (AIUnit au : squad.disband()) {
             useUnit(au);
         }
     }
-    
-    public void squadFinished(SquadManager squad){
+
+    public void squadFinished(SquadManager squad) {
         //squadsUnderConstruction.remove(squad);
         //squads.add(squad);
     }
@@ -108,11 +108,13 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
             this.unit = unit;
         }
     }
-    
+
     int lastAssaultCheck = 0;
 
     private void tryAssault() {
-        if (command.getCurrentFrame() - lastAssaultCheck < 150) return;
+        if (command.getCurrentFrame() - lastAssaultCheck < 150) {
+            return;
+        }
         lastAssaultCheck = command.getCurrentFrame();
         for (Area a : command.areaManager.getAreas()) {
             if (!(a.isFront() || (a.getZone() != ZoneManager.Zone.hostile && a.getEnemies().size() > 0))) {
@@ -139,9 +141,9 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
             PriorityQueue<pqEntry> pq = new PriorityQueue(1, pqComp);
             for (AIUnit own : aiunits.values()) {
-                if (a.getNearbyEnemies().length == 0){
+                if (a.getNearbyEnemies().length == 0) {
                     strength += own.getDef().getCost(command.metal);
-                    pq.add(new pqEntry(own.getDef().getCost(command.metal),1, own));
+                    pq.add(new pqEntry(own.getDef().getCost(command.metal), 1, own));
                     continue;
                 }
                 float val = own.getDef().getCost(command.metal) / a.getNearbyEnemies().length;
@@ -149,16 +151,16 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
                 for (Enemy e : a.getNearbyEnemies()) {
                     strength += val * Math.min(3, own.getEfficiencyAgainst(e));
                 }
-                pq.add(new pqEntry(strength - ss, (strength -ss)/own.getDef().getCost(command.metal), own));
+                pq.add(new pqEntry(strength - ss, (strength - ss) / own.getDef().getCost(command.metal), own));
             }
             float enemyStrength = 0;
-            for (Enemy e: a.getNearbyEnemies()){
+            for (Enemy e : a.getNearbyEnemies()) {
                 enemyStrength += e.getMetalCost();
             }
-            if (strength > enemyStrength * 2 - a.getValue() * 1000 && strength > 250){
+            if (strength > enemyStrength * 2 - a.getValue() * 1000 && strength > 250) {
                 strength = 0;
                 AISquad squad = new AISquad(this);
-                while ((strength <= enemyStrength * 1.2 || strength < 250) && !pq.isEmpty()){
+                while ((strength <= enemyStrength * 1.2 || strength < 250) && !pq.isEmpty()) {
                     squad.addUnit(pq.peek().unit);
                     aiunits.remove(pq.peek().unit.getUnit().getUnitId());
                     strength += pq.poll().strength;
@@ -167,45 +169,49 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
                 command.debug("Launching assault with " + squad.getUnits().size() + " units.");
                 command.mark(a.getPos(), "assaulting " + a.getNearbyEnemies().length + " units");
             }
-            
+
         }
     }
-    
+
     private void useUnit(AIUnit au) {
-        for (SquadManager sq : squads){
-            if (sq.getRequiredUnits().contains(au.getDef()) && !sq.isFinished()){
+        for (SquadManager sq : squads) {
+            if (sq.getRequiredUnits().contains(au.getDef()) && !sq.isFinished()) {
                 sq.addUnit(au);
                 //command.mark(au.getPos(), "added to " + sq.getClass().getName());
                 return;
-            }else{
+            } else {
                 //command.debug("Unsatisfied " + sq.getClass().getName() + " " + sq.getRequiredUnits().get(0));
             }
         }
         //tryAssault();
         float sum = 0;
-        for (Area a : command.areaManager.getAreas()){
-            if (a.getZone() != ZoneManager.Zone.own) continue;
-            float imp = a.getDanger()*a.getValue()/a.getEnemies().size();
-            for (Enemy e: a.getEnemies()){
-                sum += Math.max(imp,0.000001) * au.getEfficiencyAgainst(e) / au.distanceTo(e.getPos());
+        for (Area a : command.areaManager.getAreas()) {
+            if (a.getZone() != ZoneManager.Zone.own) {
+                continue;
+            }
+            float imp = a.getDanger() * a.getValue() / a.getEnemies().size();
+            for (Enemy e : a.getEnemies()) {
+                sum += Math.max(imp, 0.000001) * au.getEfficiencyAgainst(e) / au.distanceTo(e.getPos());
             }
         }
         float random = rnd.nextFloat() * sum;
         int own = 0;
-        for (Area a : command.areaManager.getAreas()){
-            if (a.getZone() != ZoneManager.Zone.own || a.getValue() < 0.5) continue;
-            own ++;
-            float imp = a.getDanger()*a.getValue()/a.getEnemies().size();
-            for (Enemy e: a.getEnemies()){
-                random -= Math.max(imp,0.000001) * au.getEfficiencyAgainst(e) / au.distanceTo(e.getPos());
-                    if (random < 0){
+        for (Area a : command.areaManager.getAreas()) {
+            if (a.getZone() != ZoneManager.Zone.own || a.getValue() < 0.5) {
+                continue;
+            }
+            own++;
+            float imp = a.getDanger() * a.getValue() / a.getEnemies().size();
+            for (Enemy e : a.getEnemies()) {
+                random -= Math.max(imp, 0.000001) * au.getEfficiencyAgainst(e) / au.distanceTo(e.getPos());
+                if (random < 0) {
                     au.assignTask(new AttackTask(e, command.getCurrentFrame() + 35, this, true, command));
                     return;
                 }
             }
         }
         if (command.getBuilderHandler().getBuilders().size() > 0) {
-            int counter = Math.abs(au.hashCode()) % command.getBuilderHandler().getBuilders().size();
+            int counter = (au.hashCode() % command.getBuilderHandler().getBuilders().size() + command.getBuilderHandler().getBuilders().size()) % command.getBuilderHandler().getBuilders().size();
             AIFloat3 tpos = null;
             for (AIUnit con : command.getBuilderHandler().getBuilders()) {
                 counter--;
@@ -283,9 +289,10 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         }*/
     }
 
-    public final Collection<AIUnit> getFighters(){
+    public final Collection<AIUnit> getFighters() {
         return aiunits.values();
-    }    
+    }
+
     @Override
     public void troopIdle(AIUnit u) {
         useUnit(u);
@@ -299,14 +306,14 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
     @Override
     public void finishedTask(Task t) {
-        if (t.getInfo().equals("assault")){
+        if (t.getInfo().equals("assault")) {
             command.debug("Finished assault");
-            AssaultTask at = (AssaultTask)t;
-            for (AITroop a : at.getAITroops()){
-                if (a instanceof AISquad){
-                    for (AIUnit au : a.getUnits().toArray(new AIUnit[a.getUnits().size()])){
-                        ((AISquad)a).removeUnit(au, this);
-                        aiunits.put(au.getUnit().getUnitId(),au);
+            AssaultTask at = (AssaultTask) t;
+            for (AITroop a : at.getAITroops()) {
+                if (a instanceof AISquad) {
+                    for (AIUnit au : a.getUnits().toArray(new AIUnit[a.getUnits().size()])) {
+                        ((AISquad) a).removeUnit(au, this);
+                        aiunits.put(au.getUnit().getUnitId(), au);
                         a.idle();
                     }
                 }
@@ -314,10 +321,10 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
         }
     }
 
-    private AIFloat3 randomize(AIFloat3 f, float amt){
-        return new AIFloat3(f.x+rnd.nextFloat()*amt-amt/2,f.y+rnd.nextFloat()*amt-amt/2,f.z+rnd.nextFloat()*amt-amt/2);
+    private AIFloat3 randomize(AIFloat3 f, float amt) {
+        return new AIFloat3(f.x + rnd.nextFloat() * amt - amt / 2, f.y + rnd.nextFloat() * amt - amt / 2, f.z + rnd.nextFloat() * amt - amt / 2);
     }
-    
+
     @Override
     public void removeUnit(AIUnit u) {
         aiunits.remove(u.getUnit().getUnitId());
@@ -336,8 +343,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
     }
-    
-    
+
     public AIFloat3 requestNewTarget(GenericSquad s) {
         /*
         Enemy best = null;
@@ -432,7 +438,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     }
 
     public AIFloat3 requestNewTarget(AssaultSquad s) {
-/*
+        /*
         Area a = command.areaManager.getArea(s.getPos()).getNearestArea(command.areaManager.FORTIFIED_ASSAULT_ACCESSIBLE);
         if (a != null) {
             return a.getPos();
@@ -480,7 +486,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     }
 
     public void squadDestroyed(SquadHandler s) {
-        squads.remove((SquadManager)s);
+        squads.remove((SquadManager) s);
     }
 
     @Override
@@ -546,13 +552,14 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
     public void areaZoneChange(Area area, ZoneManager.Zone prev, ZoneManager.Zone next) {
     }
 
-    private void counter(Enemy e){
-        
+    private void counter(Enemy e) {
+
     }
-    
+
     @Override
     public void update(int frame) {
-        if (frame % 30 == 0) {
+        
+        if (frame % 30 == -1) {
             for (Enemy e : command.getEnemyUnitsIn(new AIFloat3(), 100000)) {
                 counter(e);
             }

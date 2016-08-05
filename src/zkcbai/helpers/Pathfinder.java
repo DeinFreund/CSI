@@ -30,7 +30,7 @@ import zkcbai.unitHandlers.units.AIUnit;
  *
  * @author User
  */
-public class Pathfinder extends Helper {
+public final class Pathfinder extends Helper {
 
     public Pathfinder(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
@@ -231,6 +231,10 @@ public class Pathfinder extends Helper {
         });
         Area targetPos = command.areaManager.getArea(target);
 
+        if (startPos == null){
+            throw new AssertionError("No areas to start from found");
+        }
+        
         Map<Area, Float> minCost = new HashMap();
         Map<Area, Area> prev = new HashMap();
         Set<Area> visited = new HashSet();
@@ -524,6 +528,15 @@ public class Pathfinder extends Helper {
         @Override
         public float getCost(Area pos) {
             return 4f * command.defenseManager.getGeneralDanger(pos.getPos());
+        }
+    };/**
+     * Fastest path to target while avoiding antiair
+     */
+    public final CostSupplier AVOID_ANTIAIR = new CostSupplier() {
+
+        @Override
+        public float getCost(Area pos) {
+            return 4f * pos.getAADPS();
         }
     };
 

@@ -11,17 +11,17 @@ import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import com.springrts.ai.oo.clb.WeaponMount;
 import zkcbai.Command;
-import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager;
+import zkcbai.helpers.ZoneManager.Area;
 
 /**
  *
  * @author User
  */
-public class Enemy implements UpdateListener {
+public class Enemy {
 
     protected static final float regen = 0.01f;
     protected static int idCounter = 0;
@@ -34,11 +34,14 @@ public class Enemy implements UpdateListener {
     protected boolean neverSeen = true;
     protected float maxVelocity = 0.5f;
     protected AIFloat3 lastPos;
+    protected AIFloat3 lastPosPossible;
     protected boolean alive = true;
     protected float maxRange = 0;
     protected boolean isBuilding;
     protected int lastSeen = 0;
     protected float health = 0;
+    protected AIFloat3 lastAccPos;
+    protected int lastAccPosTime;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         this(u.getPos(), cmd, clbk);
@@ -51,49 +54,76 @@ public class Enemy implements UpdateListener {
         unitId = id;
         this.clbk = clbk;
         command = cmd;
-        lastPos = pos;
+        lastPos = lastPosPossible = pos;
         isBuilding = false;
         lastSeen = cmd.getCurrentFrame();
         getDef();
 
-        cmd.addSingleUpdateListener(this, cmd.getCurrentFrame() + 40);
-    }
-    
-    private int deadpollCounter = 0;
-    
-    private void polledDead(){
-        deadpollCounter++;
-        if (deadpollCounter > 4){
-            command.enemyDestroyed(this, null);
-            command.debug("Dead polled too often: destroying");
-            try{
-            throw new RuntimeException("Polled dead enemy " + hashCode());
-            }catch(Exception ex){
-                command.debug("",ex);
-            }
-        }
     }
 
-    public MovementType getMovementType(){
+    private int deadpollFrame = -1;
+    private int destroyFrame = -1;
+
+    private void polledDead() {
+        if (deadpollFrame == command.getCurrentFrame() && deadpollFrame != destroyFrame) {
+            destroyed();
+            command.debug("Dead polled too often: destroying enemy " + hashCode());
+            command.enemyDestroyed(this, null);
+            try {
+                throw new RuntimeException("Polled dead enemy " + hashCode());
+            } catch (Exception ex) {
+                command.debug("", ex);
+            }
+        }
+        deadpollFrame = command.getCurrentFrame();
+    }
+
+    public MovementType getMovementType() {
+        if (getDef().isAbleToFly()) {
+            return Pathfinder.MovementType.air;
+        }
         return Pathfinder.MovementType.getMovementType(getDef());
     }
-    
+
     /**
      * only use when you can't use a UnitDestroyedListener instead
+     *
      * @return
      */
     public boolean isAlive() {
         return alive;
     }
+    
+    public AIFloat3 getLastAccuratePos(){
+        if (unit != null && unit.getHealth() > 0) {
+            lastAccPos = unit.getPos();
+            lastAccPosTime = command.getCurrentFrame();
+        }
+        return lastAccPos;
+    }
 
+    public int getLastAccuratePosTime(){
+        return lastAccPosTime;
+    }
+    
     public AIFloat3 getPos() {
         if (!alive) {
             polledDead();
         }
+        if (isBuilding() && !neverSeen) {
+            return lastPos;
+        }
         if (unit != null && unit.getPos().length() > 0) {
             return new AIFloat3(unit.getPos());
         }
-        return new AIFloat3(lastPos);
+        return new AIFloat3(lastPosPossible);
+    }
+    
+    public AIFloat3 getVel(){
+        if (isVisible() && getUnit() != null){
+            return new AIFloat3(getUnit().getVel());
+        }
+        return new AIFloat3();
     }
 
     public UnitDef getDef() {
@@ -180,7 +210,7 @@ public class Enemy implements UpdateListener {
         if (!alive) {
             polledDead();
         }
-        if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700) {
+        if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700 || getDef().isAbleToFly()) {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
         } else {
             return !clbk.getFriendlyUnitsIn(pos, getDef().getDecloakDistance()).isEmpty();
@@ -202,7 +232,11 @@ public class Enemy implements UpdateListener {
 
         @Override
         public boolean checkArea(ZoneManager.Area a) {
-            return !shouldBeVisible(a.getPos());
+            if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700) {
+                return a.isVisible() || command.getCurrentFrame() - a.getLastVisible() < 30 * 60 * 3;
+            } else {
+                return !clbk.getFriendlyUnitsIn(a.getPos(), getDef().getDecloakDistance()).isEmpty();
+            }
         }
 
     };
@@ -224,7 +258,6 @@ public class Enemy implements UpdateListener {
         return timeSinceLastSeen() > 1500 * 100 / Math.max(getDef().getSpeed(), 0.1);
     }
 
-    @Override
     public void update(int frame) {
         if (!alive) {
             return;
@@ -233,22 +266,25 @@ public class Enemy implements UpdateListener {
         if (unit != null && unit.getHealth() > 0) {
             //in LOS
             health = unit.getHealth();
+            lastAccPos = unit.getPos();
+            lastAccPosTime = frame;
         }
         if (unit != null && unit.getPos().length() > 0) {
             //in Radar
-            lastPos = unit.getPos();
+            lastPos = lastPosPossible = unit.getPos();
             lastSeen = command.getCurrentFrame();
-        } else if (shouldBeVisible(lastPos)) {
+        } else if (shouldBeVisible(lastPosPossible) && command.getCurrentFrame() - lastSeen > 10) {
             //command.debug("new pos");
-            AIFloat3 npos = command.areaManager.getArea(lastPos).getNearestArea(invisible).getPos();
-            if (npos != null) {
-                lastPos = npos;
-            }
             if (isBuilding) {
                 if (this instanceof FakeEnemy) {
                     command.removeFakeEnemy((FakeEnemy) this);
                 } else {
                     command.unitDestroyed(unit, null);
+                }
+            } else {
+                Area npos = command.areaManager.getArea(lastPos).getNearestArea(invisible, getMovementType());
+                if (npos != null) {
+                    lastPosPossible = npos.getPos();
                 }
             }
         }
@@ -256,7 +292,6 @@ public class Enemy implements UpdateListener {
             identify();
         }
         //command.mark(getPos(), getPos().toString());
-        command.addSingleUpdateListener(this, frame + 40);
     }
 
     public void enterLOS() {
@@ -274,6 +309,7 @@ public class Enemy implements UpdateListener {
         }
         neverSeen = false;
         lastSeen = command.getCurrentFrame();
+        update(command.getCurrentFrame());
     }
 
     public float getMetalCost() {
@@ -323,19 +359,24 @@ public class Enemy implements UpdateListener {
 
     public void enterRadar() {
         lastSeen = command.getCurrentFrame();
+        update(command.getCurrentFrame());
     }
 
     public void leaveLOS() {
         lastSeen = command.getCurrentFrame();
+        update(command.getCurrentFrame());
     }
 
     public void leaveRadar() {
         lastSeen = command.getCurrentFrame();
+        update(command.getCurrentFrame());
     }
 
     public void destroyed() {
         //command.mark(getPos(), "dead");
-        command.debug("Enemy " + hashCode() + " has been destroyed");
+
+        destroyFrame = command.getCurrentFrame();
+        command.debug("Enemy " + hashCode() + "(" + getDef().getHumanName() + ") has been destroyed");
         alive = false;
     }
 

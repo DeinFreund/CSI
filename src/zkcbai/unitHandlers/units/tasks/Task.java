@@ -59,9 +59,17 @@ public abstract class Task {
             t.queueTask(ta, false);
         }
     }
+    
+    public List<Task> getQueue(){
+        return queued;
+    }
 
     public String getInfo() {
         return this.info;
+    }
+    
+    public TaskType getTaskType(){
+        return TaskType.Various;
     }
     
     public abstract void cancel();

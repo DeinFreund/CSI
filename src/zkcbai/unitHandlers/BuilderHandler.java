@@ -27,6 +27,7 @@ import zkcbai.UnitFinishedListener;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.AreaZoneChangeListener;
+import zkcbai.helpers.PositionChecker;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
@@ -151,10 +152,11 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
     @Override
     public void troopIdle(AIUnit u) {
+        long time1 = System.nanoTime();
         Task best = null;
         float bestscore = -1e9f;
-        Set<Area> reachable = command.areaManager.getArea(u.getPos()).getConnectedAreas(u.getMovementType());
-        for (BuildTask bt : constructions.toArray(new BuildTask[0])) {
+        Set<Area> reachable = u.getReachableAreas();
+        for (BuildTask bt : constructions) {
             //command.mark(bt.getPos(), bt.getBuilding().getHumanName());
             if (bt.isDone() || bt.isAborted()) {
                 throw new RuntimeException("Didn't clean task from constructions");
@@ -173,13 +175,17 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 score += 2500;
             }
             if (bt.getBuilding().getName().equals("cormex") && avgMetalIncome < energyIncome) {
-                score += 2000;
+                score += 500;
+            }
+            if (bt.getBuilding().getName().equals("armsolar") && avgMetalIncome < energyIncome) {
+                score += 500;
             }
             if (best == null || score > bestscore) {
                 bestscore = score;
                 best = bt;
             }
         }
+        long time2 = System.nanoTime();
         for (RepairTask rt : repairTasks.keySet()) {
             if (!reachable.contains(command.areaManager.getArea(rt.getTarget().getPos()))) {
                 continue;
@@ -197,33 +203,40 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 best = rt;
             }
         }
-        for (Feature f : clbk.getFeaturesIn(u.getPos(), 1800)){
-            if (!reachable.contains(command.areaManager.getArea(f.getPosition()))) {
+
+        long time3 = System.nanoTime();
+        for (Area a : command.areaManager.getAreasWithReclaim()) {
+            if (!reachable.contains(a) || a.getZone() == Zone.hostile) {
                 continue;
             }
-            if (command.areaManager.getArea(f.getPosition()).getZone() != Zone.own) {
+            if (a.getReclaim() < 10) {
                 continue;
             }
-            if (f.getReclaimLeft() < 10 || f.getDef().getContainedResource(command.metal) < 10){
-                continue;
-            }
-            float score = -u.distanceTo(f.getPosition()) + f.getReclaimLeft() - 100;
+            float score = -u.distanceTo(a.getPos()) + a.getReclaim() - 100;
             if (best == null || score > bestscore) {
                 bestscore = score;
-                best = new ReclaimTask(f, this, command);
+                best = new ReclaimTask(a.getPos(), Math.max(a.getWidth(), a.getHeight()), this, command);
             }
         }
+
+        long time4 = System.nanoTime();
         if (best != null) {
             best.setInfo(best.getInfo() + " - queued by BuilderHandler");
             u.queueTask(best);
         } else {
-            u.assignTask(new MoveTask(command.areaManager.getArea(u.getPos()).getNearestArea(new AreaChecker() {
+            u.assignTask(new MoveTask(u.getArea().getNearestArea(new AreaChecker() {
 
                 @Override
                 public boolean checkArea(Area a) {
-                    return a.isReachable();
+                    return a.isReachable() && a.getZone() == Zone.own;
                 }
             }).getPos(), command.getCurrentFrame() + 60, this, command));
+        }
+        long time5 = System.nanoTime();
+        if (time5 - time1 > 500000) {
+            command.debug(command.areaManager.getAreasWithReclaim().size() + " areas with reclaim");
+            command.debug(constructions.size() + " constructions");
+            command.debug("builder assignment timing: " + (time5 - time4) + " | " + (time4 - time3) + " | " + (time3 - time2) + " | " + (time2 - time1));
         }
     }
 
@@ -234,7 +247,6 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     protected void endedTask(final Task t) {
 
         if (t instanceof BuildTask) {
-            command.debug("ended task " + t.getTaskId());
 
             //command.mark(((BuildTask)t).getPos(), "removed grid");
             boolean known = constructions.remove((BuildTask) t);
@@ -266,7 +278,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
                         buildingRadar = false;
                     }
-                }, command.getCurrentFrame() + 10);
+                }, command.getCurrentFrame() + 30);
             } else if (!(t.getInfo().contains("nano") || t.getInfo().contains("mex") || t.getInfo().contains("radar"))) {
                 throw new AssertionError("Unknown task " + ((BuildTask) t).getBuilding().getHumanName() + " info: " + t.getInfo() + " known: " + known + " id: " + t.getTaskId());
             }
@@ -424,6 +436,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         final float searchRadiusMult = 0.4f;
         for (final Edge edge : unbuiltEdges) { //each edge is contained twice, so only attaching to start has to be evalued
             for (final UnitDef building : eBuildings) {
+                final float buildingRange = Float.valueOf(building.getCustomParams().get("pylonrange"));
                 AIFloat3 dir = new AIFloat3(edge.end.pos);
                 dir.sub(edge.start.pos);
                 dir.normalize();
@@ -445,7 +458,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     }
                 }
                 final AIFloat3 pos = new AIFloat3(edge.start.pos);
-                if (edge.end.distanceTo(edge.start) < 0.92 * Float.valueOf(building.getCustomParams().get("pylonrange"))) {
+                if (edge.end.distanceTo(edge.start) < 0.92 * buildingRange) {
                     //Try to build in mid
                     pos.add(edge.end.pos);
                     pos.scale(0.5f);
@@ -454,8 +467,8 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     }
 
                     if (command.isPossibleToBuildAt(building, pos, 0)
-                            && Command.distance2D(pos, edge.start.pos) < 0.95 * (edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange")))
-                            && Command.distance2D(pos, edge.end.pos) < 0.95 * (edge.end.range + Float.valueOf(building.getCustomParams().get("pylonrange")))
+                            && Command.distance2D(pos, edge.start.pos) < 0.95 * (edge.start.range + buildingRange)
+                            && Command.distance2D(pos, edge.end.pos) < 0.95 * (edge.end.range + buildingRange)
                             && command.areaManager.getArea(pos).isReachable()) {
                         //command.mark(pos, "midposs");
                         possibilities.add(new BuildPossibility(building, pos, cost * 0.65f));
@@ -463,39 +476,37 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 }
                 //try to build on line
                 pos.set(dir);
-                pos.scale(0.92f * (edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange"))));
+                pos.scale(0.92f * (edge.start.range + buildingRange));
                 pos.add(edge.start.pos);
                 if (command.isPossibleToBuildAt(building, pos, 0) && command.areaManager.getArea(pos).isReachable()) {
                     possibilities.add(new BuildPossibility(building, pos, cost));
                 } else {
                     //try to build near start
                     pos.set(dir);
-                    pos.scale(0.92f * (edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange"))));
+                    pos.scale(0.92f * (edge.start.range + buildingRange));
                     pos.add(edge.start.pos);
-                    Area buildArea = (command.areaManager.getArea(pos).getNearestArea(new AreaChecker() {
 
+                    AIFloat3 bpos = BuildTask.findClosestBuildSite(building, pos, 3, 0, command, -1f, true, new PositionChecker() {
                         @Override
-                        public boolean checkArea(ZoneManager.Area a) {
-                            AIFloat3 bpos = BuildTask.findClosestBuildSite(building, a.getPos(), 3, 0, command, true);
-                            return a.isReachable() && command.isPossibleToBuildAt(building, bpos, 0)
-                                    && Command.distance2D(bpos, edge.start.pos) < 0.92 * (edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange")));
+                        public boolean checkPosition(AIFloat3 pos) {
+                            return Command.distance2D(pos, edge.start.pos) < 0.92 * (edge.start.range + buildingRange);
                         }
-                    }));
-                    if (buildArea == null) {
+                    }, edge.start.range + buildingRange);
+                    if (bpos.x < 0) {
                         continue;
                     }
-                    AIFloat3 bpos = BuildTask.findClosestBuildSite(building, buildArea.getPos(), 3, 0, command, true);
-                    float efficiency = distance(bpos, edge.start.pos) / (edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange")));
-                    if (pos.x > 0 && distance(bpos, edge.start.pos) < edge.start.range + Float.valueOf(building.getCustomParams().get("pylonrange"))
+                    float efficiency = distance(bpos, edge.start.pos) / (edge.start.range + buildingRange);
+                    if (pos.x > 0 && distance(bpos, edge.start.pos) < edge.start.range + buildingRange
                             && //has to reduce distance between circles(greedy):
                             distance(edge.start.pos, edge.end.pos) - edge.start.range - edge.end.range > distance(bpos, edge.end.pos) - edge.end.range
-                            - Float.valueOf(building.getCustomParams().get("pylonrange")) && command.isPossibleToBuildAt(building, bpos, 0)) {
+                            - buildingRange && command.isPossibleToBuildAt(building, bpos, 0)) {
                         //command.mark(bpos, "possible");
                         possibilities.add(new BuildPossibility(building, bpos, cost / efficiency));
                     }
                 }
             }
         }
+        long time3 = System.currentTimeMillis();
 
         BuildPossibility best = null;
         for (BuildPossibility bp : possibilities) {
@@ -519,9 +530,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         } else {
             //command.debug("No build possibility found for energy!");
         }
-        long time3 = System.currentTimeMillis();
-        if (time3 - time > 3000) {
-            command.debug("QueueBuildTask took " + (time3 - time2) + "ms selecting, " + (time2 - time) + "ms calculating MST.");
+        long time4 = System.currentTimeMillis();
+        if (time3 - time > 50) {
+            command.debug("QueueBuildTask took " + (time3 - time2) + "ms selecting from " + unbuiltEdges.size() + " edges, " + (time2 - time) + "ms calculating MST, " + (time4 - time3) + "ms calculating buildpos");
             //command.debugStackTrace();
         }
 
@@ -606,9 +617,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
     public BuildTask requestCaretaker(AIFloat3 pos) {
         BuildTask bt;
-        if (command.getNanoHandler().getUnits().size() > command.getFactoryHandler().getUnits().size() * 4){
+        if (command.getNanoHandler().getUnits().size() > command.getFactoryHandler().getUnits().size() * 4) {
             bt = new BuildTask(command.getCallback().getUnitDefByName("factoryveh"), new AIFloat3(pos.x + 250, pos.y, pos.z), this, clbk, command, 7, true);
-        }else{
+        } else {
             bt = new BuildTask(command.getCallback().getUnitDefByName("armnanotc"), pos, this, clbk, command, 7, true);
         }
         command.registerBuildTask(bt);
@@ -705,9 +716,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     }
 
     public void buildDefense() {
-        if (true) {
-            return; //don't build defense
-        }
+        long time = System.currentTimeMillis();
         Set<Factory> unprotectedFacs = new HashSet<>();
         for (Factory f : command.getFactoryHandler().getFacs()) {
             boolean safe = false;
@@ -733,7 +742,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
         Area worst = null;
         for (Area a : command.areaManager.getAreas()) {
-            if (!a.isFront()) {
+            if (!a.isFront() || !a.isReachable()) {
                 continue;
             }
             if (worst == null || (worst.getDefenseDPS() > a.getDefenseDPS() || (a.getDefenseDPS() - worst.getDefenseDPS() < 10 && a.getNegativeFlow() > worst.getNegativeFlow()))) {
@@ -750,6 +759,10 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             taskDefenseNodeFinder.put(bt.getTaskId(), gn);
             command.economyManager.useDefenseBudget(bt.getBuilding().getCost(command.metal));
         }
+        time = System.currentTimeMillis() - time;
+        if (time > 100) {
+            command.debug("Planning Defenses took " + time + "ms.");
+        }
     }
 
     int imgscale = 10;
@@ -759,10 +772,11 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     int lastQueueSize = 0;
 
     int lastMexCheck = -600;
-    int lastDefenseCheck = -600;
+    int lastDefenseCheck = 100;
 
     @Override
     public void update(int frame) {
+        long _time = System.currentTimeMillis();
         float adaption = 0.05f;
         avgMetalIncome = (1 - adaption) * avgMetalIncome + command.getCallback().getEconomy().getIncome(command.metal) * adaption;
 
@@ -776,7 +790,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
 
         if (frame % 50 == 25 && frame > 30 * 10) {
-            for (BuildTask bt : constructions.toArray(new BuildTask[0])) {
+            for (BuildTask bt : constructions.toArray(new BuildTask[constructions.size()])) {
                 if (command.areaManager.getArea(bt.getPos()).getZone() != Zone.own) {
                     bt.cancel();
                     constructions.remove(bt);
@@ -787,34 +801,36 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
 
         //command.debug((avgMetalIncome + getMetalUnderConstruction()) + " < " + (energyIncome + getEnergyUnderConstruction()) + " aiunits: " + aiunits.size());
-        if (/*avgMetalIncome + getMetalUnderConstruction() < energyIncome + getEnergyUnderConstruction() &&*/ frame - lastMexCheck > 40 && !aiunits.isEmpty()) {
+        if (/*avgMetalIncome + getMetalUnderConstruction() < energyIncome + getEnergyUnderConstruction() &&*/frame - lastMexCheck > 40 && !aiunits.isEmpty()) {
             long time = System.currentTimeMillis();
             lastMexCheck = frame;
             float toBuild = energyIncome + getEnergyUnderConstruction() - avgMetalIncome - getMetalUnderConstruction();
             toBuild = 10000;
             TreeMap<Float, Mex> dists = new TreeMap<>();
             for (Mex m : command.areaManager.getMexes()) {
-                dists.put(command.getFactoryHandler().getFacs().iterator().next().unit.distanceTo(m.pos), m);
+                float mindist = 1000000;
+                for (Factory f : command.getFactoryHandler().getFacs()) {
+                    mindist = Math.min(mindist, f.unit.distanceTo(m.pos));
+                }
+                dists.put(mindist, m);
             }
             for (Mex m : dists.values()) {
                 if (m.getBuildTask() != null /*|| command.areaManager.getArea(m.pos).getZone() != Zone.own*/) {
                     //command.mark(m.pos, "invalid");
                     continue;
                 }
-                /*if (!command.radarManager.isInRadar(m.pos)) {
+                if (!command.radarManager.isInRadar(m.pos)) {
                     //if (constructions.size() < aiunits.size() * 0.6) {
-                        requestRadarCoverage(m.pos);
+                    requestRadarCoverage(m.pos);
                     //}
-                    command.mark(m.pos, "no radar");
-                    break;
                     //continue;
-                }*/
+                }
                 if (command.areaManager.getArea(m.pos).getZone() != Zone.own) {
                     continue;
                 }
                 BuildTask bt = m.createBuildTask(this);
                 if (bt == null) {
-                    command.mark(m.pos, "Can't build mex here");
+                    //command.mark(m.pos, "Can't build mex here");
                     continue;
                 }
                 toBuild -= m.getIncome();
@@ -840,7 +856,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         if ((getTargetEnergyIncome() > energyIncome + getEnergyUnderConstruction() || command.getCallback().getEconomy().getCurrent(command.energy) < 90)
                 && frame - lastEnergyCheck > 60 && command.economyManager.getRemainingEnergyBudget() > 0 && planningGridMutex.tryAcquire()) {
 
-            command.debug("Planning grid async.");
+            //command.debug("Planning grid async.");
             //Thread planningThread = new Thread(new Runnable() {
             //    public void run() {
             planGrid();
@@ -867,6 +883,35 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             taskGridNodeFinder.put(bt.getTaskId(), gn);
             command.economyManager.useEnergyBudget(bt.getBuilding().getCost(command.metal));
         }
+        //reassign workers
+        if (frame % 33 == 2) {
+            long time = System.currentTimeMillis();
+            for (AIUnit au : aiunits.values()) {
+                Task t = au.getTask();
+                if (t != null) {
+                    while (!t.getQueue().isEmpty()) {
+                        t = t.getQueue().get(t.getQueue().size() - 1);
+                    }
+
+                    switch (t.getTaskType()) {
+                        case BuildTask:
+                            BuildTask bt = (BuildTask) t;
+                            bt.removeWorker(au);
+                            break;
+                        case RepairTask:
+                            RepairTask rt = (RepairTask) t;
+                            rt.removeWorker(au);
+                            break;
+                    }
+                }
+                troopIdle(au);
+            }
+
+            time = System.currentTimeMillis() - time;
+            if (time > 5) {
+                command.debug("Reassigning " + aiunits.size() + " workers took " + time + "ms.");
+            }
+        }
     }
 
     public void planGrid() {
@@ -883,7 +928,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             buildTasks.add(queueEnergyBuilding());
             if (buildTasks.get(i) == null) {
                 planning = i;
-                command.debug("Only planning grid " + i + " steps ahead.", false);
+                //command.debug("Only planning grid " + i + " steps ahead.", false);
             } else {
                 GridNode gridNode = new GridNode(buildTasks.get(i));
                 /*for (GridNode gn : this.gridNodes){
@@ -952,7 +997,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         long time2 = System.currentTimeMillis();
-        if (time2 - time > 400) {
+        if (time2 - time > 100) {
             if (PLANNING > MIN_PLANNING) {
                 PLANNING -= 3;
             } else {
@@ -965,7 +1010,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
         PLANNING = Math.min(Math.max(PLANNING, MIN_PLANNING), MAX_PLANNING);
         HEURISTIC = Math.min(Math.max(HEURISTIC, 0f), MAX_HEURISTIC);
-        command.debug("BuilderHandler took " + (time2 - time) + "ms, planning, heuristic is now " + PLANNING + ", " + HEURISTIC, false);
+        if (time2 - time > 80) {
+            command.debug("BuilderHandler took " + (time2 - time) + "ms, planning, heuristic is now " + PLANNING + ", " + HEURISTIC);
+        }
         planningGridMutex.release();
     }
 
@@ -973,7 +1020,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     public void unitFinished(AIUnit u) {
         if (u.getMakesEnergy() > 0) {
             energyIncome += u.getMakesEnergy();
-            command.debug("Energy income is now: " + energyIncome);
+            //command.debug("Energy income is now: " + energyIncome);
         }
         if (u.getDef().getCustomParams().containsKey("pylonrange")) {
             GridNode gridNode = new GridNode(u.getUnit());
@@ -1018,6 +1065,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     @Override
     public boolean retreatForRepairs(AITroop u) {
         return true;
+
     }
 
     public class GridNode implements Comparable {

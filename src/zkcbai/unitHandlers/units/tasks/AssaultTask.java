@@ -45,7 +45,7 @@ public class AssaultTask extends Task implements TaskIssuer{
     public boolean execute(AITroop u) {
         if (!aitroops.contains(u)) aitroops.add(u);
         if (command.getCurrentFrame() - lastTime > 300){
-            if (command.areaManager.getArea(u.getPos()).getNearbyEnemies().length == 0 && lastpos != null && u.distanceTo(lastpos) < 250){
+            if (u.getArea().getNearbyEnemies().length == 0 && lastpos != null && u.distanceTo(lastpos) < 250){
                 command.debug("Assault finished because no enemy in sight");
                 completed(u);
                 issuer.finishedTask(this);
@@ -58,7 +58,7 @@ public class AssaultTask extends Task implements TaskIssuer{
         float maxscore = 0;
         Enemy best = null;
         float danger = 0;
-        for (Enemy e : command.areaManager.getArea(u.getPos()).getNearbyEnemies()){
+        for (Enemy e : u.getArea().getNearbyEnemies()){
             if (!e.isAlive() || e.isTimedOut()) continue;
             danger += e.getMetalCost() / Math.max(0.3,u.getEfficiencyAgainst(e)) * e.getRelativeHealth();
             float score = Math.max(2f*e.getDPS(),e.getMetalCost())/e.getHealth() //value

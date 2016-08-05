@@ -58,7 +58,7 @@ public class PathPrecalculatorThread implements Runnable {
         queuingDone = new CountDownLatch(threads);
         for (int i = 0; i < thread.length; i++) {
             minCostPerElmo[i] = Float.MAX_VALUE;
-            thread[i] = new Thread(new PathPrecalculatorThread(command, i, threads, tasks[i].toArray(new PrecalcTask[0])));
+            thread[i] = new Thread(new PathPrecalculatorThread(command, i, threads, tasks[i].toArray(new PrecalcTask[tasks[i].size()])));
             thread[i].setPriority(Thread.MIN_PRIORITY);
             thread[i].start();
         }
