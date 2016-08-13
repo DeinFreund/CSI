@@ -93,8 +93,8 @@ public class Enemy {
     public boolean isAlive() {
         return alive;
     }
-    
-    public AIFloat3 getLastAccuratePos(){
+
+    public AIFloat3 getLastAccuratePos() {
         if (unit != null && unit.getHealth() > 0) {
             lastAccPos = unit.getPos();
             lastAccPosTime = command.getCurrentFrame();
@@ -102,10 +102,10 @@ public class Enemy {
         return lastAccPos;
     }
 
-    public int getLastAccuratePosTime(){
+    public int getLastAccuratePosTime() {
         return lastAccPosTime;
     }
-    
+
     public AIFloat3 getPos() {
         if (!alive) {
             polledDead();
@@ -118,9 +118,9 @@ public class Enemy {
         }
         return new AIFloat3(lastPosPossible);
     }
-    
-    public AIFloat3 getVel(){
-        if (isVisible() && getUnit() != null){
+
+    public AIFloat3 getVel() {
+        if (isVisible() && getUnit() != null) {
             return new AIFloat3(getUnit().getVel());
         }
         return new AIFloat3();
@@ -158,16 +158,25 @@ public class Enemy {
         return health / getDef().getHealth();
     }
 
+    /**
+     * wrong damage for carriers/wolverine/puppy/tacnuke/felon/scorcher/fire    
+     * @return real damage DPS for units with real damage and magic damage DPS for units with exclusively magic effects
+     */
     public float getDPS() {
         if (!alive) {
             polledDead();
         }
         float dps = 0;
         for (WeaponMount wm : getDef().getWeaponMounts()) {
-            for (Float f : wm.getWeaponDef().getDamage().getTypes()) {
-                dps += f / wm.getWeaponDef().getReload();
-            }
+            if (wm.getWeaponDef().getName().toLowerCase().contains("fake")) continue;
+            if (wm.getWeaponDef().getName().toLowerCase().contains("noweapon")) continue;
+            float maxf = 0;
+            for (int i = 1; i < wm.getWeaponDef().getDamage().getTypes().size(); i++) {
+                maxf = Math.max(wm.getWeaponDef().getDamage().getTypes().get(i), maxf);
+            } //You are entering a land of magic, ask Sprung for directions
+            dps += maxf / wm.getWeaponDef().getReload();
         }
+        if (isCommander()) return 300;
         return dps;
     }
 
@@ -180,6 +189,10 @@ public class Enemy {
             polledDead();
         }
         return unit;
+    }
+    
+    public boolean isCommander(){
+        return getDef().getCustomParams().containsKey("commtype");
     }
 
     public int getUnitId() {
@@ -241,6 +254,10 @@ public class Enemy {
 
     };
 
+    /**
+     *
+     * @return time since last in radar/los in frames
+     */
     public int timeSinceLastSeen() {
         if (!alive) {
             polledDead();

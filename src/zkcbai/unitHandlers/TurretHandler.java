@@ -8,11 +8,13 @@ package zkcbai.unitHandlers;
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import zkcbai.Command;
+import zkcbai.UpdateListener;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -25,12 +27,15 @@ import zkcbai.unitHandlers.units.tasks.WaitTask;
  *
  * @author User
  */
-public class TurretHandler extends UnitHandler {
+public class TurretHandler extends UnitHandler implements UpdateListener {
 
     Random rnd = new Random();
+    AIUnit delayLLT = null;
+    Map<List<Float>, Integer> attackCmds = new HashMap();
 
     public TurretHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
+        cmd.addUpdateListener(this);
     }
 
     @Override
@@ -115,7 +120,14 @@ public class TurretHandler extends UnitHandler {
             }
         }
         lastTarget.put(u, unclippedtarget);
-        u.assignTask(new AttackGroundTask(target, command.getCurrentFrame() + (int) Math.ceil(10 / freq * (tries/ 10f + 1)), this));
+        u.assignTask(new AttackGroundTask(target, command.getCurrentFrame() + (int) Math.ceil(10 / freq * (tries / 10f + 1)), this));
+        if (u.equals(delayLLT)) {
+            List<Float> floats = new ArrayList();
+            floats.add(target.x);
+            floats.add(target.y);
+            floats.add(target.z);
+            attackCmds.put(floats, command.getCurrentFrame() + 1);
+        }
         /*
          AIFloat3 offset = new AIFloat3(u.getPos());
          offset.add(new AIFloat3(10,0,10));
@@ -150,6 +162,26 @@ public class TurretHandler extends UnitHandler {
     @Override
     public boolean retreatForRepairs(AITroop u) {
         return false;
+    }
+
+    @Override
+    public void update(int frame) {
+
+        if (delayLLT == null) {
+            for (AIUnit au : getUnits()) {
+                if (au.getDef().getName().equalsIgnoreCase("corllt")) {
+                    delayLLT = au;
+                }
+            }
+        }
+        if (delayLLT != null && !delayLLT.getUnit().getCurrentCommands().isEmpty()) {
+            if (attackCmds.containsKey(delayLLT.getUnit().getCurrentCommands().get(0).getParams())){
+                command.setCommandDelay(frame - attackCmds.get(delayLLT.getUnit().getCurrentCommands().get(0).getParams()));
+            }
+            if (attackCmds.size() > 1000){
+                attackCmds = new HashMap();
+            }
+        }
     }
 
 }

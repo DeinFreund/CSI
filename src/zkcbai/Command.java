@@ -11,6 +11,7 @@ import com.springrts.ai.oo.clb.Resource;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import com.springrts.ai.oo.clb.WeaponDef;
+import com.springrts.ai.oo.clb.WeaponMount;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedWriter;
@@ -149,6 +150,16 @@ public class Command implements AI {
             debug(clbk.getUnitDefByName("armcom1").getSpeed());
             debug("ZKCBAI successfully initialized.");
 
+            
+            for (WeaponMount wm : clbk.getUnitDefByName("slowmort").getWeaponMounts()) {
+                debug(wm.getWeaponDef().getName());
+                float maxf = 0;
+                for (Float f : wm.getWeaponDef().getDamage().getTypes()) {
+                    debug(" - " + f);
+                    maxf = Math.max(f, maxf);
+                }
+            }
+            
         } catch (Throwable e) {
             debug("Exception in init:", e);
             //throw new RuntimeException();// no point in continuing execution
@@ -162,8 +173,8 @@ public class Command implements AI {
     public BuilderHandler getBuilderHandler() {
         return builderHandler;
     }
-    
-    public AvengerHandler getAvengerHandler(){
+
+    public AvengerHandler getAvengerHandler() {
         return avengerHandler;
     }
 
@@ -174,6 +185,7 @@ public class Command implements AI {
     public DropHandler getDropHandler() {
         return dropHandler;
     }
+
 
     public FighterHandler getFighterHandler() {
         return fighterHandler;
@@ -226,6 +238,22 @@ public class Command implements AI {
     public Collection<AIUnit> getUnits() {
 
         return units.values();
+    }
+    
+    protected int commandDelay = 0;
+    
+    public int getCommandDelay(){
+        return commandDelay;
+    }
+    
+    public void setCommandDelay(int delay){
+        if (commandDelay <= 30 && delay > 30){
+            debug("LAG WARNING: Delay is " + delay + " frames.");
+        }
+        if (commandDelay > 30 && delay <= 30){
+            debug("Stopped lagging: Delay is " + delay + " frames.");
+        }
+        commandDelay = delay;
     }
 
     public Collection<AIUnit> getUnitsIn(AIFloat3 pos, float range) {
@@ -324,8 +352,7 @@ public class Command implements AI {
         }
         return list;
     }
-    */
-
+     */
     public Set<UnitDef> getEnemyUnitDefs() {
         return enemyDefs;
     }
@@ -718,9 +745,9 @@ public class Command implements AI {
              return 0;
              }*/
             if (!units.containsKey(unit.getUnitId())) {
-                mark(unit.getPos(), "zombie?");
-                debug("zombie " + unit.getUnitId());
                 if (unit.getDef() != null && unit.getHealth() > 0) {
+                    mark(unit.getPos(), "zombie?");
+                    debug("zombie " + unit.getUnitId());
                     unitFinished(unit);
                 }
                 return 0;
@@ -945,7 +972,7 @@ public class Command implements AI {
     public synchronized void debug(String s, boolean intoInfolog) {
         if (intoInfolog && LOG_TO_INFOLOG) {
             clbk.getGame().sendTextMessage(s, 0);
-            if (!s.contains("DebugStack")){
+            if (!s.contains("DebugStack")) {
                 //debugStackTrace();
             }
         }

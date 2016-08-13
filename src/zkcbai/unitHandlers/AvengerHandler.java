@@ -18,8 +18,11 @@ import java.util.TreeMap;
 import zkcbai.Command;
 import zkcbai.EnemyDiscoveredListener;
 import zkcbai.EnemyEnterLOSListener;
+import zkcbai.UnitFinishedListener;
 import zkcbai.UpdateListener;
+import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
+import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -32,7 +35,7 @@ import zkcbai.utility.Pair;
  *
  * @author User
  */
-public class AvengerHandler extends UnitHandler implements UpdateListener, EnemyDiscoveredListener, EnemyEnterLOSListener {
+public class AvengerHandler extends UnitHandler implements UpdateListener, EnemyDiscoveredListener, EnemyEnterLOSListener, UnitFinishedListener {
 
     protected AISquad fighters = new AISquad(this);
     protected float fighterDPS = 0;
@@ -43,6 +46,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     private Set<Area> scoutPos = new HashSet();
     private Map<AIUnit, Area> scoutTasks = new HashMap();
     private Set<AIUnit> repairing = new HashSet();
+    private Set<AIUnit> friendlyAir = new HashSet();
 
     public AvengerHandler(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
@@ -55,6 +59,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
         }
         command.addEnemyDiscoveredListener(this);
         command.addEnemyEnterLOSListener(this);
+        command.addUnitFinishedListener(this);
     }
 
     @Override
@@ -86,7 +91,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     @Override
     public void removeUnit(AIUnit u) {
         if (scoutTasks.containsKey(u)) {
-            scoutPos.add(scoutTasks.get(u));
+            requestScout(scoutTasks.get(u));
             scoutTasks.remove(u);
         }
         aiunits.remove(u.getUnit().getUnitId());
@@ -98,7 +103,9 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     }
 
     public void requestScout(Area pos) {
-        scoutPos.add((pos));
+        if (command.getCurrentFrame() - pos.getLastVisible() > 200) {
+            scoutPos.add((pos));
+        }
     }
 
     @Override
@@ -115,6 +122,9 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     @Override
     public void abortedTask(Task t) {
 
+        if (t instanceof MoveTask) {
+            command.mark(((MoveTask) t).getLastExecutingUnit().getPos(), "failed movetask, debug");
+        }
     }
 
     @Override
@@ -135,6 +145,13 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
         enemyAir.remove(e);
+        longRangeAA.remove(e);
+    }
+    
+    @Override
+    public void unitDestroyed(AIUnit au, Enemy killer) {
+        super.unitDestroyed(au, killer);
+        friendlyAir.remove(au);
     }
 
     @Override
@@ -157,9 +174,11 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                     fighters.addUnit(au);
                     repairing.remove(au);
                     fighterDPS += au.getDPS();
+                    command.mark(au.getPos(), "fighter repaired");
                 }
             }
             if (fighters.getUnits().isEmpty()) {
+                command.debug("All fighters repairing!");
                 return;
             }
             TreeMap<Float, Pair<AIUnit, Area>> dists = new TreeMap();
@@ -175,6 +194,10 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 if (!scoutPos.contains(entry.getSecond())) {
                     continue;
                 }
+                if (command.getCurrentFrame() - entry.getSecond().getLastVisible() <= 200) {
+                    scoutPos.remove(entry.getSecond());
+                    continue;
+                }
                 entry.getFirst().assignTask(new MoveTask(entry.getSecond().getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command));
                 fighters.removeUnit(entry.getFirst(), this);
                 scoutTasks.put(entry.getFirst(), entry.getSecond());
@@ -183,14 +206,32 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                     return;
                 }
             }
+            for (AIUnit au : friendlyAir) {
+                if (aiunits.containsKey(au.getUnit().getUnitId())) {
+                    continue;
+                }
+                if (au.getArea().getZone() == Zone.hostile && au.getArea().getAADPS() * 2 > fighterDPS) {
+                    continue;
+                }
+
+                command.debug("avengers supporting " + au.getDef().getHumanName());
+                if (fighters.distanceTo(au.getPos()) < 700) {
+                    fighters.fight(au.getPos(), command.getCurrentFrame() + 100);
+                } else {
+                    fighters.assignTask(new MoveTask(au.getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command));
+                }
+                return;
+            }
             for (Enemy e : enemyAir) {
-                if (command.areaManager.getArea(e.getPos()).getAADPS() * 10 < fighterDPS) {
+                Area area = command.areaManager.getArea(e.getPos());
+                if ((area.getZone() == ZoneManager.Zone.own && area.getAADPS() * 1.2 < fighterDPS) || area.getAADPS() * 4 < fighterDPS) {
                     if (fighters.distanceTo(e.getPos()) < 1000) {
                         fighters.attack(e, command.getCurrentFrame() + 100);
+                        command.debug("avengers attacking " + e.getDef().getHumanName());
                     } else {
+                        command.debug("avengers intercepting " + e.getDef().getHumanName());
                         fighters.assignTask(new MoveTask(e.getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command));
                     }
-                    command.debug("avengers attacking " + e.getDef().getHumanName());
                     return;
                 } else {
                     command.debug(e.getDef().getHumanName() + " is too well protected by antiair");
@@ -232,6 +273,13 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
         }
         if (AADefs.contains(e.getDef())) {
             longRangeAA.add(e);
+        }
+    }
+
+    @Override
+    public void unitFinished(AIUnit u) {
+        if (u.getDef().isAbleToFly()) {
+            friendlyAir.add(u);
         }
     }
 }

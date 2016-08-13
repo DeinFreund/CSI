@@ -101,9 +101,6 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
             command.debug("DropTask" + getTaskId() + " acquired avenger " + avenger.getUnit().getUnitId());
         }*/
         if (gnat == null && command.getDropHandler().getPayload((AIUnit) u).getDef().equals(command.getDropHandler().SKUTTLE)) {
-            if (target.timeSinceLastSeen() > 30 * 10) {
-                command.getAvengerHandler().requestScout(command.areaManager.getArea(target.getPos()));
-            }
             gnat = command.getDropHandler().getUnits().iterator().next();
             for (AIUnit au : command.getDropHandler().getUnits()) {
                 if (au.getUnit().getHealth() > gnat.getUnit().getHealth()) {
@@ -117,28 +114,33 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
         }
         AIFloat3 extrapolated = new AIFloat3(u.getPos()); //vel per frame
         AIFloat3 vel = new AIFloat3(u.getUnits().iterator().next().getUnit().getVel());
-        AIFloat3 pos = new AIFloat3(u.getPos());
-     
+        AIFloat3 pos = new AIFloat3(vel);
+        pos.scale(command.getCommandDelay());
+
+        command.debug("movement during lag is " + pos.length() + " elmos");
+        pos.add(u.getPos());
+
         float time = 10000;
         float timeo = 0;
         int frames = 0;
         AIFloat3 velmul = new AIFloat3(vel);
         final int framestep = 10;
         velmul.scale(framestep);
-        
+
         extrapolated.sub(velmul);
         frames -= framestep;
-        while (time > u.distanceTo(extrapolated) / vel.length()){
+        while (time > u.distanceTo(extrapolated) / vel.length()) {
             extrapolated.add(velmul);
             float yOff = command.getCallback().getMap().getElevationAt(extrapolated.x, extrapolated.z) - pos.y;
             //timeo = (float) Math.sqrt(Math.max(-2 * (-yOff) / G, 0f));
-            time = (float)(-vel.y - Math.sqrt(vel.y * vel.y + 2 * G * yOff )) / G;
-            frames +=framestep;
+            time = (float) (-vel.y - Math.sqrt(vel.y * vel.y + 2 * G * yOff)) / G;
+            frames += framestep;
         }
-        if (frames > 1000){
-            u.dropPayload(command.getCurrentFrame()+10);
+        if (frames > 1000) {
+            u.dropPayload(command.getCurrentFrame() + 10);
         }
         AIFloat3 tpos = new AIFloat3(target.getLastAccuratePos());
+        if (gnat == null) tpos = new AIFloat3(target.getPos());
         AIFloat3 tvel = new AIFloat3(target.getVel());
         tvel.scale(time);
         tpos.add(tvel);
@@ -147,16 +149,16 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
         AIFloat3 approx = new AIFloat3(extrapolated);
         extrapolated = new AIFloat3(vel);
         extrapolated.scale(time);
-        extrapolated.add(u.getPos());
+        extrapolated.add(pos);
         AIFloat3 toTarget = new AIFloat3(tpos);
-        toTarget.sub(u.getPos());
+        toTarget.sub(pos);
         toTarget.normalize();
         AIFloat3 mirrored = new AIFloat3(toTarget);
         mirrored.scale(2 * toTarget.dot(vel));
         mirrored.sub(vel);
         mirrored.normalize();
         mirrored.scale(500);
-        mirrored.add(u.getPos());
+        mirrored.add(pos);
         AIFloat3 nextframe = new AIFloat3(extrapolated);
         nextframe.add(vel);
         if (Command.distance2D(tpos, extrapolated) < 50f && Command.distance2D(tpos, extrapolated) < Command.distance2D(tpos, nextframe)) {
@@ -171,10 +173,7 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
             dropped = true;
             return false;
         }
-            command.mark(target.getPos(), target.getDef().getHumanName());
-            if (target instanceof FakeEnemy){
-                command.debug("FAKE");
-            }
+        command.mark(target.getPos(), target.getDef().getHumanName());
 
         command.debug("Distance to drop: " + target.distanceTo(u.getPos()));
         /*if (avenger != null && target.distanceTo(u.getPos()) < 2400f) {
@@ -191,12 +190,16 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
                 }
             }).getPos(), command.getCurrentFrame() + 33, this, command.pathfinder.AVOID_ANTIAIR, command));
         }*/
-        if (gnat != null){
-            AIFloat3 gnatmove = new AIFloat3(vel);
-            gnatmove.normalize();
-            gnatmove.scale(800);
-            gnatmove.add(pos);
-            gnat.moveTo(gnatmove, command.getCurrentFrame() + 60);
+        if (gnat != null) {
+            if (target.distanceTo(u.getPos()) < 1500f) {
+                gnat.attack(target, command.getCurrentFrame() + 60);
+            } else {
+                AIFloat3 gnatmove = new AIFloat3(vel);
+                gnatmove.normalize();
+                gnatmove.scale(900);
+                gnatmove.add(pos);
+                gnat.moveTo(gnatmove, command.getCurrentFrame() + 60);
+            }
         }
         if (target.distanceTo(u.getPos()) < 900f) {
 
@@ -210,14 +213,15 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
             //u.dropPayload(command.getCurrentFrame() + 15);
             //u.getUnits().iterator().next().getUnit().unload(mpos, payload.getUnit(), (short)0, Integer.MAX_VALUE);
         } else {
-            if (gnat.distanceTo(u.getPos()) > 600){
-                u.getUnits().iterator().next().getUnit().setWantedMaxSpeed(u.getDef().getSpeed(), (short)0, Integer.MAX_VALUE);
+            if (gnat != null) {
+                if (gnat.distanceTo(u.getPos()) > 600) {
+                    u.getUnits().iterator().next().getUnit().setWantedMaxSpeed(u.getDef().getSpeed(), (short) 0, Integer.MAX_VALUE);
+                } else {
+                    u.getUnits().iterator().next().getUnit().setWantedMaxSpeed(0.1f * u.getDef().getSpeed(), (short) 0, Integer.MAX_VALUE);
+                }
             }
-            else{
-                u.getUnits().iterator().next().getUnit().setWantedMaxSpeed(0.1f * u.getDef().getSpeed(), (short)0, Integer.MAX_VALUE);
-            }
-            
-                u.assignTask(new MoveTask(target.getPos(), command.getCurrentFrame() + 15, this, command.pathfinder.AVOID_ANTIAIR, command).queue(this));
+
+            u.assignTask(new MoveTask(target.getPos(), command.getCurrentFrame() + 15, this, command.pathfinder.AVOID_ANTIAIR, command).queue(this));
         }
         return false;
     }

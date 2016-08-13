@@ -21,6 +21,7 @@ import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.DropTask;
 import zkcbai.unitHandlers.units.tasks.LoadUnitTask;
+import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 
 /**
@@ -65,7 +66,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
             buildingSkuttle = false;
             skuttles.add(au);
         }
-        if (u.getDef().equals(GNAT)){
+        if (u.getDef().equals(GNAT)) {
             gnats.add(au);
         }
         troopIdle(au);
@@ -81,12 +82,12 @@ public class DropHandler extends UnitHandler implements UpdateListener {
         skuttles.remove(u);
         gnats.remove(u);
         Map.Entry<AIUnit, AIUnit> toremove = null;
-        for (Map.Entry<AIUnit, AIUnit> entry : loadedTransports.entrySet()){
-            if (entry.getValue().equals(u)){
+        for (Map.Entry<AIUnit, AIUnit> entry : loadedTransports.entrySet()) {
+            if (entry.getValue().equals(u)) {
                 toremove = entry;
             }
         }
-        if (toremove != null){
+        if (toremove != null) {
             loadedTransports.remove(toremove.getKey());
             emptyTransports.add(toremove.getKey());
         }
@@ -97,12 +98,12 @@ public class DropHandler extends UnitHandler implements UpdateListener {
         if (emptyTransports.contains(u)) {
             AIUnit payload = null;
             for (AIUnit au : roaches) {
-                if (payload == null || au.distanceTo(u.getPos()) < payload.distanceTo(u.getPos())){
+                if (payload == null || au.distanceTo(u.getPos()) < payload.distanceTo(u.getPos())) {
                     payload = au;
                 }
             }
             for (AIUnit au : skuttles) {
-                if (payload == null || au.distanceTo(u.getPos()) < payload.distanceTo(u.getPos())){
+                if (payload == null || au.distanceTo(u.getPos()) < payload.distanceTo(u.getPos())) {
                     payload = au;
                 }
             }
@@ -112,17 +113,77 @@ public class DropHandler extends UnitHandler implements UpdateListener {
             }
         }
         if (loadedTransports.containsKey(u)) {
+
             Enemy vip = null;
-            for (Enemy e : command.getEnemyUnits(true)) {
-                if (vip == null || e.getMetalCost() > vip.getMetalCost()) {
-                    vip = e;
+            if (loadedTransports.get(u).getDef().equals(SKUTTLE)) {
+                for (Enemy e : command.getEnemyUnits(true)) {
+                    if (command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
+                        command.mark(e.getPos(), "aa: " + command.areaManager.getArea(e.getPos()).getAADPS());
+                    }
+                    if (e.getMetalCost() < 800 || command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
+                        continue;
+                    }
+                    if (vip == null || e.getLastAccuratePosTime() > vip.getLastAccuratePosTime()) {
+                        vip = e;
+                    }
+                }
+                if (vip == null || command.getCurrentFrame() - vip.getLastAccuratePosTime() > 300) {
+                    for (Enemy e : command.getEnemyUnits(true)) {
+                        if (!e.isBuilding() || e.getMetalCost() < 600 || command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
+                            continue;
+                        }
+                        if (vip == null || command.areaManager.getArea(e.getPos()).getAADPS() < command.areaManager.getArea(vip.getPos()).getAADPS()) {
+                            vip = e;
+                        }
+                    }
+                }
+                if (vip == null) {
+                    command.debug("Couldn't find target for skuttledrop");
+                }
+
+                if (vip != null && command.getCurrentFrame() - vip.getLastAccuratePosTime() > 300) {
+                    command.getAvengerHandler().requestScout(command.areaManager.getArea(vip.getPos()));
+                    command.mark(vip.getPos(), "requested scout");
+                } else if (vip != null/* && !command.getAvengerHandler().getUnits().isEmpty()*/ && !gnats.isEmpty()) {
+                    u.assignTask(new DropTask(vip, this, command));
+                    return;
+                }
+            } else if (loadedTransports.get(u).getDef().equals(ROACH)) {
+                final float blastradius = ROACH.getDeathExplosion().getAreaOfEffect();
+                final float damage = 0.85f * ROACH.getDeathExplosion().getDamage().getTypes().get(1);
+                final float falloff = (1f - ROACH.getDeathExplosion().getEdgeEffectiveness()) / blastradius;
+                float bestMetal = 0;
+                for (Enemy e : command.getEnemyUnits(true)) {
+                    float metalKilled = 0;
+                    for (Enemy near : command.getEnemyUnitsIn(e.getPos(), blastradius)) {
+                        if (near.getHealth() > damage * (1 - near.distanceTo(e.getPos()) * falloff)) {
+                            continue;
+                        }
+                        if (near.timeSinceLastSeen() > 30 * 5) {
+                            continue;
+                        }
+                        metalKilled += near.getMetalCost();
+                    }
+                    if (command.areaManager.getArea(e.getPos()).getAADPS() > 150
+                            || metalKilled < 1.1 * (ROACH.getCost(command.metal) + VALK.getCost(command.metal))) {
+                        continue;
+                    }
+                    if (metalKilled > bestMetal) {
+                        vip = e;
+                        bestMetal = metalKilled;
+                    }
+                }
+
+                if (vip != null) {
+                    if (u.distanceTo(vip.getPos()) > 1700) {
+                        u.assignTask(new MoveTask(vip.getPos(), command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
+                    } else {
+                        u.assignTask(new DropTask(vip, this, command));
+                    }
+                    command.mark(vip.getPos(), "nice cluster");
+                    return;
                 }
             }
-            if (vip != null && !command.getAvengerHandler().getUnits().isEmpty() && !gnats.isEmpty()) {
-
-                u.assignTask(new DropTask(vip, this, command));
-                return;
-            } 
         }
 
         u.wait(command.getCurrentFrame() + 30);
@@ -133,11 +194,10 @@ public class DropHandler extends UnitHandler implements UpdateListener {
      * @param au
      * @return AIUnit that is inside au or null otherwise
      */
-    public AIUnit getPayload(AIUnit au){
+    public AIUnit getPayload(AIUnit au) {
         return loadedTransports.get(au);
     }
-    
-    
+
     @Override
     public void troopIdle(AISquad s) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
@@ -177,8 +237,8 @@ public class DropHandler extends UnitHandler implements UpdateListener {
     public void unitDestroyed(Enemy e, AIUnit killer) {
 
     }
-    
-    public Set<AIUnit> getGnats(){
+
+    public Set<AIUnit> getGnats() {
         return gnats;
     }
 
@@ -208,17 +268,17 @@ public class DropHandler extends UnitHandler implements UpdateListener {
             }
         }
         if (gs != null) {
-            
-            if (!buildingValk && emptyTransports.size() + loadedTransports.size() < roaches.size() + skuttles.size() + (buildingSkuttle ? 1 : 0) + (buildingRoach ? 1 : 0)){
+
+            if (!buildingValk && emptyTransports.size() + loadedTransports.size() < roaches.size() + skuttles.size() + (buildingSkuttle ? 1 : 0) + (buildingRoach ? 1 : 0)) {
                 gs.queueUnit(VALK);
                 buildingValk = true;
             }
-            if (jj != null && !buildingSkuttle && skuttles.size() < 1){
+            if (jj != null && !buildingSkuttle && skuttles.size() < 1) {
                 jj.queueUnit(SKUTTLE);
                 gs.queueUnit(GNAT);
                 buildingSkuttle = true;
             }
-            if (shield != null && !buildingRoach && roaches.size() < 1){
+            if (shield != null && !buildingRoach && roaches.size() < 1) {
                 shield.queueUnit(ROACH);
                 buildingRoach = true;
             }

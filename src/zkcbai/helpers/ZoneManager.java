@@ -243,7 +243,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             boxIds.add((int) Math.round(t.getRulesParamFloat("start_box_id", -1f)));
         }
         int boxes = (int) Math.round(clbk.getGame().getRulesParamFloat("startbox_max_n", 0));
-        command.debug( boxes + " boxes");
+        command.debug(boxes + " boxes");
         for (Integer startbox = 0; startbox <= boxes; startbox++) {
             int startposes = (int) Math.round(clbk.getGame().getRulesParamFloat("startpos_n_" + startbox, 0));
             for (int myIndex = 0; myIndex < startposes; myIndex++) {
@@ -330,11 +330,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             }
         } catch (Exception ex) {
             command.debug("Exception while parsing startscript: ", ex);
-            command.debug("Mirroring position");
-            AIFloat3 pos = new AIFloat3(command.getCommanderHandlers().iterator().next().getCommander().getPos());
-            pos.x = mwidth - pos.x;
-            pos.z = mheight - pos.z;
-            compos = pos;
+            command.debug("Using sprungboxes");
+            compos = getEnemyStartPositions().get(0);
         }
         command.addFakeEnemy(new FakeCommander(compos, command, clbk));
         Mex closest = mexes.get(0);
@@ -1040,12 +1037,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             }
             for (Enemy e : getEnemyUnitsIn(pos, 1000)) {
                 float mul = -e.distanceTo(pos) / 1000 * 0.3f + 1f;
+                if (mul > 1) {
+                    throw new AssertionError("mul > 1");
+                }
                 if (e.getDPS() > 0 && !AvengerHandler.AADefs.contains(e.getDef())
                         && (e.getDef().getWeaponMounts().get(0).getWeaponDef().isAbleToAttackGround() == false
                         || e.getDef().getName().equals("corrl"))
                         && (e.distanceTo(pos) < e.getMaxRange() || e.getDef().getSpeed() > 0)) {
                     aadps += e.getDPS() * mul;
-                } else if (e.distanceTo(pos) < e.getMaxRange() || e.getDef().getSpeed() > 0) {
+                } else if ((e.distanceTo(pos) < e.getMaxRange() || e.getDef().getSpeed() > 0) && e.getMaxRange() > 300) {
                     aadps += e.getDPS() / 7f * mul;
                 }
             }

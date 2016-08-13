@@ -257,7 +257,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     public void checkDead() {
         if (dead || unit.getPos().lengthSquared() < 0.1) {
-            handler.getCommand().debug("polled dead aiunit " + unitId);
+            handler.getCommand().debug("polled dead aiunit " + unitId + " (" + getDef().getHumanName() + ")");
             handler.getCommand().debugStackTrace();
             handler.getCommand().unitDestroyed(unit, null);
         }

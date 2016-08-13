@@ -327,7 +327,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             buildPositions.addAll(command.areaManager.getAreas());
         }
         if (facsPlanned == 2) {
-            bestFac = clbk.getUnitDefByName("factoryjump"); //hardcode light vehicle factory 
+            bestFac = clbk.getUnitDefByName("factoryshield"); //hardcode light vehicle factory 
         }
         if (facsPlanned == 3) {
             bestFac = clbk.getUnitDefByName("factoryplane"); //hardcode light vehicle factory 
