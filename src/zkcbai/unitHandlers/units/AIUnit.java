@@ -65,6 +65,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         super(handler);
         unit = u;
         unitId = unit.getUnitId();
+        handler.getCommand().debug(unitId + " (" + getDef().getHumanName() +  ") is now controlled by a " + handler.getClass().getName());
 
         if (u.getDef().getSpeed() > 0) {
             reachableAreas = handler.getCommand().areaManager.getArea(u.getPos()).getConnectedAreas(Pathfinder.MovementType.getMovementType(u.getDef()));
@@ -257,7 +258,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     public void checkDead() {
         if (dead || unit.getPos().lengthSquared() < 0.1) {
-            handler.getCommand().debug("polled dead aiunit " + unitId + " (" + getDef().getHumanName() + ")");
+            handler.getCommand().debug("polled dead aiunit " + unitId + "");
             handler.getCommand().debugStackTrace();
             handler.getCommand().unitDestroyed(unit, null);
         }
@@ -268,7 +269,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         if (handler instanceof DevNullHandler || handler.getCommand() == null) {
             return;
         }
-        if ((wakeUpFrame < 0 || wakeUpFrame > 1000000) && handler.getCommand().getCurrentFrame() - lastCommandTime > 100
+        if ((wakeUpFrame < 0 || wakeUpFrame > 1000000) && handler.getCommand().getCurrentFrame() - lastCommandTime > 30
                 && unit.getCurrentCommands().isEmpty()) {
             handler.getCommand().debug("reawaken " + getUnit().getUnitId() + "(" + getDef().getHumanName() + ") controlled by " + handler.getClass().getName());
             idle();
@@ -301,8 +302,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         for (AIUnit au : handler.getCommand().getFactoryHandler().getUnits()) {
             if (distanceTo(au.getPos()) < 70 && getDef().getSpeed() > 0) {
                 AIFloat3 npos = new AIFloat3(au.getPos());
-                npos.x += 350;
-                npos = MoveTask.randomize(npos, 150);
+                npos.x += 400;
+                npos = MoveTask.randomize(npos, 300);
                 moveTo(npos, getCommand().getCurrentFrame() + 100);
                 return;
             }
@@ -322,7 +323,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
                 rl.retreating(this);
             }
             assignTask(retreatTask);
-            getCommand().mark(getPos(), "retreat");
+            getCommand().debug(getDef().getHumanName() +  " retreating");
         }
         super.doTask();
     }

@@ -129,7 +129,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
 
     @Override
     public void finishedTask(Task t) {
-        if (t instanceof MoveTask) {
+        if (t instanceof MoveTask && t.getInfo().contains("scout")) {
             MoveTask mt = (MoveTask) t;
             fighters.addUnit((AIUnit) mt.getLastExecutingUnit());
             command.mark(scoutTasks.get((AIUnit) mt.getLastExecutingUnit()).getPos(), "scouted");
@@ -161,7 +161,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
 
     @Override
     public void update(int frame) {
-        if (frame % 50 == 4 && !fighters.getUnits().isEmpty()) {
+        if (frame % 50 == 4) {
             for (AIUnit au : fighters.getUnits().toArray(new AIUnit[fighters.getUnits().size()])) {
                 if (au.getUnit().getHealth() < 0.66 * au.getDef().getHealth()) {
                     repairing.add(au);
@@ -178,7 +178,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 }
             }
             if (fighters.getUnits().isEmpty()) {
-                command.debug("All fighters repairing!");
+                if (!repairing.isEmpty()) command.debug("All fighters repairing!");
                 return;
             }
             TreeMap<Float, Pair<AIUnit, Area>> dists = new TreeMap();
@@ -198,7 +198,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                     scoutPos.remove(entry.getSecond());
                     continue;
                 }
-                entry.getFirst().assignTask(new MoveTask(entry.getSecond().getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command));
+                entry.getFirst().assignTask(new MoveTask(entry.getSecond().getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command).setInfo("scout"));
                 fighters.removeUnit(entry.getFirst(), this);
                 scoutTasks.put(entry.getFirst(), entry.getSecond());
                 scoutPos.remove(entry.getSecond());
@@ -213,28 +213,29 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 if (au.getArea().getZone() == Zone.hostile && au.getArea().getAADPS() * 2 > fighterDPS) {
                     continue;
                 }
+                if (au.getArea().getAADPS() < 100 || (au.getDef().equals(command.getDropHandler().VALK))) {
+                    continue;
+                }
 
                 command.debug("avengers supporting " + au.getDef().getHumanName());
                 if (fighters.distanceTo(au.getPos()) < 700) {
                     fighters.fight(au.getPos(), command.getCurrentFrame() + 100);
                 } else {
-                    fighters.assignTask(new MoveTask(au.getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command));
+                    fighters.moveTo(au.getPos(), command.getCurrentFrame() + 100);//fighters.assignTask(new MoveTask(au.getPos(), command.getCurrentFrame() + 50, this, command.pathfinder.AVOID_ANTIAIR, command));
                 }
                 return;
             }
-            for (Enemy e : enemyAir) {
+            for (Enemy e : enemyAir) { // enemies in friendly territorry
                 Area area = command.areaManager.getArea(e.getPos());
-                if ((area.getZone() == ZoneManager.Zone.own && area.getAADPS() * 1.2 < fighterDPS) || area.getAADPS() * 4 < fighterDPS) {
+                if ((area.getNearbyEnemies().length < 4 || area.getZone() == Zone.own) && area.getAADPS() * 1.2 < fighterDPS) {
                     if (fighters.distanceTo(e.getPos()) < 1000) {
                         fighters.attack(e, command.getCurrentFrame() + 100);
-                        command.debug("avengers attacking " + e.getDef().getHumanName());
+                        command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName());
                     } else {
-                        command.debug("avengers intercepting " + e.getDef().getHumanName());
-                        fighters.assignTask(new MoveTask(e.getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command));
+                        command.debug(fighters.getUnits().size() + " avengers intercepting " + e.getDef().getHumanName());
+                        fighters.moveTo(e.getPos(), command.getCurrentFrame() + 100);
                     }
                     return;
-                } else {
-                    command.debug(e.getDef().getHumanName() + " is too well protected by antiair");
                 }
             }
             Enemy best = null;
@@ -245,9 +246,23 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             }
             if (best != null) {
                 fighters.attack(best, command.getCurrentFrame() + 100);
-                command.debug("avengers attacking " + best.getDef().getHumanName());
+                command.debug(fighters.getUnits().size() + " avengers attacking " + best.getDef().getHumanName());
                 return;
             }
+            for (Enemy e : enemyAir) {
+                Area area = command.areaManager.getArea(e.getPos());
+                if (area.getAADPS() * 4 < fighterDPS) {
+                    if (fighters.distanceTo(e.getPos()) < 1000) {
+                        fighters.attack(e, command.getCurrentFrame() + 100);
+                        command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName() + " in enemy territory");
+                    } else {
+                        command.debug(fighters.getUnits().size() + " avengers intercepting " + e.getDef().getHumanName() + " in enemy territory");
+                        fighters.moveTo(e.getPos(), command.getCurrentFrame() + 100);
+                    }
+                    return;
+                } 
+            }
+            
             command.debug("no target for avengers");
         }
     }
@@ -266,7 +281,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
 
     @Override
     public void enemyEnterLOS(Enemy e) {
-        if (e.getDef().isAbleToFly()) {
+        if (e.getDef().isAbleToFly() && e.getDef().getCost(command.metal) > 80) {
             enemyAir.add(e);
         } else {
             enemyAir.remove(e);

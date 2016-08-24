@@ -6,6 +6,7 @@
 
 package zkcbai;
 
+import com.springrts.ai.oo.clb.Unit;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 
@@ -16,6 +17,8 @@ import zkcbai.unitHandlers.units.Enemy;
 public interface UnitDestroyedListener {
     
     public void unitDestroyed(AIUnit u, Enemy killer);
+    
+    public void unitDestroyed(Unit u, Enemy killer);
     
     public void unitDestroyed(Enemy e, AIUnit killer);
 }

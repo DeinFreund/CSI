@@ -7,6 +7,7 @@ package zkcbai.helpers;
 
 import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.util.HashSet;
 import java.util.Set;
@@ -228,4 +229,9 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         }
     }
 
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
+    }
 }

@@ -5,6 +5,7 @@
  */
 package zkcbai.unitHandlers.units.tasks;
 
+import com.springrts.ai.oo.clb.Unit;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -139,6 +140,12 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
     @Override
     public TaskType getTaskType(){
         return TaskType.RepairTask;
+    }
+    
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
     }
     
 }

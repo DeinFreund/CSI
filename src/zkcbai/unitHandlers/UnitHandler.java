@@ -52,6 +52,12 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
 
     }
 
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
+    }
+    
     @Override
     public void unitDestroyed(AIUnit u, Enemy e) {
         if (aiunits.containsKey(u.getUnit().getUnitId())) {

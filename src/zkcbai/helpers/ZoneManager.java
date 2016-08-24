@@ -9,6 +9,7 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.Feature;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Team;
+import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.awt.Color;
 import java.awt.FontMetrics;
@@ -36,6 +37,7 @@ import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.UnitFinishedListener;
 import zkcbai.UpdateListener;
+import zkcbai.helpers.EconomyManager.Budget;
 import static zkcbai.helpers.Helper.command;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager.Area.Connection;
@@ -82,6 +84,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     private Random random = new Random();
 
     private Set<AreaZoneChangeListener> zoneChangeListeners = new HashSet();
+
+    @Override
+    public void unitDestroyed(Unit u, Enemy killer) {
+
+    }
 
     public enum Zone {
 
@@ -251,10 +258,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 float startx = (clbk.getGame().getRulesParamFloat("startpos_x_" + startbox + "_" + (myIndex % startposes + 1), 0));
                 float startz = (clbk.getGame().getRulesParamFloat("startpos_z_" + startbox + "_" + (myIndex % startposes + 1), 0));
                 if (boxIds.contains(startbox)) {
-                    command.mark(new AIFloat3(startx, 0, startz), "friendly startpos");
+                    //command.debug("friendly startpos at " + new AIFloat3(startx, 0, startz));
                 } else {
                     enemystartpos.add(new AIFloat3(startx, 0, startz));
-                    command.mark(new AIFloat3(startx, 0, startz), "enemy startpos");
+                    command.debug("enemy startpos at " + new AIFloat3(startx, 0, startz));
                 }
             }
         }
@@ -263,6 +270,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
     private void parseStartScript() {
         AIFloat3 compos = null;
+        /*
         try {
             String script = clbk.getGame().getSetupScript();
             //command.debug("startscript:\n" + script);
@@ -331,8 +339,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         } catch (Exception ex) {
             command.debug("Exception while parsing startscript: ", ex);
             command.debug("Using sprungboxes");
-            compos = getEnemyStartPositions().get(0);
-        }
+            }*/
+        compos = getEnemyStartPositions().get(0);
+
         command.addFakeEnemy(new FakeCommander(compos, command, clbk));
         Mex closest = mexes.get(0);
         for (Mex m : mexes) {
@@ -533,14 +542,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
     }
 
     public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius) {
-        return getEnemyUnitsIn(pos, radius, ALL);
+        return getEnemyUnitsIn(pos, radius, ALL, false);
     }
 
     public Set<Enemy> getEnemyUnitsInAreas(AreaChecker checker) {
-        return getEnemyUnitsIn(new AIFloat3(), 1000000f, checker);
+        return getEnemyUnitsIn(new AIFloat3(), 1000000f, checker, false);
     }
 
-    public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius, AreaChecker checker) {
+    public Set<Enemy> getEnemyUnitsIn(AIFloat3 pos, float radius, AreaChecker checker, boolean includeTimeOuts) {
         Set<Enemy> list = new HashSet();
         AIFloat3 coords = new AIFloat3(pos.x - radius, pos.y, pos.z - radius);
         AIFloat3 coords2 = new AIFloat3(pos.x + radius, pos.y, pos.z + radius);
@@ -554,7 +563,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                     continue;
                 }
                 for (Enemy e : map[x][y].getEnemies()) {
-                    if (e.distanceTo(pos) < radius && !e.isTimedOut()) {
+                    if (e.distanceTo(pos) < radius && (!e.isTimedOut() || includeTimeOuts)) {
                         list.add(e);
                     }
                 }
@@ -630,6 +639,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         private float positiveFlow = 0;
         private HashSet<BuildTask> buildTasks = new HashSet<>();
         private int lastVisible = -10000;
+        private Set<UnitDef> aaUnits = new HashSet();
 
         public Area(int x, int y, int index) {
             this.x = x;
@@ -640,6 +650,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             command.addSingleUpdateListener(this, command.getCurrentFrame() + (int) (100 * Math.random()));
             command.addUnitDestroyedListener(this);
             command.addUnitFinishedListener(this);
+            
+            aaUnits.add(clbk.getUnitDefByName("corrl"));
+            aaUnits.add(clbk.getUnitDefByName("gunshipsupport"));//rapier
+            aaUnits.add(clbk.getUnitDefByName("fighter")); 
         }
 
         @Override
@@ -664,6 +678,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         public Collection<Connection> getConnections() {
             return connections;
+        }
+
+        @Override
+        public void unitDestroyed(Unit u, Enemy e) {
+
         }
 
         public void addFlow(float amt) {
@@ -991,6 +1010,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         List<Enemy> nearbyEnemies = new ArrayList();
         Enemy[] nearbyEnemiesArr = new Enemy[0];
 
+        /**
+         *  Gets enemies in radius 
+         * @return
+         */
         public final Enemy[] getNearbyEnemies() {
             getDanger();
             return nearbyEnemiesArr;
@@ -1035,14 +1058,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                     aadps += e.getDPS();
                 }
             }
-            for (Enemy e : getEnemyUnitsIn(pos, 1000)) {
+            for (Enemy e : getEnemyUnitsIn(pos, 1000, ALL, true)) {
                 float mul = -e.distanceTo(pos) / 1000 * 0.3f + 1f;
                 if (mul > 1) {
                     throw new AssertionError("mul > 1");
                 }
                 if (e.getDPS() > 0 && !AvengerHandler.AADefs.contains(e.getDef())
                         && (e.getDef().getWeaponMounts().get(0).getWeaponDef().isAbleToAttackGround() == false
-                        || e.getDef().getName().equals("corrl"))
+                        || aaUnits.contains(e.getDef()))
                         && (e.distanceTo(pos) < e.getMaxRange() || e.getDef().getSpeed() > 0)) {
                     aadps += e.getDPS() * mul;
                 } else if ((e.distanceTo(pos) < e.getMaxRange() || e.getDef().getSpeed() > 0) && e.getMaxRange() > 300) {
@@ -1204,7 +1227,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             if (getFlow() > 5e-1 && !inEnemyTurretRange) {
                 return Zone.own;
             }
-            if (getFlow() < -5e-1) {
+            if (getFlow() < -5e-1 || inEnemyTurretRange) {
                 return Zone.hostile;
             }
             return Zone.neutral;
@@ -1406,7 +1429,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
                 return Owner.enemy;
             }
             if (!command.isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0)
-                    || (buildTask != null && buildTask.isBeingWorkedOn(command.getCurrentFrame() - 600))) {
+                    || (buildTask != null && buildTask.isBeingWorkedOn(command.getCurrentFrame() - 30 * 60 * 10))) {
                 return Owner.own;
             }
             return Owner.none;
@@ -1419,7 +1442,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
         }
 
         public BuildTask getBuildTask() {
-            if (buildTask != null && ((buildTask.isDone() || !buildTask.isBeingWorkedOn(command.getCurrentFrame() - 30 * 60 * 2)) && !isBuilt())) {
+            if (buildTask != null && ((buildTask.isDone() || !buildTask.isBeingWorkedOn(command.getCurrentFrame() - 30 * 60 * 10)) && !isBuilt())) {
                 buildTask = null;
             }
             return buildTask;
@@ -1427,7 +1450,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
 
         public BuildTask createBuildTask(TaskIssuer t) {
             if (getBuildTask() == null && command.isPossibleToBuildAt(clbk.getUnitDefByName("cormex"), pos, 0)) {
-                buildTask = new BuildTask(clbk.getUnitDefByName("cormex"), pos, 0, t, clbk, command);
+                buildTask = new BuildTask(clbk.getUnitDefByName("cormex"), pos, 0, EconomyManager.Budget.economy, t, clbk, command);
                 buildTask.setInfo("mex");
             }
             if (buildTask == null) {
@@ -1615,10 +1638,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener {
             g.setColor(Color.orange);
             g.drawString(Math.round(cmdsPerSec * 10) / 10f + " cmds/sec", 10, 10);
 
-            g.drawString("Offense budget: " + Math.round(command.economyManager.getRemainingOffenseBudget()), 10, 25);
-            g.drawString("Energy budget: " + Math.round(command.economyManager.getRemainingEnergyBudget()), 10, 40);
-            g.drawString("Defense budget: " + Math.round(command.economyManager.getRemainingDefenseBudget()), 10, 55);
-            g.drawString("Generosity: " + Math.round(command.economyManager.getRemainingDefenseBudget()), 10, 70);
+            g.drawString("Offense budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.offense)), 10, 25);
+            g.drawString("Economy budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.economy)), 10, 40);
+            g.drawString("Defense budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.defense)), 10, 55);
+            g.drawString("Generosity: " + Math.round(command.economyManager.generosity), 10, 70);
             g.drawString("Grid nodes: " + command.getBuilderHandler().getGridNodes().size(), 10, 85);
             String queue = "";
             String building = "";

@@ -19,6 +19,8 @@ import java.util.Queue;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
+import zkcbai.helpers.EconomyManager;
+import zkcbai.helpers.EconomyManager.Budget;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager.Area;
@@ -30,6 +32,7 @@ import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.BuildTask;
 import zkcbai.unitHandlers.units.tasks.Task;
 import zkcbai.unitHandlers.units.tasks.TaskIssuer;
+import zkcbai.unitHandlers.units.tasks.WaitTask;
 
 /**
  *
@@ -52,8 +55,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         squads.add(new RaiderSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new AssaultSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new AvengerSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
-        startsquads.add(squads.get(0));
-        startsquads.add(squads.get(0));
+        //startsquads.add(squads.get(0));
+        //startsquads.add(squads.get(0));
 
         //cmd.addSingleUpdateListener(this, assaultFrame);
     }
@@ -78,7 +81,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         if (facmap.containsKey(u)) {
             if (!factoryIdle(facmap.get(u))) {
                 u.wait(command.getCurrentFrame() + 15);
-
+            }else{
+                facmap.get(u).buildNextUnit();
             }
         } else {
             throw new AssertionError("Unknown unit in FacHandler");
@@ -103,7 +107,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             }
         }
 
-        if (command.economyManager.getRemainingOffenseBudget() > 0 || clbk.getEconomy().getCurrent(command.metal) > 250) {
+        if (command.economyManager.getRemainingBudget(EconomyManager.Budget.offense) > 0/* || clbk.getEconomy().getCurrent(command.metal) > 250*/) {
 
             float unitDensity = 1000000 * command.getFighterHandler().getFighters().size()
                     / command.getCallback().getMap().getWidth() * command.getCallback().getMap().getHeight();
@@ -195,7 +199,6 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                     for (UnitDef ud : best.getRequiredUnits(fac.getBuildOptions())) {
                         cost += ud.getCost(command.metal);
                     }
-                    command.economyManager.useOffenseBudget(cost);
                     best.getInstance(fac.getBuildOptions());
                     return true;
                 }
@@ -355,6 +358,24 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         factories.remove(facmap.get(u));
         facmap.remove(u);
     }
+    
+    public List<UnitDef> getQueue(){
+        List<UnitDef> queue = new ArrayList();
+        for (Factory f : factories){
+            queue.addAll(f.getBuildQueue());
+        }
+        return queue;
+    }
+    
+    public int getQueuedCount(UnitDef ud){
+        int res = 0;
+        for (Factory f : factories){
+            for (UnitDef u : f.getBuildQueue()){
+                if (u.equals(ud)) res ++;
+            }
+        }
+        return res;
+    }
 
     @Override
     public void unitDestroyed(AIUnit u, Enemy e) {
@@ -439,12 +460,19 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             if (currentTask != null) {
                 if (force) {
                     currentTask.cancel();
+                    command.getBuilderHandler().unregisterBuildTask(currentTask);
+                    currentTask = null;
                 } else {
                     return;
                 }
             }
-            currentTask = new BuildTask(unit, this.unit.getPos(), 0, this, clbk, command);
-            this.unit.assignTask(currentTask);
+            if (command.economyManager.getRemainingBudget(Budget.offense) < 0) {
+                this.unit.assignTask(new WaitTask(command.getCurrentFrame() + 30, this));
+            } else {
+                currentTask = new BuildTask(unit, this.unit.getPos(), 0, Budget.offense, this, clbk, command);
+                command.getBuilderHandler().registerBuildTask(currentTask);
+                this.unit.assignTask(currentTask);
+            }
         }
 
         public void buildNextUnit() {
@@ -461,6 +489,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
 
         @Override
         public void abortedTask(Task t) {
+            
+            command.getBuilderHandler().unregisterBuildTask(currentTask);
             currentTask = null;
             buildNextUnit();
         }
@@ -470,6 +500,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             if (t.equals(currentTask)) {
                 buildOrders.poll();
             }
+            command.getBuilderHandler().unregisterBuildTask(currentTask);
             currentTask = null;
             buildNextUnit();
         }

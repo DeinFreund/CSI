@@ -17,6 +17,7 @@ import zkcbai.Command;
 import zkcbai.UnitCreatedListener;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.UnitFinishedListener;
+import zkcbai.helpers.EconomyManager.Budget;
 import zkcbai.helpers.PositionChecker;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -30,6 +31,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     UnitDef building;
     Unit result;
+    Budget budget;
     boolean resultFinished = false;
     boolean aborted = false;
     AIFloat3 pos;
@@ -65,10 +67,11 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * is an allowed buildpos<br>null means all positions are valid
      * @param searchRange radius of circle in which build positions should be
      * found<br>specify -1 to seach the whole map
-     * @return AIFloat(-1, -1, -1) if no valid position was found and a search range was specified
+     * @return AIFloat(-1, -1, -1) if no valid position was found and a search
+     * range was specified
      */
     public static AIFloat3 findClosestBuildSite(UnitDef building, AIFloat3 approxPos, int minDist, int facing, Command command, float heightRange, boolean reachable, PositionChecker checker, float searchRange) {
-        final float step = 32;
+        final float step = 16;
         float _minDist = 8 * minDist;
         AIFloat3 bestPos = null;
         //command.debug("finding buildsite for "  + building.getHumanName());
@@ -183,8 +186,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param reachable whether the construction site should be in a reachable
      * area
      */
-    public BuildTask(UnitDef building, AIFloat3 approxPos, TaskIssuer issuer, OOAICallback clbk, Command command, boolean reachable) {//simplified constructor
-        this(building, approxPos, issuer, clbk, command, 3, reachable);
+    public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, boolean reachable) {//simplified constructor
+        this(building, approxPos, budget, issuer, clbk, command, 3, reachable);
     }
 
     /**
@@ -200,9 +203,9 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param reachable whether the construction site should be in a reachable
      * area
      */
-    public BuildTask(UnitDef building, AIFloat3 approxPos, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, boolean reachable) {//simplified constructor
+    public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, boolean reachable) {//simplified constructor
         this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, -1f, reachable, null),
-                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, issuer, clbk, command);
+                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, budget, issuer, clbk, command);
     }
 
     /**
@@ -220,9 +223,9 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param reachable whether the construction site should be in a reachable
      * area
      */
-    public BuildTask(UnitDef building, AIFloat3 approxPos, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable) {//simplified constructor
+    public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable) {//simplified constructor
         this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, heightRange, reachable, null),
-                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, issuer, clbk, command);
+                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, budget, issuer, clbk, command);
     }
 
     /**
@@ -241,9 +244,9 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param checker position checker that returns whether a set of coordinates
      * is an allowed buildpos<br>null means all positions are valid area
      */
-    public BuildTask(UnitDef building, AIFloat3 approxPos, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable, PositionChecker checker) {//simplified constructor
+    public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable, PositionChecker checker) {//simplified constructor
         this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, heightRange, reachable, checker),
-                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, issuer, clbk, command);
+                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, budget, issuer, clbk, command);
     }
 
     /**
@@ -255,16 +258,18 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param issuer
      * @param clbk
      * @param command
+     * @param budget who pays
      * @throws AssertionError if it's not possible to build at the specified
      * location
      */
-    public BuildTask(UnitDef building, AIFloat3 pos, int facing, TaskIssuer issuer, OOAICallback clbk, Command command) {
+    public BuildTask(UnitDef building, AIFloat3 pos, int facing, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command) {
         super(issuer);
         //command.mark(pos, building.getHumanName() +  clbk.getMap().isPossibleToBuildAt(building, pos, facing));
         this.building = building;
         this.pos = pos;
         this.facing = facing;
         this.clbk = clbk;
+        this.budget = budget;
         BuildTask.command = command;
         this.lastExecution = command.getCurrentFrame();
         if (building.getSpeed() <= 0 && !command.isPossibleToBuildAt(building, pos, facing)) {
@@ -282,10 +287,32 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
         command.addUnitFinishedListener(this);
         command.addUnitCreatedListener(this);
         command.addUnitDestroyedListener(this);
+        if (budget != null) {
+            command.economyManager.useBudget(budget, building.getCost(command.metal));
+        }
     }
 
     private void cleanup() {
 
+        if (building.getSpeed() > 0) {
+            for (AITroop a : assignedUnits) {
+                //a.getUnits().iterator().next().getUnit().stop((short) 0, command.getCurrentFrame() + 100);
+                List<Float> cmds = new ArrayList<>();
+                for (com.springrts.ai.oo.clb.Command c : a.getUnits().iterator().next().getUnit().getCurrentCommands()) {
+                    cmds.add((float) c.getId());
+                    //command.debug(c.getId() + "/ " + c.getCommandId() + "command");
+                    for (UnitDef ud : command.getCallback().getUnitDefs()) {
+                        if (ud.getUnitDefId() == -c.getId()) {
+                            //command.debug("def " + ud.getHumanName());
+                        }
+                    }
+                }
+                a.getUnits().iterator().next().getUnit().executeCustomCommand(2, cmds, (short) 255, command.getCurrentFrame() + 50);
+                //remove from queue
+                //command.mark(a.getUnits().iterator().next().getPos(), "stopped");
+            }
+        }
+        //command.debug("cleaning up BuildTask " + getTaskId() + " for " + building.getHumanName());
         command.removeUnitFinishedListener(this);
         command.removeUnitCreatedListener(this);
         command.removeUnitDestroyedListener(this);
@@ -310,7 +337,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
         return aborted;
     }
 
-    protected int lastBuildOrderTime = 0;
+    protected int lastBuildOrderTime = -10000;
 
     /**
      *
@@ -337,6 +364,18 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             //command.debug("aborted task execution because of finished");
             completed(u);
             return true;
+        }
+        if (result != null && Command.distance2D(pos, result.getPos()) > 65) {
+            //command.mark(result.getPos(), "wrong " + building.getHumanName() + ", dist " + Command.distance2D(pos, result.getPos()));
+            result = null;
+        }
+        if (result == null) {
+            for (Unit unit : command.getCallback().getFriendlyUnitsIn(pos, 65)) {
+                if (unit.isBeingBuilt() && unit.getDef().equals(building)) {
+                    result = unit;
+                    break;
+                }
+            }
         }
 
         if (!assignedUnits.contains(u)) {
@@ -371,10 +410,15 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
             return false;
         }
-        if (building.getSpeed() > 0.05) {
-            if (!(result != null && result.getHealth() >= 0) && command.getCurrentFrame() - lastBuildOrderTime > 150) {
-                u.build(building, facing, pos, AITroop.OPTION_ALT_KEY, Integer.MAX_VALUE);
+        if (building.getSpeed() > 0.05 && command.getFactoryHandler().getUnits().contains((AIUnit) u)) {
+            if (!(result != null && result.getHealth() > 0) && command.getCurrentFrame() - lastBuildOrderTime > 90) {
+                u.build(building, facing, pos, AITroop.OPTION_ALT_KEY, command.getCurrentFrame() + 100);
                 lastBuildOrderTime = command.getCurrentFrame();
+            } else {
+                if (command.getCurrentFrame() - lastBuildOrderTime > 90) {
+                    //command.mark(result.getPos(), "already building " + building.getHumanName() + " at " + result.getHealth());
+                }
+                u.wait(command.getCurrentFrame() + 90);
             }
             //command.mark(pos, "building unit " + hashCode());
             /*try{
@@ -414,7 +458,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public BuildTask clone() {
-        BuildTask as = new BuildTask(building, pos, facing, issuer, clbk, command);
+        BuildTask as = new BuildTask(building, pos, facing, budget, issuer, clbk, command);
         as.result = this.result;
         as.queued = this.queued;
         return as;
@@ -427,8 +471,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     public AIFloat3 getPos() {
         return pos;
     }
-    
-    public void removeWorker(AITroop worker){
+
+    public void removeWorker(AITroop worker) {
         assignedUnits.remove(worker);
     }
 
@@ -448,26 +492,15 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     @Override
     public void unitFinished(AIUnit u) {
 
-        if ((u.getUnit().getDef().equals(building) && u.distanceTo(pos) < 65) || (result != null && result.equals(u.getUnit()))) {
-            command.debug("finished " + building.getHumanName()+ ": " + u.getUnit().getUnitId());
-            if (u.getDef().getSpeed() > 0) {
-                for (AITroop a : assignedUnits) {
-                    //a.getUnits().iterator().next().getUnit().stop((short) 0, command.getCurrentFrame() + 100);
-                    List<Float> cmds = new ArrayList<>();
-                    for (com.springrts.ai.oo.clb.Command c : a.getUnits().iterator().next().getUnit().getCurrentCommands()) {
-                        cmds.add((float) c.getId());
-                        //command.debug(c.getId() + "/ " + c.getCommandId() + "command");
-                        for (UnitDef ud : command.getCallback().getUnitDefs()) {
-                            if (ud.getUnitDefId() == -c.getId()) {
-                                //command.debug("def " + ud.getHumanName());
-                            }
-                        }
-                    }
-                    a.getUnits().iterator().next().getUnit().executeCustomCommand(2, cmds, (short) 255, command.getCurrentFrame() + 50);
-                    //remove from queue
-                    //command.mark(a.getUnits().iterator().next().getPos(), "stopped");
-                }
-            }
+        /*if (building.getHumanName().equalsIgnoreCase("wasp")){
+            command.debug("wasp-finished " + u.getDef().getHumanName());
+        }*/
+ /*if (u.getDef().equals(building) && building.getSpeed() > 0.1){
+            command.mark(u.getPos(), "finished " + u.getUnit().getUnitId() +  " = " + (result != null ? result.getUnitId() : -1) + " dist: " + u.distanceTo(pos));
+        }*/
+        if ((u.getUnit().getDef().equals(building) && u.distanceTo(pos) < 65) || (result != null && result.getUnitId() == u.getUnit().getUnitId())) {
+            command.debug("finished " + building.getHumanName() + ": " + u.getUnit().getUnitId());
+
             completed(u);
             result = u.getUnit();
             issuer.finishedTask(this);
@@ -491,13 +524,14 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void cancel() {
+        //command.debug("Cancelled BuildTask " + getTaskId() +" for " + building.getHumanName());
         aborted = true;
         cleanup();
     }
 
     @Override
-    public void unitDestroyed(AIUnit u, Enemy killer) {
-        if (u.getUnit().equals(result)) {
+    public void unitDestroyed(Unit u, Enemy killer) {
+        if (u.equals(result)) {
             result = null;
         }
     }
@@ -507,7 +541,12 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     }
 
     @Override
-    public TaskType getTaskType(){
+    public TaskType getTaskType() {
         return TaskType.BuildTask;
+    }
+
+    @Override
+    public void unitDestroyed(AIUnit u, Enemy e) {
+
     }
 }

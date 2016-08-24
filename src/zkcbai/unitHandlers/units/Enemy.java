@@ -42,6 +42,7 @@ public class Enemy {
     protected float health = 0;
     protected AIFloat3 lastAccPos;
     protected int lastAccPosTime;
+    protected boolean inLOS = false;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         this(u.getPos(), cmd, clbk);
@@ -91,6 +92,11 @@ public class Enemy {
      * @return
      */
     public boolean isAlive() {
+        if (alive && isVisible(true) && unit.getHealth() < 0.01f ) {
+            command.mark(unit.getPos(), "missed death event " + hashCode());
+            alive = false;
+            command.enemyDestroyed(this, null);
+        }
         return alive;
     }
 
@@ -107,14 +113,18 @@ public class Enemy {
     }
 
     public AIFloat3 getPos() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         if (isBuilding() && !neverSeen) {
             return lastPos;
         }
         if (unit != null && unit.getPos().length() > 0) {
-            return new AIFloat3(unit.getPos());
+            lastPos = unit.getPos();
+            return new AIFloat3(lastPos);
+        }
+        if (command.getCurrentFrame() - lastUpdate > 30) {
+            update(command.getCurrentFrame());
         }
         return new AIFloat3(lastPosPossible);
     }
@@ -127,7 +137,7 @@ public class Enemy {
     }
 
     public UnitDef getDef() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         if (unit != null && unit.getDef() != null) {
@@ -145,38 +155,49 @@ public class Enemy {
     }
 
     public float getHealth() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
+        }
+        if (isVisible(true)){
+            health = unit.getHealth();
         }
         return health;
     }
 
     public float getRelativeHealth() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         return health / getDef().getHealth();
     }
 
     /**
-     * wrong damage for carriers/wolverine/puppy/tacnuke/felon/scorcher/fire    
-     * @return real damage DPS for units with real damage and magic damage DPS for units with exclusively magic effects
+     * wrong damage for carriers/wolverine/puppy/tacnuke/felon/scorcher/fire
+     *
+     * @return real damage DPS for units with real damage and magic damage DPS
+     * for units with exclusively magic effects
      */
     public float getDPS() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         float dps = 0;
         for (WeaponMount wm : getDef().getWeaponMounts()) {
-            if (wm.getWeaponDef().getName().toLowerCase().contains("fake")) continue;
-            if (wm.getWeaponDef().getName().toLowerCase().contains("noweapon")) continue;
+            if (wm.getWeaponDef().getName().toLowerCase().contains("fake")) {
+                continue;
+            }
+            if (wm.getWeaponDef().getName().toLowerCase().contains("noweapon")) {
+                continue;
+            }
             float maxf = 0;
             for (int i = 1; i < wm.getWeaponDef().getDamage().getTypes().size(); i++) {
                 maxf = Math.max(wm.getWeaponDef().getDamage().getTypes().get(i), maxf);
             } //You are entering a land of magic, ask Sprung for directions
             dps += maxf / wm.getWeaponDef().getReload();
         }
-        if (isCommander()) return 300;
+        if (isCommander()) {
+            return 300;
+        }
         return dps;
     }
 
@@ -185,32 +206,32 @@ public class Enemy {
     }
 
     public Unit getUnit() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         return unit;
     }
-    
-    public boolean isCommander(){
+
+    public boolean isCommander() {
         return getDef().getCustomParams().containsKey("commtype");
     }
 
     public int getUnitId() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         return unitId;
     }
 
     public float getMaxRange() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         return maxRange;
     }
 
     public float distanceTo(AIFloat3 trg) {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         AIFloat3 pos = new AIFloat3(getPos());
@@ -220,13 +241,13 @@ public class Enemy {
     }
 
     public boolean shouldBeVisible(AIFloat3 pos) {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700 || getDef().isAbleToFly()) {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
         } else {
-            return !clbk.getFriendlyUnitsIn(pos, getDef().getDecloakDistance()).isEmpty();
+            return !clbk.getFriendlyUnitsIn(pos, Math.max(150, getDef().getDecloakDistance())).isEmpty();
         }
     }
 
@@ -238,17 +259,17 @@ public class Enemy {
         if (unit == null) {
             return false;
         }
-        return (!inLos && unit.getPos().length() > 0) || unit.getHealth() > 0;
+        return (!inLos && unit.getPos().length() > 0) || inLOS;
     }
 
     private final AreaChecker invisible = new AreaChecker() {
 
         @Override
         public boolean checkArea(ZoneManager.Area a) {
-            if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700) {
+            if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700 || getDef().isAbleToFly()) {
                 return a.isVisible() || command.getCurrentFrame() - a.getLastVisible() < 30 * 60 * 3;
             } else {
-                return !clbk.getFriendlyUnitsIn(a.getPos(), getDef().getDecloakDistance()).isEmpty();
+                return !clbk.getFriendlyUnitsIn(a.getPos(), Math.max(a.getWidth(), a.getHeight()) / 2 + getDef().getDecloakDistance()).isEmpty();
             }
         }
 
@@ -259,7 +280,7 @@ public class Enemy {
      * @return time since last in radar/los in frames
      */
     public int timeSinceLastSeen() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         if (isBuilding) {
@@ -269,16 +290,19 @@ public class Enemy {
     }
 
     public boolean isTimedOut() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
-        return timeSinceLastSeen() > 1500 * 100 / Math.max(getDef().getSpeed(), 0.1);
+        return timeSinceLastSeen() > 1500 * 100 / Math.max(getDef().getSpeed(), 10);
     }
 
+    private int lastUpdate = 0;
+
     public void update(int frame) {
-        if (!alive) {
+        if (!isAlive()) {
             return;
         }
+        lastUpdate = frame;
         health = Math.min(getDef().getHealth(), health + regen * getDef().getHealth());
         if (unit != null && unit.getHealth() > 0) {
             //in LOS
@@ -304,6 +328,10 @@ public class Enemy {
                     lastPosPossible = npos.getPos();
                 }
             }
+        }else{
+            /*if (getDef().getHumanName().equalsIgnoreCase("blastwing")){
+                command.mark(lastPosPossible, "invisible blastwing");
+            }*/
         }
         if (neverSeen && unit != null && unit.getVel().length() > maxVelocity) {
             identify();
@@ -312,9 +340,11 @@ public class Enemy {
     }
 
     public void enterLOS() {
-        if (!alive) {
+        inLOS = true;
+        if (!isAlive()) {
             polledDead();
         }
+        
         if (neverSeen) {
             health = unit.getHealth();
             unitDef = unit.getDef();
@@ -330,28 +360,28 @@ public class Enemy {
     }
 
     public float getMetalCost() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         return getDef().getCost(command.metal);
     }
 
     public boolean isBuilding() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         return isBuilding;
     }
 
     public boolean isIdentifiedByRadar() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         return neverSeen && getDef().getSpeed() > 0.5;
     }
 
     public void identify() {
-        if (!alive) {
+        if (!isAlive()) {
             polledDead();
         }
         if (!neverSeen) {
@@ -380,6 +410,7 @@ public class Enemy {
     }
 
     public void leaveLOS() {
+        inLOS = false;
         lastSeen = command.getCurrentFrame();
         update(command.getCurrentFrame());
     }
@@ -391,10 +422,9 @@ public class Enemy {
 
     public void destroyed() {
         //command.mark(getPos(), "dead");
-
+        alive = false;
         destroyFrame = command.getCurrentFrame();
         command.debug("Enemy " + hashCode() + "(" + getDef().getHumanName() + ") has been destroyed");
-        alive = false;
     }
 
     @Override

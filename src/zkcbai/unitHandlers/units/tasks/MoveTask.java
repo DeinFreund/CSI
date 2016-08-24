@@ -110,7 +110,8 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
             issuer.abortedTask(this);
             return true;
         }
-        while (!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 280 * Math.max(0.7, u.getDef().getSpeed() / GLAIVE.getSpeed()) && path.size() > 1) || (u.distanceTo(path.getFirst()) < 50))) {
+        while ((!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 280 * Math.max(0.7, u.getDef().getSpeed() / GLAIVE.getSpeed()) && path.size() > 1) || (u.distanceTo(path.getFirst()) < 50)))){
+//               || (u.getDef().isAbleToFly() && u.getUnits().size() > 1 && u.distanceTo(path.getFirst()) < 1000) ) {
             path.pollFirst();
             //command.debug("removing first checkpoint");
         }

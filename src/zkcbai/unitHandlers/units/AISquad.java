@@ -66,6 +66,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         u.assignAIUnitHandler(this);
         minRange = Math.min(u.getMaxRange(), minRange);
         minSlope = Math.min(minSlope, u.getMaxSlope());
+        dead = false;
         
         reachableAreas = u.getReachableAreas();
     }
@@ -227,7 +228,10 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
             }
         }
         
-        if (dead) return;
+        if (dead) {
+            getCommand().debug("AITroop (" + getDef().getHumanName()+ ") not executing task because dead");
+            return;
+        }
         
         super.doTask();
     }
@@ -543,4 +547,9 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         activeUnits.add(u);
     }
 
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
+    }
 }

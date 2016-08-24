@@ -5,6 +5,7 @@
  */
 package zkcbai.unitHandlers.units.tasks;
 
+import com.springrts.ai.oo.clb.Unit;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -122,6 +123,12 @@ public class LoadUnitTask extends Task implements TaskIssuer, UnitDestroyedListe
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
 
+    }
+    
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
     }
 
 }

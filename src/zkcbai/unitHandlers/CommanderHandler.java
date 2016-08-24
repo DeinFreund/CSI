@@ -65,7 +65,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             final UnitDef fac = command.getFactoryHandler().getNextFac(facareas);
             AIFloat3 compos = new AIFloat3(com.getPos().x + 100, com.getPos().y, com.getPos().z);
 
-            Task bt = new BuildTask(fac, compos, this, clbk, command, 10, -1f, false, new PositionChecker() {
+            Task bt = new BuildTask(fac, compos, null, this, clbk, command, 10, -1f, false, new PositionChecker() {
                 @Override
                 public boolean checkPosition(AIFloat3 pos) {
                     return (facareas.contains(command.areaManager.getArea(pos)));

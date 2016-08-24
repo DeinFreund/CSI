@@ -6,6 +6,8 @@
 package zkcbai.helpers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
+import java.util.HashMap;
+import java.util.Map;
 import zkcbai.Command;
 import zkcbai.unitHandlers.units.AIUnit;
 
@@ -15,54 +17,37 @@ import zkcbai.unitHandlers.units.AIUnit;
  */
 public class EconomyManager extends Helper {
 
-    final float ENERGY = 0.3f;
-    final float OVERDRIVE = 0.05f;
-    final float DEFENSE = 0.2f;
-    final float OFFENSE = 0.5f;
-
     float generosity = 0;
-    float adaption = 5e-4f;
+    float adaption = 5e-3f;
 
-    float energy = 0;
-    float offense = 0;
-    float defense = 0;
-    float overdrive = 0;
+    Map<Budget, Float> fraction = new HashMap(); //all fractions should add to 1
+    Map<Budget, Float> used = new HashMap();
 
-    public void useEnergyBudget(float amt) {
-        energy += amt;
-    }
-
-    public float getRemainingEnergyBudget() {
-        return ENERGY * (totalMetal + generosity) - energy;
-    }
-
-    public void useOffenseBudget(float amt) {
-        offense += amt;
-    }
-
-    public float getRemainingOffenseBudget() {
-        return OFFENSE * (totalMetal + generosity) - offense;
-    }
-
-    public void useDefenseBudget(float amt) {
-        defense += amt;
-    }
-
-    public float getRemainingDefenseBudget() {
-        return DEFENSE * (totalMetal + generosity) - defense;
-    }
-
-    public void useOverdriveBudget(float amt) {
-        overdrive += amt;
-    }
-
-    public float getRemainingOverdriveBudget() {
-        return OVERDRIVE * (totalMetal + generosity) - overdrive;
+    public static enum Budget {
+        economy, defense, offense
     }
 
     public EconomyManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         totalMetal = clbk.getEconomy().getCurrent(command.metal);
+        fraction.put(Budget.economy, 0.4f);
+        fraction.put(Budget.defense, 0.2f);
+        fraction.put(Budget.offense, 0.4f);
+        used.put(Budget.economy, 0f);
+        used.put(Budget.defense, 0f);
+        used.put(Budget.offense, 0f);
+    }
+
+    public void useBudget(Budget budget, float amt) {
+        if (getRemainingBudget(budget) < 0) {
+            command.debug("Warning: " + budget.name() + " budget overdrawn by " + amt + " at ");
+            command.debugStackTrace();
+        }
+        used.put(budget, used.get(budget) + amt);
+    }
+
+    public float getRemainingBudget(Budget budget) {
+        return fraction.get(budget) * (totalMetal + generosity) - used.get(budget);
     }
 
     @Override
@@ -79,13 +64,29 @@ public class EconomyManager extends Helper {
 
     @Override
     public void update(int frame) {
-        totalMetal += clbk.getEconomy().getIncome(command.metal) / 30f * (frame - lastFrame);
-        lastFrame = frame;
-        if (frame % 200 == 0) {
-            //command.debug("Current generosity: " + generosity);
+        if (frame < 50) {
+            int coms = command.getCommanderHandlers().size();
+            totalMetal = coms * 500;
+
+            if (frame == 49) {
+
+                used.put(Budget.economy, used.get(Budget.economy) - coms * 400f);
+                used.put(Budget.defense, used.get(Budget.defense) - coms * 50f);
+                used.put(Budget.offense, used.get(Budget.offense) - coms * 150f);
+                command.debug("Accounting for " + command.getCommanderHandlers().size() + " commanders' start income.");
+            }
         }
-        if (frame > 30 * 60 * 3) {
-            float mid = 50;
+        if (frame > 90) {
+            totalMetal += (command.getBuilderHandler().getMetalIncome()) / 30f * (frame - lastFrame);
+        }
+        lastFrame = frame;
+        if (frame % 100 == 2) {
+            command.debug("Economy budget: " + getRemainingBudget(Budget.economy));
+            command.debug("Offense budget: " + getRemainingBudget(Budget.offense));
+            command.debug("Defense budget: " + getRemainingBudget(Budget.defense));
+        }
+        if (frame > 30 * 30) {
+            float mid = 0.33f * command.getBuilderHandler().getMetalStorage();
             generosity += Math.signum(clbk.getEconomy().getCurrent(command.metal) - mid)
                     * adaption * Math.pow(Math.abs(Math.min(mid * 2, clbk.getEconomy().getCurrent(command.metal)) - mid), 1.7) / 20f;
         }

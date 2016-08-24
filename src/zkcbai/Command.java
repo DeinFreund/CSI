@@ -149,16 +149,6 @@ public class Command implements AI {
             }
             debug(clbk.getUnitDefByName("armcom1").getSpeed());
             debug("ZKCBAI successfully initialized.");
-
-            
-            for (WeaponMount wm : clbk.getUnitDefByName("slowmort").getWeaponMounts()) {
-                debug(wm.getWeaponDef().getName());
-                float maxf = 0;
-                for (Float f : wm.getWeaponDef().getDamage().getTypes()) {
-                    debug(" - " + f);
-                    maxf = Math.max(f, maxf);
-                }
-            }
             
         } catch (Throwable e) {
             debug("Exception in init:", e);
@@ -218,9 +208,6 @@ public class Command implements AI {
      * @return
      */
     public synchronized Collection<Enemy> getEnemyUnits(boolean allEnemies) {
-        if (allEnemies) {
-            return enemies.values();
-        }
         List<Enemy> list = new ArrayList();
         for (Enemy e : enemies.values()) {
             if (allEnemies || !e.isTimedOut()) {
@@ -709,13 +696,13 @@ public class Command implements AI {
         if (attacker != null && units.containsKey(attacker.getUnitId())) {
             frenemy = units.get(attacker.getUnitId());
         }
+        e.destroyed();
         for (UnitDestroyedListener listener : unitDestroyedListenersc) {
             listener.unitDestroyed(e, frenemy);
         }
         if (enemies.remove(e.getUnitId()) == null && !(e instanceof FakeEnemy)) {
             throw new AssertionError("Enemy not in enemy map");
         }
-        e.destroyed();
     }
 
     @Override
@@ -822,7 +809,7 @@ public class Command implements AI {
                         getRandomEnemy().update(frame);
                     }
                 }
-                checkedIdle += 20;
+                checkedIdle += 14;
             }
             avgUpdateTime = (System.currentTimeMillis() - updateStart) * 0.02f + avgUpdateTime * 0.98f;
 
@@ -855,6 +842,7 @@ public class Command implements AI {
     @Override
     public int unitFinished(Unit unit) {
         try {
+            debug("completed " + unit.getDef().getHumanName());
 //            debug("IDLEBUG finished " + unit.getUnitId());
             if (startPos == null) {
                 startPos = unit.getPos();
@@ -925,13 +913,11 @@ public class Command implements AI {
                     closest.setEnemyMex(fakemex);
                 }
             }
-//            debug("IDLEBUG registering " + aiunit.getUnit().getUnitId());
             units.put(unit.getUnitId(), aiunit);
             Collection<UnitFinishedListener> unitFinishedListenersClone = new ArrayList(unitFinishedListeners);
             for (UnitFinishedListener listener : unitFinishedListenersClone) {
                 listener.unitFinished(aiunit);
             }
-//            debug("IDLEBUG calling idle after UnitFinished " + aiunit.getUnit().getUnitId());
             units.get(unit.getUnitId()).idle();
         } catch (Throwable e) {
             debug("Exception in unitFinished: ", e);

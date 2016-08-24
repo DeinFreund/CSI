@@ -6,6 +6,7 @@
 package zkcbai.helpers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.Unit;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -123,5 +124,11 @@ public class BattleManager extends Helper implements EnemyDiscoveredListener, Un
             enemyBattleFinder.put(e, this);
             
         }
+    }
+
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
     }
 }

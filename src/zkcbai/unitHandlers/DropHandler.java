@@ -110,6 +110,8 @@ public class DropHandler extends UnitHandler implements UpdateListener {
             if (payload != null) {
                 u.assignTask(new LoadUnitTask(payload, this, command));
                 return;
+            }else{
+                u.assignTask(new MoveTask(u.getArea().getNearestArea(command.areaManager.FRIENDLY).getPos(), command.getCurrentFrame() + 100, this, command));
             }
         }
         if (loadedTransports.containsKey(u)) {
@@ -154,12 +156,15 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 final float falloff = (1f - ROACH.getDeathExplosion().getEdgeEffectiveness()) / blastradius;
                 float bestMetal = 0;
                 for (Enemy e : command.getEnemyUnits(true)) {
+                    if (e.timeSinceLastSeen() > 30 * 5 || e.getDef().isAbleToFly()) {
+                        continue;
+                    }
                     float metalKilled = 0;
                     for (Enemy near : command.getEnemyUnitsIn(e.getPos(), blastradius)) {
                         if (near.getHealth() > damage * (1 - near.distanceTo(e.getPos()) * falloff)) {
                             continue;
                         }
-                        if (near.timeSinceLastSeen() > 30 * 5) {
+                        if (near.timeSinceLastSeen() > 30 * 5 || near.getDef().isAbleToFly()) {
                             continue;
                         }
                         metalKilled += near.getMetalCost();
@@ -175,7 +180,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 }
 
                 if (vip != null) {
-                    if (u.distanceTo(vip.getPos()) > 1700) {
+                    if (u.distanceTo(vip.getPos()) > 2500) {
                         u.assignTask(new MoveTask(vip.getPos(), command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
                     } else {
                         u.assignTask(new DropTask(vip, this, command));

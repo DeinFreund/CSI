@@ -6,6 +6,7 @@
 package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
+import com.springrts.ai.oo.clb.Unit;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -43,6 +44,7 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
         if (target == null) {
             throw new NullPointerException();
         }
+        command.debug("Initialized DropTask on " + target.getDef().getHumanName());
         this.target = target;
         this.command = command;
         home = command.getFactoryHandler().getFacs().iterator().next().unit.getPos();
@@ -57,7 +59,7 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
         }
 
         workers.add((AIUnit) u);
-        if (errors > 10) {
+        if (errors > 10 || target == null) {
             command.debug("Aborted DropTask");
             issuer.abortedTask(this);
             completed(u);
@@ -129,15 +131,12 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
 
         extrapolated.sub(velmul);
         frames -= framestep;
-        while (time > u.distanceTo(extrapolated) / vel.length()) {
+        while (time > u.distanceTo(extrapolated) / vel.length() && frames < 300) {
             extrapolated.add(velmul);
             float yOff = command.getCallback().getMap().getElevationAt(extrapolated.x, extrapolated.z) - pos.y;
             //timeo = (float) Math.sqrt(Math.max(-2 * (-yOff) / G, 0f));
             time = (float) (-vel.y - Math.sqrt(vel.y * vel.y + 2 * G * yOff)) / G;
             frames += framestep;
-        }
-        if (frames > 1000) {
-            u.dropPayload(command.getCurrentFrame() + 10);
         }
         AIFloat3 tpos = new AIFloat3(target.getLastAccuratePos());
         if (gnat == null) tpos = new AIFloat3(target.getPos());
@@ -171,6 +170,7 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
             command.mark(tpos, "tpredict");
             command.mark(target.getLastAccuratePos(), "tacc");
             dropped = true;
+            u.moveTo(home, command.getCurrentFrame() + 10);
             return false;
         }
         command.mark(target.getPos(), target.getDef().getHumanName());
@@ -209,7 +209,11 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
                 mpos.scale(1f);
             }
             mpos.add(target.getPos());
-            u.moveTo(mirrored, command.getCurrentFrame() + 1);
+            if (vel.length() > 1){
+                u.moveTo(mirrored, command.getCurrentFrame() + 1);
+            }else{
+                u.moveTo(mpos, command.getCurrentFrame() + 1);
+            }
             //u.dropPayload(command.getCurrentFrame() + 15);
             //u.getUnits().iterator().next().getUnit().unload(mpos, payload.getUnit(), (short)0, Integer.MAX_VALUE);
         } else {
@@ -317,6 +321,13 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
     @Override
     public boolean retreatForRepairs(AITroop u) {
         return false;
+    }
+    
+    
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
     }
 
 }

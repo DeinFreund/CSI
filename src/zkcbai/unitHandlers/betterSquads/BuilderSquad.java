@@ -34,7 +34,7 @@ public class BuilderSquad extends SquadManager {
     public BuilderSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
         this(fighterHandler, command, callback, null);
         for (UnitDef ud : command.getCallback().getUnitDefs()) {
-            if (ud.getBuildOptions().size() > 5) {
+            if (ud.getBuildOptions().size() > 5 && !ud.getName().equalsIgnoreCase("armca")) {
                 constructors.add(ud);
             }
         }
@@ -80,7 +80,23 @@ public class BuilderSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        return -1f;
+        int bp = 0;
+        int buildersBuilding = 0;
+        for (UnitDef ud : command.getFactoryHandler().getQueue()) {
+            bp += ud.getBuildSpeed();
+            if (ud.getBuildSpeed() > 0) {
+                buildersBuilding++;
+            }
+        }
+        for (AIUnit au : command.getBuilderHandler().getBuilders()) {
+            bp += au.getDef().getBuildSpeed();
+        }
+        if (bp - 15 > 3 * command.getBuilderHandler().getMetalIncome() || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size()) {
+            return -1f;
+        } else {
+            command.debug("Total BP only " + bp + " m/s");
+            return 0.91f;
+        }
     }
 
     @Override

@@ -6,6 +6,7 @@
 package zkcbai.unitHandlers.units.tasks;
 
 import com.springrts.ai.oo.AIFloat3;
+import com.springrts.ai.oo.clb.Unit;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.unitHandlers.units.AITroop;
@@ -158,5 +159,10 @@ public class AttackTask extends Task implements TaskIssuer, UnitDestroyedListene
     public void cancel(){
         cleanup();
     }
+
     
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
+    }    
 }

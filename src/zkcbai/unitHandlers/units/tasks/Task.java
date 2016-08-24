@@ -80,8 +80,28 @@ public abstract class Task {
      * @return 
      */
     public boolean isBeingWorkedOn(int frame){
-        if (lastExecution < 0) throw new UnsupportedOperationException("IsBeingWorkedOnNotImplemented");
+        if (lastExecution < 0) throw new UnsupportedOperationException("IsBeingWorkedOn not implemented");
         return lastExecution > frame;
+    }
+    
+    @Override
+    public int hashCode(){
+        return taskID * 107;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Task other = (Task) obj;
+        return this.taskID == other.taskID;
     }
 
     public abstract Object getResult();

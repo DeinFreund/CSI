@@ -6,6 +6,7 @@
 package zkcbai.helpers;
 
 import com.springrts.ai.oo.clb.OOAICallback;
+import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.io.File;
 import java.io.FileInputStream;
@@ -130,4 +131,10 @@ public class KillCounter extends Helper implements UnitDestroyedListener {
         //command.debug( ": Efficiency of " + killer.getHumanName() + " against " + attacker.getHumanName() + ": " + getEfficiency(killer, attacker));
     }
 
+
+    
+    @Override
+    public void unitDestroyed(Unit u, Enemy e) {
+        
+    }
 }
