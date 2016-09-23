@@ -59,7 +59,7 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
         }
 
         workers.add((AIUnit) u);
-        if (errors > 10 || target == null) {
+        if (errors > 10 || target == null || command.getDropHandler().getPayload((AIUnit) u) == null) {
             command.debug("Aborted DropTask");
             issuer.abortedTask(this);
             completed(u);
@@ -138,8 +138,9 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
             time = (float) (-vel.y - Math.sqrt(vel.y * vel.y + 2 * G * yOff)) / G;
             frames += framestep;
         }
-        AIFloat3 tpos = new AIFloat3(target.getLastAccuratePos());
+        AIFloat3 tpos;
         if (gnat == null) tpos = new AIFloat3(target.getPos());
+        else tpos = new AIFloat3(target.getLastAccuratePos());
         AIFloat3 tvel = new AIFloat3(target.getVel());
         tvel.scale(time);
         tpos.add(tvel);
@@ -156,11 +157,20 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
         mirrored.scale(2 * toTarget.dot(vel));
         mirrored.sub(vel);
         mirrored.normalize();
+        AIFloat3 correction = new AIFloat3(toTarget);
+        correction.scale(mirrored.dot(toTarget));
+        correction.negate();
+        correction.add(mirrored);
+        correction.normalize();
+        correction.scale(2 * Command.distance2D(tpos, pos) / (command.getCommandDelay() + 2));
+        correction.add(tpos);
         mirrored.scale(500);
         mirrored.add(pos);
         AIFloat3 nextframe = new AIFloat3(extrapolated);
         nextframe.add(vel);
-        if (Command.distance2D(tpos, extrapolated) < 50f && Command.distance2D(tpos, extrapolated) < Command.distance2D(tpos, nextframe)) {
+        command.debug("drop deviation: " + Command.distance2D(tpos, extrapolated));
+        if (Command.distance2D(tpos, extrapolated) < 50f + command.getCommandDelay() * 3 && Command.distance2D(tpos, extrapolated) < Command.distance2D(tpos, nextframe)
+                || u.getHealth() / u.getDef().getHealth() < 0.2) {
             u.dropPayload(command.getCurrentFrame() + 10);
             command.debug("drop deviation: " + Command.distance2D(tpos, extrapolated));
             command.debug("last pos: " + (command.getCurrentFrame() - target.getLastAccuratePosTime()));
@@ -173,7 +183,6 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
             u.moveTo(home, command.getCurrentFrame() + 10);
             return false;
         }
-        command.mark(target.getPos(), target.getDef().getHumanName());
 
         command.debug("Distance to drop: " + target.distanceTo(u.getPos()));
         /*if (avenger != null && target.distanceTo(u.getPos()) < 2400f) {
@@ -191,7 +200,7 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
             }).getPos(), command.getCurrentFrame() + 33, this, command.pathfinder.AVOID_ANTIAIR, command));
         }*/
         if (gnat != null) {
-            if (target.distanceTo(u.getPos()) < 1500f) {
+            if (target.distanceTo(u.getPos()) < 2500f) {
                 gnat.attack(target, command.getCurrentFrame() + 60);
             } else {
                 AIFloat3 gnatmove = new AIFloat3(vel);
@@ -201,18 +210,12 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
                 gnat.moveTo(gnatmove, command.getCurrentFrame() + 60);
             }
         }
-        if (target.distanceTo(u.getPos()) < 900f) {
+        if (target.distanceTo(u.getPos()) < 1200f) {
 
-            AIFloat3 mpos = new AIFloat3();
-            if (target.getUnit() != null) {
-                mpos = new AIFloat3(target.getUnit().getVel());
-                mpos.scale(1f);
-            }
-            mpos.add(target.getPos());
             if (vel.length() > 1){
-                u.moveTo(mirrored, command.getCurrentFrame() + 1);
+                u.moveTo(correction, command.getCurrentFrame() + 1);
             }else{
-                u.moveTo(mpos, command.getCurrentFrame() + 1);
+                u.moveTo(tpos, command.getCurrentFrame() + 1);
             }
             //u.dropPayload(command.getCurrentFrame() + 15);
             //u.getUnits().iterator().next().getUnit().unload(mpos, payload.getUnit(), (short)0, Integer.MAX_VALUE);

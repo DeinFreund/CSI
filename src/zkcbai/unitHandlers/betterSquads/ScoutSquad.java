@@ -91,7 +91,7 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() - lastScoutSquad < 30 * 120) {
+        if (command.getCurrentFrame() - lastScoutSquad < 30 * 120 || command.getFactoryHandler().getBuildOptions().contains(clbk.getUnitDefByName("fighter"))) {
             return 0;
         }
         int vis = 0;

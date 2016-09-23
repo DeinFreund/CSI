@@ -261,7 +261,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         toTarget.sub(getPos());
         AIFloat3 ortho = new AIFloat3(toTarget.z, toTarget.y, - toTarget.x);
         ortho.normalize();
-        float offset = getDef().getSpeed();
+        float offset = getDef().getSpeed() * 8 / (5 + getUnits().size());
         ortho.scale(offset * ((activeUnits.size() ) / 2));
         trg.sub(ortho);
         ortho.normalize();

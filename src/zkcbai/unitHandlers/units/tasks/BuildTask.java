@@ -58,17 +58,12 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param approxPos position from which to start search
      * @param minDist minimum distance to next building 1 corresponds to 8 elmo
      * @param facing
-     * @param heightRange use values > 0 to specify the radius of a circle in
-     * which the highest position should be used, instead of using the nearest
-     * position
+     * @param heightRange use values > 0 to specify the radius of a circle in which the highest position should be used, instead of using the nearest position
      * @param command instance of Command
      * @param reachable should the construction site be reachable
-     * @param checker position checker that returns whether a set of coordinates
-     * is an allowed buildpos<br>null means all positions are valid
-     * @param searchRange radius of circle in which build positions should be
-     * found<br>specify -1 to seach the whole map
-     * @return AIFloat(-1, -1, -1) if no valid position was found and a search
-     * range was specified
+     * @param checker position checker that returns whether a set of coordinates is an allowed buildpos<br>null means all positions are valid
+     * @param searchRange radius of circle in which build positions should be found<br>specify -1 to seach the whole map
+     * @return AIFloat(-1, -1, -1) if no valid position was found and a search range was specified
      */
     public static AIFloat3 findClosestBuildSite(UnitDef building, AIFloat3 approxPos, int minDist, int facing, Command command, float heightRange, boolean reachable, PositionChecker checker, float searchRange) {
         final float step = 16;
@@ -175,24 +170,21 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     }
 
     /**
-     * Builds building as close as possible to the specified position while
-     * retaining a preset minimum distance to the closest building
+     * Builds building as close as possible to the specified position while retaining a preset minimum distance to the closest building
      *
      * @param building
      * @param approxPos
      * @param issuer
      * @param clbk
      * @param command
-     * @param reachable whether the construction site should be in a reachable
-     * area
+     * @param reachable whether the construction site should be in a reachable area
      */
     public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, boolean reachable) {//simplified constructor
         this(building, approxPos, budget, issuer, clbk, command, 3, reachable);
     }
 
     /**
-     * Builds building as close as possible to the specified position while
-     * retaining a minimum distance to the closest building
+     * Builds building as close as possible to the specified position while retaining a minimum distance to the closest building
      *
      * @param building
      * @param approxPos
@@ -200,8 +192,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param clbk
      * @param command
      * @param minDist
-     * @param reachable whether the construction site should be in a reachable
-     * area
+     * @param reachable whether the construction site should be in a reachable area
      */
     public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, boolean reachable) {//simplified constructor
         this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, -1f, reachable, null),
@@ -209,8 +200,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     }
 
     /**
-     * Builds building as close as possible to the specified position while
-     * retaining a minimum distance to the closest building<br />
+     * Builds building as close as possible to the specified position while retaining a minimum distance to the closest building<br />
      * searches for highest possible buildpos in heightRange
      *
      * @param building
@@ -220,8 +210,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param command
      * @param minDist
      * @param heightRange radius for search in which to find highest position
-     * @param reachable whether the construction site should be in a reachable
-     * area
+     * @param reachable whether the construction site should be in a reachable area
      */
     public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable) {//simplified constructor
         this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, heightRange, reachable, null),
@@ -229,8 +218,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     }
 
     /**
-     * Builds building as close as possible to the specified position while
-     * retaining a minimum distance to the closest building<br />
+     * Builds building as close as possible to the specified position while retaining a minimum distance to the closest building<br />
      * searches for highest possible buildpos in heightRange
      *
      * @param building
@@ -241,8 +229,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param minDist
      * @param heightRange radius for search in which to find highest position
      * @param reachable whether the construction site should be in a reachable
-     * @param checker position checker that returns whether a set of coordinates
-     * is an allowed buildpos<br>null means all positions are valid area
+     * @param checker position checker that returns whether a set of coordinates is an allowed buildpos<br>null means all positions are valid area
      */
     public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable, PositionChecker checker) {//simplified constructor
         this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, heightRange, reachable, checker),
@@ -259,8 +246,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param clbk
      * @param command
      * @param budget who pays
-     * @throws AssertionError if it's not possible to build at the specified
-     * location
+     * @throws AssertionError if it's not possible to build at the specified location
      */
     public BuildTask(UnitDef building, AIFloat3 pos, int facing, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command) {
         super(issuer);
@@ -319,7 +305,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
         command.clearBuildTask(this);
         List<AIUnit> auc = new ArrayList();
         Collections.copy(assignedUnits, auc);
-        assignedUnits.clear();
+        //assignedUnits.clear();
+        assignedUnits = null;
         for (AIUnit au : auc) {
             if (au.getTask().equals(this)) {
                 au.idle();
@@ -347,7 +334,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     @Override
     public boolean execute(AITroop u) {
         lastExecution = command.getCurrentFrame();
-        if (errors > 5 + 3 * assignedUnits.size()) {
+        if (errors > 10) {
             completed(u);
             command.debug("aborted task execution because of errors:");
             for (String s : errorMessages) {
@@ -360,7 +347,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             }
             return true;
         }
-        if (result != null && resultFinished) {
+        if (resultFinished || aborted) {
             //command.debug("aborted task execution because of finished");
             completed(u);
             return true;
@@ -473,6 +460,9 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     }
 
     public void removeWorker(AITroop worker) {
+        if (assignedUnits == null) {
+            return;
+        }
         assignedUnits.remove(worker);
     }
 
@@ -516,7 +506,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void unitCreated(Unit u, AIUnit builder) {
-        if (u.getDef().equals(building) && Command.distance2D(pos, u.getPos()) < 65) {
+        if (u.getDef().equals(building) && Command.distance2D(pos, u.getPos()) < 65 && result == null) {
             //command.mark(u.getPos(), "unit created " + hashCode());
             result = u;
         }

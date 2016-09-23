@@ -92,13 +92,11 @@ public final class Pathfinder extends Helper {
     }
 
     /**
-     * Requests the cheapest path between two arbitrary positions using the A*
-     * algorithm.
+     * Requests the cheapest path between two arbitrary positions using the A* algorithm.
      *
      * @param start
      * @param target
-     * @param maxSlope Maximum slope that can be traveled on. 0 &lt; maxslope
-     * &lt; 1
+     * @param maxSlope Maximum slope that can be traveled on. 0 &lt; maxslope &lt; 1
      * @param costs Class implementing CostSupplier
      * @param listener will be called after path has been calculated
      * @see #FAST_PATH
@@ -111,8 +109,7 @@ public final class Pathfinder extends Helper {
     }
 
     /**
-     * Requests the cheapest path between two arbitrary positions using the A*
-     * algorithm.
+     * Requests the cheapest path between two arbitrary positions using the A* algorithm.
      *
      * @param start
      * @param target
@@ -129,16 +126,14 @@ public final class Pathfinder extends Helper {
     }
 
     /**
-     * Requests the cheapest path between two arbitrary positions using the A*
-     * algorithm.
+     * Requests the cheapest path between two arbitrary positions using the A* algorithm.
      *
      * @param start
      * @param target
      * @param mt Maximum slope that can be travelled on. 0 &lt; maxslope &lt; 1
      * @param costs Class implementing CostSupplier
      * @param markReachable if this is set, all reached areas will be marked as
-     * @param listener will be called after path has been calculated such
-     * WITHOUT EFFECT
+     * @param listener will be called after path has been calculated such WITHOUT EFFECT
      * @see #FAST_PATH
      * @see #RAIDER_PATH
      * @see #AVOID_ENEMIES found.
@@ -150,13 +145,11 @@ public final class Pathfinder extends Helper {
     }
 
     /**
-     * Finds the cheapest path between two arbitrary positions using the A*
-     * algorithm.
+     * Finds the cheapest path between two arbitrary positions using the A* algorithm.
      *
      * @param start
      * @param target
-     * @param maxSlope Maximum slope that can be traveled on. 0 &lt; maxslope
-     * &lt; 1
+     * @param maxSlope Maximum slope that can be traveled on. 0 &lt; maxslope &lt; 1
      * @param costs Class implementing CostSupplier
      * @return Path as List of AIFloat3. If list.size() &lt; 2 no valid path was
      * @see #FAST_PATH
@@ -165,12 +158,11 @@ public final class Pathfinder extends Helper {
      *
      */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, float maxSlope, CostSupplier costs) {
-        return findPath(start, target, MovementType.getMovementType(maxSlope), costs, false);
+        return findPath(start, target, MovementType.getMovementType(maxSlope), costs, false, false);
     }
 
     /**
-     * Finds the cheapest path between two arbitrary positions using the A*
-     * algorithm.
+     * Finds the cheapest path between two arbitrary positions using the A* algorithm.
      *
      * @param start
      * @param target
@@ -183,26 +175,25 @@ public final class Pathfinder extends Helper {
      *
      */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, MovementType mt, CostSupplier costs) {
-        return findPath(start, target, mt, costs, false);
+        return findPath(start, target, mt, costs, false, false);
     }
 
     /**
-     * Finds the cheapest path between two arbitrary positions using the A*
-     * algorithm.
+     * Finds the cheapest path between two arbitrary positions using the A* algorithm.
      *
      * @param start
      * @param target
      * @param movementType movement Type indicating passable terrain
      * @param costs Class implementing CostSupplier
-     * @param markReachable if this is set, all reached areas will be marked as
-     * such WITHOUT EFFECT
+     * @param markReachable if this is set, all reached areas will be marked as such WITHOUT EFFECT
      * @return Path as List of AIFloat3. If list.size() &lt; 2 no valid path was
      * @see #FAST_PATH
      * @see #RAIDER_PATH
      * @see #AVOID_ENEMIES found.
      *
      */
-    public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, final MovementType movementType, final CostSupplier costs, boolean markReachable) {
+    public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, final MovementType movementType, final CostSupplier costs, boolean markReachable, boolean approximatePath) {
+        command.debug("async pathfinder using " + costs.getClass().getName(), false);
         long time = System.currentTimeMillis();
         Comparator<pqEntry2> pqComp = new Comparator<pqEntry2>() {
 
@@ -231,10 +222,10 @@ public final class Pathfinder extends Helper {
         });
         Area targetPos = command.areaManager.getArea(target);
 
-        if (startPos == null){
+        if (startPos == null) {
             throw new AssertionError("No areas to start from found");
         }
-        
+
         Map<Area, Float> minCost = new HashMap();
         Map<Area, Area> prev = new HashMap();
         Set<Area> visited = new HashSet();
@@ -252,7 +243,8 @@ public final class Pathfinder extends Helper {
             if (minCost.get(pos) < cost) {
                 continue;
             }
-            if (pos.equals(targetPos)) {
+            if (pos.equals(targetPos) || approximatePath && pos.getNeighbours().contains(targetPos)) {
+                targetPos = pos;
                 break;
             }
 
@@ -274,11 +266,16 @@ public final class Pathfinder extends Helper {
         }
         Deque<AIFloat3> res = new LinkedList<>();
         if (!minCost.containsKey(targetPos)) {
-            //command.mark(start, "start (impossible path)");
-            //command.mark(target, "end (impossible path)");
-            command.debug("Impossible path");
-            res.add(target);
-            return res;
+            if (!approximatePath) {
+                return findPath(start, target, movementType, costs, markReachable, true);
+            } else {
+                //command.mark(start, "start (impossible path)");
+                command.mark(target, "end (impossible path)");
+                command.debug("Impossible path");
+                command.debugStackTrace();
+                res.add(target);
+                return res;
+            }
         }
         Area pos = targetPos;
         while (pos != prev.get(pos)) {
@@ -358,6 +355,7 @@ public final class Pathfinder extends Helper {
     public float getDistance(Float3 start, Float3 target) {
         return (float) Math.sqrt((start.x - target.x) * (start.x - target.x) + (start.z - target.z) * (start.z - target.z));
     }
+
     /*
      public void precalcPath(Area startarea, MovementType movementType, Area targetarea) {
      //public void precalcPath(AIFloat3 start, float maxSlope, AIFloat3 target, float encradius) {
@@ -529,7 +527,8 @@ public final class Pathfinder extends Helper {
         public float getCost(Area pos) {
             return 4f * command.defenseManager.getGeneralDanger(pos.getPos());
         }
-    };/**
+    };
+    /**
      * Fastest path to target while avoiding antiair
      */
     public final CostSupplier AVOID_ANTIAIR = new CostSupplier() {

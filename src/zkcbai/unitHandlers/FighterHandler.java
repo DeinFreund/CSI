@@ -141,12 +141,12 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
 
             PriorityQueue<pqEntry> pq = new PriorityQueue(1, pqComp);
             for (AIUnit own : aiunits.values()) {
-                if (a.getNearbyEnemies().length == 0) {
+                if (a.getNearbyEnemies().isEmpty()) {
                     strength += own.getDef().getCost(command.metal);
                     pq.add(new pqEntry(own.getDef().getCost(command.metal), 1, own));
                     continue;
                 }
-                float val = own.getDef().getCost(command.metal) / a.getNearbyEnemies().length;
+                float val = own.getDef().getCost(command.metal) / a.getNearbyEnemies().size();
                 float ss = strength;
                 for (Enemy e : a.getNearbyEnemies()) {
                     strength += val * Math.min(3, own.getEfficiencyAgainst(e));
@@ -167,7 +167,7 @@ public class FighterHandler extends UnitHandler implements EnemyDiscoveredListen
                 }
                 squad.assignTask(new AssaultTask(a.getPos(), command, this).setInfo("assault"));
                 command.debug("Launching assault with " + squad.getUnits().size() + " units.");
-                command.mark(a.getPos(), "assaulting " + a.getNearbyEnemies().length + " units");
+                command.mark(a.getPos(), "assaulting " + a.getNearbyEnemies().size() + " units");
             }
 
         }

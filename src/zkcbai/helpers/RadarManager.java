@@ -44,10 +44,10 @@ public class RadarManager extends Helper {
 
     @Override
     public void update(int frame) {
-        this.radarMap = map.getRadarMap();
 
         try {
-            if (frame % 6 == 1) {
+            if (frame % 27 == 1 && command.getCommandDelay() < 30) {
+                this.radarMap = map.getRadarMap();
                 updateRadarImage();
             }
         } catch (Exception e) {

@@ -64,7 +64,9 @@ public class PathPrecalculatorThread implements Runnable {
         }
         try {
             while (!countdown.await(25, TimeUnit.MILLISECONDS)) {
-                if (pnl != null) pnl.updateUI();
+                if (pnl != null) {
+                    pnl.updateUI();
+                }
             }
         } catch (InterruptedException ex) {
             command.debug("Exception while calculating paths ", ex);
@@ -73,7 +75,7 @@ public class PathPrecalculatorThread implements Runnable {
         /*for (int i = 0; i <8; i++){
          chk += sums[i];
          }*/
-        
+
         for (int i = 0; i < thread.length; i++) {
             command.pathfinder.minCostPerElmo = Math.min(command.pathfinder.minCostPerElmo, minCostPerElmo[i]);
         }
@@ -83,7 +85,6 @@ public class PathPrecalculatorThread implements Runnable {
     float[] slopeMap;
     int mapRes;
     int smwidth;
-    
 
     //static int[] sums = new int[8];
     @Override
@@ -131,6 +132,7 @@ public class PathPrecalculatorThread implements Runnable {
                 int startPos = (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes); //reverse to return in right order when traversing backwards
                 int targetPos = (int) (start.z / mapRes) * smwidth + (int) (start.x / mapRes);
                 int[] offset2 = new int[]{-1, 1, smwidth, -smwidth, smwidth + 1, smwidth - 1, -smwidth + 1, -smwidth - 1};
+                int[] offset2check = new int[]{-1, 1, smwidth, -smwidth, smwidth, smwidth, -smwidth, -smwidth};
                 float[] offsetCostMod = new float[]{1, 1, 1, 1, 1.42f, 1.42f, 1.42f, 1.42f};
 
                 Deque<Float3> result = new ArrayDeque();
@@ -138,9 +140,8 @@ public class PathPrecalculatorThread implements Runnable {
                 PriorityQueue<pqEntry> pq = new PriorityQueue(1, pqComp);
                 pq.add(new pqEntry(getHeuristic(startPos, targetPos), 0, startPos));
 
-                
                 int endi = Math.min(minCost.length - 1, toIndex(Math.max(target.x, start.x) + encradius, Math.max(target.z, start.z) + encradius));
-                for (int i = Math.max(0,toIndex(Math.min(target.x, start.x) - encradius, Math.min(target.z, start.z) - encradius)); i <= endi; i++) {
+                for (int i = Math.max(0, toIndex(Math.min(target.x, start.x) - encradius, Math.min(target.z, start.z) - encradius)); i <= endi; i++) {
                     minCost[i] = Float.MAX_VALUE;
                 }
                 minCost[startPos] = 0;
@@ -177,13 +178,16 @@ public class PathPrecalculatorThread implements Runnable {
                         if ((pos + 1) % (smwidth) == 0 && offset2[i] % smwidth != 0) {
                             continue;
                         }
-                        if (inBounds(pos + offset2[i], minCost.length)
-                                && cost + offsetCostMod[i] * getCost(slopeMap[pos + offset2[i]], maxSlope) < minCost[pos + offset2[i]]
+                        if (!inBounds(pos + offset2[i], minCost.length)) {
+                            continue;
+                        }
+                        float ncost = offsetCostMod[i] * Math.max(getCost(slopeMap[pos + offset2[i]], maxSlope), getCost(slopeMap[pos + offset2check[i]], maxSlope));
+                        if (cost + ncost < minCost[pos + offset2[i]]
                                 && (getDistance(start, toFloat3(pos + offset2[i])) < 1.5f * encradius
                                 || getDistance(target, toFloat3(pos + offset2[i])) < 1.5f * encradius)) {
 
                             //pathTo[pos + offset2[i]] = pos;
-                            minCost[pos + offset2[i]] = cost + offsetCostMod[i] * getCost(slopeMap[pos + offset2[i]], maxSlope);
+                            minCost[pos + offset2[i]] = cost + ncost;
                             pq.add(new pqEntry(getHeuristic(pos + offset2[i], targetPos) + minCost[pos + offset2[i]],
                                     minCost[pos + offset2[i]], pos + offset2[i]));
                             //command.mark(toFloat3(pos+offset[i]), "for " + (getHeuristic(pos + offset[i], targetPos) + minCost[pos + offset[i]]));
@@ -196,9 +200,9 @@ public class PathPrecalculatorThread implements Runnable {
                     task.startarea.queueConnection(task.targetarea, totalcost, task.movementType);
                     task.targetarea.queueConnection(task.startarea, totalcost, task.movementType);
                     minCostPerElmo[offset] = Math.min(minCostPerElmo[offset], totalcost / getDistance(task.start, task.target));
-                }else{
-                    task.startarea.queueConnection(null,-1, task.movementType);
-                    task.targetarea.queueConnection(null,-1, task.movementType);
+                } else {
+                    task.startarea.queueConnection(null, -1, task.movementType);
+                    task.targetarea.queueConnection(null, -1, task.movementType);
                 }
                 loopcounter += System.nanoTime() - time;
             }
@@ -229,7 +233,7 @@ public class PathPrecalculatorThread implements Runnable {
         if (slope > maxSlope) {
             return Float.MAX_VALUE;
         }
-        return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1e6f) : (0))) + 1;
+        return 10 * (slope / maxSlope + ((slope > maxSlope) ? (1e9f) : (0))) + 1;
     }
 
     Float3 toFloat3(int pos) {
@@ -241,13 +245,14 @@ public class PathPrecalculatorThread implements Runnable {
         return (float) Math.sqrt((start % smwidth - trg % smwidth) * (start % smwidth - trg % smwidth) + (start / smwidth - trg / smwidth) * (start / smwidth - trg / smwidth));
     }
 
-    int toIndex(Float3 target){
+    int toIndex(Float3 target) {
         return (int) (target.z / mapRes) * smwidth + (int) (target.x / mapRes);
     }
-    int toIndex(float x, float z){
+
+    int toIndex(float x, float z) {
         return (int) (z / mapRes) * smwidth + (int) (x / mapRes);
     }
-    
+
     static class PrecalcTask {
 
         public final ZoneManager.Area startarea;

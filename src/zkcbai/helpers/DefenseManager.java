@@ -54,7 +54,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     public float getDanger(AIFloat3 pos) {
         float result = 0;
         for (Enemy e : defenses) {
-            result += (e.distanceTo(pos) <= e.getMaxRange() ? 1 : 0) * e.getDef().getCost(command.metal);
+            result += (e.distanceTo(pos) <= e.getMaxRange() * 1.3 ? 1 : 0) * e.getDef().getCost(command.metal);
         }
         return result;
     }
@@ -80,11 +80,8 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     public float getGeneralDanger(AIFloat3 pos) {
         float result = 0;
         for (Enemy e : command.areaManager.getArea(pos).getNearbyEnemies()) {
-            if (e.getUnit() != null && e.getUnit().isBeingBuilt() && e.getRelativeHealth() < 0.9) {
-                continue;
-            }
-            result += (e.distanceTo(pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getDef().getCost(command.metal);
-            result += (e.distanceTo(pos) <= e.getMaxRange() * 2.7 ? 0.5 : 0) * e.getDef().getCost(command.metal);
+            result += (Command.distance2D(e.getLastPos(), pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getMetalCost();
+            result += (Command.distance2D(e.getLastPos(), pos) <= e.getMaxRange() * 2.7 ? 0.5 : 0) * e.getMetalCost();
         }
         return result;
     }

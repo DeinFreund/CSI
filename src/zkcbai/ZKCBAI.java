@@ -75,7 +75,7 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
         clbk.getGame().sendTextMessage("my team id3 is " + clbk.getGame().getMyAllyTeam(), 0);
         for (Team t : callback.getAllyTeams()) {
             if (t.getTeamId() < clbk.getGame().getMyTeam()) {
-                if (myIndex == 0){
+                if (myIndex == 0) {
                     teamToGive = t.getTeamId();
                 }
                 myIndex++;
@@ -212,7 +212,9 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
                 Resource metal = clbk.getResources().get(0);
                 Resource energy = clbk.getResources().get(1);
                 clbk.getEconomy().sendResource(metal, Math.min(clbk.getEconomy().getCurrent(metal), (float) Math.max(0, 0.9 * clbk.getGame().getTeamResourceStorage(teamToGive, 0) - clbk.getGame().getTeamResourceCurrent(teamToGive, 0))), teamToGive);
-                //clbk.getEconomy().sendResource(energy, Math.min(clbk.getEconomy().getCurrent(energy), (float) Math.max(0, 0.2 * clbk.getGame().getTeamResourceStorage(teamToGive, 1) - clbk.getGame().getTeamResourceCurrent(teamToGive, 1))), teamToGive);
+                if (frame < 30 * 60 * 3) {
+                    clbk.getEconomy().sendResource(energy, Math.min(clbk.getEconomy().getCurrent(energy), (float) Math.max(0, 0.2 * clbk.getGame().getTeamResourceStorage(teamToGive, 1) - clbk.getGame().getTeamResourceCurrent(teamToGive, 1))), teamToGive);
+                }
 
             }
             return 0;

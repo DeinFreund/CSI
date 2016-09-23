@@ -101,6 +101,7 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
     @Override
     public void finishedTask(Task t) {
 
+        if (com == null) return;
         //command.debug("Commander finished a task");
         switch (t.getInfo()) {
             case "plop":

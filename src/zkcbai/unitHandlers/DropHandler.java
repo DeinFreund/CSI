@@ -5,6 +5,7 @@
  */
 package zkcbai.unitHandlers;
 
+import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
@@ -23,6 +24,7 @@ import zkcbai.unitHandlers.units.tasks.DropTask;
 import zkcbai.unitHandlers.units.tasks.LoadUnitTask;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
+import zkcbai.unitHandlers.units.tasks.WaitTask;
 
 /**
  *
@@ -109,9 +111,11 @@ public class DropHandler extends UnitHandler implements UpdateListener {
             }
             if (payload != null) {
                 u.assignTask(new LoadUnitTask(payload, this, command));
+                skuttles.remove(payload);
+                roaches.remove(payload);
                 return;
-            }else{
-                u.assignTask(new MoveTask(u.getArea().getNearestArea(command.areaManager.FRIENDLY).getPos(), command.getCurrentFrame() + 100, this, command));
+            } else {
+                u.assignTask(new MoveTask(u.getArea().getNearestArea(command.areaManager.SAFE).getPos(), command.getCurrentFrame() + 100, this, command));
             }
         }
         if (loadedTransports.containsKey(u)) {
@@ -119,8 +123,11 @@ public class DropHandler extends UnitHandler implements UpdateListener {
             Enemy vip = null;
             if (loadedTransports.get(u).getDef().equals(SKUTTLE)) {
                 for (Enemy e : command.getEnemyUnits(true)) {
+                    if (command.distance2D(e.getPos(), e.getLastAccuratePos()) > 500) {
+                        continue;
+                    }
                     if (command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
-                        command.mark(e.getPos(), "aa: " + command.areaManager.getArea(e.getPos()).getAADPS());
+                        continue;
                     }
                     if (e.getMetalCost() < 800 || command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
                         continue;
@@ -170,7 +177,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                         metalKilled += near.getMetalCost();
                     }
                     if (command.areaManager.getArea(e.getPos()).getAADPS() > 150
-                            || metalKilled < 1.1 * (ROACH.getCost(command.metal) + VALK.getCost(command.metal))) {
+                            || metalKilled < 0.92 * (ROACH.getCost(command.metal) + VALK.getCost(command.metal))) {
                         continue;
                     }
                     if (metalKilled > bestMetal) {
@@ -179,13 +186,21 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                     }
                 }
 
-                if (vip != null) {
+                if (vip != null && command.getCommandDelay() < 30) {
                     if (u.distanceTo(vip.getPos()) > 2500) {
                         u.assignTask(new MoveTask(vip.getPos(), command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
                     } else {
                         u.assignTask(new DropTask(vip, this, command));
                     }
                     command.mark(vip.getPos(), "nice cluster");
+                    return;
+                } else {
+                    AIFloat3 safepos = u.getArea().getNearestArea(command.areaManager.SAFE).getPos();
+                    if (u.distanceTo(safepos) > 300){
+                    u.assignTask(new MoveTask(safepos, command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
+                    }else{
+                        u.assignTask(new WaitTask(command.getCurrentFrame() + 100, this));
+                    }
                     return;
                 }
             }

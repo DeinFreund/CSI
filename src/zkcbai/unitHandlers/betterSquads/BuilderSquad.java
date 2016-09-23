@@ -91,10 +91,10 @@ public class BuilderSquad extends SquadManager {
         for (AIUnit au : command.getBuilderHandler().getBuilders()) {
             bp += au.getDef().getBuildSpeed();
         }
-        if (bp - 15 > 3 * command.getBuilderHandler().getMetalIncome() || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size()) {
+        if (bp - 10 > 2 * command.getBuilderHandler().getMetalIncome() || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size() || bp > 200) {
             return -1f;
         } else {
-            command.debug("Total BP only " + bp + " m/s");
+            //command.debug("Total BP only " + bp + "/" + (int)(2 * command.getBuilderHandler().getMetalIncome() + 10) + " m/s");
             return 0.91f;
         }
     }

@@ -114,7 +114,7 @@ public class TurretHandler extends UnitHandler implements UpdateListener {
             }
             for (Unit unit : nearbyFriendlies) {
                 if (Command.distance2D(target, unit.getPos()) < unit.getDef().getRadius()
-                        + 1.2 * u.getDef().getWeaponMounts().get(0).getWeaponDef().getAreaOfEffect()) {
+                        + ( u.getDef().getName().equalsIgnoreCase("armdeva") ? 80 : 5)) {
                     valid = false;
                 }
             }

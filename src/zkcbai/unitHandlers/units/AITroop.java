@@ -127,7 +127,7 @@ public abstract class AITroop {
         Command command = handler.getCommand();
         if ((command.getCurrentFrame() - lastNearestEnemy > 20 && nearestEnemy == null)
                 || handler.getCommand().getCurrentFrame() - lastNearestEnemy > 70 || (nearestEnemy != null && !nearestEnemy.isAlive())) {
-            Set<Enemy> enemies = command.getEnemyUnitsIn(getPos(), 800);
+            Set<Enemy> enemies = command.getEnemyUnitsIn(getPos(), 700);
             if (enemies.isEmpty()) {
                 enemies = command.getEnemyUnitsIn(getPos(), 1200);
             }
@@ -261,6 +261,18 @@ public abstract class AITroop {
 
     public void repair(Unit trg, int timeout) {
         repair(trg, OPTION_NONE, timeout);
+    }
+    
+    /**
+     *
+     * @return average health of units
+     */
+    public float getHealth(){
+        float sum = 0;
+        for (AIUnit au : getUnits()){
+            sum += au.getHealth();
+        }
+        return sum / getUnits().size();
     }
 
     public void loadUnit(Unit trg, int timeout) {

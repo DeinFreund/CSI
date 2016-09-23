@@ -51,7 +51,7 @@ public class RaiderSquad extends SquadManager {
 
     }
 
-    final static private String[] raiderIds = {"armpw", "corak", "corgator", "logkoda", "armkam", "amphraider3", "subraider", "corsh", "corpyro"};
+    final static private String[] raiderIds = {"armpw", "corak", "corgator", "logkoda", "amphraider3", "subraider", "corsh", "corpyro"};
     final static Set<UnitDef> raiders = new HashSet();
 
     final static private String[] porcIds = {"corrl", "armllt"};

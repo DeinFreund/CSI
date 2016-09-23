@@ -210,14 +210,14 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 if (aiunits.containsKey(au.getUnit().getUnitId())) {
                     continue;
                 }
-                if (au.getArea().getZone() == Zone.hostile && au.getArea().getAADPS() * 2 > fighterDPS) {
+                if (au.getArea().getZone() == Zone.hostile && au.getArea().getAADPS() * 3 > fighterDPS) {
                     continue;
                 }
-                if (au.getArea().getAADPS() < 100 || (au.getDef().equals(command.getDropHandler().VALK))) {
+                if (au.getArea().getAADPS() < 200 || (au.getDef().equals(command.getDropHandler().VALK))) {
                     continue;
                 }
 
-                command.debug("avengers supporting " + au.getDef().getHumanName());
+                command.debug("avengers supporting " + au.getDef().getHumanName() + " because aadps: " + au.getArea().getAADPS());
                 if (fighters.distanceTo(au.getPos()) < 700) {
                     fighters.fight(au.getPos(), command.getCurrentFrame() + 100);
                 } else {
@@ -227,7 +227,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             }
             for (Enemy e : enemyAir) { // enemies in friendly territorry
                 Area area = command.areaManager.getArea(e.getPos());
-                if ((area.getNearbyEnemies().length < 4 || area.getZone() == Zone.own) && area.getAADPS() * 1.2 < fighterDPS) {
+                if ((area.getNearbyEnemies().size() < 4 || area.getZone() == Zone.own) && area.getAADPS() * 1.8 < fighterDPS) {
                     if (fighters.distanceTo(e.getPos()) < 1000) {
                         fighters.attack(e, command.getCurrentFrame() + 100);
                         command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName());
@@ -251,12 +251,17 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             }
             for (Enemy e : enemyAir) {
                 Area area = command.areaManager.getArea(e.getPos());
-                if (area.getAADPS() * 4 < fighterDPS) {
+                if (area.getAADPS() * 8 < fighterDPS) {
+                    if (area.getAADPS() < 1){
+                        area.updateAADPS();
+                    }
                     if (fighters.distanceTo(e.getPos()) < 1000) {
                         fighters.attack(e, command.getCurrentFrame() + 100);
-                        command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName() + " in enemy territory");
+                        command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName() + " in enemy territory where" 
+                                + area.getAADPS() + " * 8 < " + fighterDPS);
                     } else {
-                        command.debug(fighters.getUnits().size() + " avengers intercepting " + e.getDef().getHumanName() + " in enemy territory");
+                        command.debug(fighters.getUnits().size() + " avengers intercepting " + e.getDef().getHumanName() + " in enemy territory where" 
+                                + area.getAADPS() + " * 8 < " + fighterDPS);
                         fighters.moveTo(e.getPos(), command.getCurrentFrame() + 100);
                     }
                     return;

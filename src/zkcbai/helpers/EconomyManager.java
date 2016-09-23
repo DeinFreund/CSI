@@ -18,7 +18,7 @@ import zkcbai.unitHandlers.units.AIUnit;
 public class EconomyManager extends Helper {
 
     float generosity = 0;
-    float adaption = 5e-3f;
+    float adaption = 5e-2f;
 
     Map<Budget, Float> fraction = new HashMap(); //all fractions should add to 1
     Map<Budget, Float> used = new HashMap();

@@ -31,13 +31,13 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class AssaultSquad extends SquadManager {
+public class SupportSquad extends SquadManager {
 
-    public AssaultSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
+    public SupportSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
         this(fighterHandler, command, callback, null);
     }
 
-    public AssaultSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, Collection<UnitDef> availableUnits) {
+    public SupportSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, Collection<UnitDef> availableUnits) {
         super(fighterHandler, command, callback, availableUnits);
         for (String s : assaultIds) {
             assaults.add(command.getCallback().getUnitDefByName(s));

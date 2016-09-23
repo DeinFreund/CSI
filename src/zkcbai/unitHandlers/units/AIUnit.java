@@ -202,6 +202,11 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         idle();
     }
 
+    @Override
+    public float getHealth(){
+        return getUnit().getHealth();
+    }
+    
     /**
      * Used to notify the unit that it's being repaired
      *
@@ -247,20 +252,22 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     public float getDPS() {
         checkDead();
-        float dps = 0;
-        for (WeaponMount wm : getDef().getWeaponMounts()) {
-            for (Float f : wm.getWeaponDef().getDamage().getTypes()) {
-                dps += f / wm.getWeaponDef().getReload();
-            }
-        }
-        return dps;
+        return Command.getDPS(getDef());
     }
 
     public void checkDead() {
-        if (dead || unit.getPos().lengthSquared() < 0.1) {
+        if (unit.getPos().lengthSquared() < 0.1){
+            getCommand().debug("aiunit " + unitId + "("+ (unit.getDef() != null ? unit.getDef().getHumanName() : "null") +") might be dead");
+        }
+        if (dead) {
             handler.getCommand().debug("polled dead aiunit " + unitId + "");
             handler.getCommand().debugStackTrace();
-            handler.getCommand().unitDestroyed(unit, null);
+            handler.getCommand().addSingleUpdateListener(new UpdateListener() {
+                @Override
+                public void update(int frame) {
+                    handler.getCommand().unitDestroyed(unit, null);
+                }
+            }, handler.getCommand().getCurrentFrame() + 1); 
         }
     }
 
