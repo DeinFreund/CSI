@@ -82,7 +82,7 @@ public class AssaultSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() < 30*60*2) return 0;
+        if (command.getCurrentFrame() < 30*60*2) return 0.01f;
         float raiders = 0;
         float all = 0;
         for (Enemy e : command.getEnemyUnits(true)){

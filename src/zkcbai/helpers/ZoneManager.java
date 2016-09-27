@@ -67,7 +67,7 @@ import zkcbai.unitHandlers.units.tasks.TaskIssuer;
  */
 public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyDiscoveredListener {
 
-    private static final boolean GUI = true;
+    private static final boolean GUI = Command.GUI;
 
     private Area[][] map;
     private List<Area> areas;//for simplified iterating

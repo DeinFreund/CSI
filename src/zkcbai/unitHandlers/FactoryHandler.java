@@ -60,8 +60,8 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         squads.add(new BansheeSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new SupportSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new AntiAirSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
-        //startsquads.add(squads.get(0));
-        //startsquads.add(squads.get(0));
+        startsquads.add(squads.get(0));
+        startsquads.add(squads.get(0));
 
         //cmd.addSingleUpdateListener(this, assaultFrame);
         cmd.addUpdateListener(this);

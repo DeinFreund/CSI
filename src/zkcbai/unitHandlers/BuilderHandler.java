@@ -218,10 +218,10 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if (u.equals(rt.getTarget())) {
                 continue;
             }
-            float score = -u.distanceTo(rt.getTarget().getPos()) / 3f - rt.getWorkers().size() * 500 - command.areaManager.getArea(rt.getTarget().getPos()).getDanger() * 0.1000f;
+            float score = -u.distanceTo(rt.getTarget().getPos()) / 3f - rt.getWorkers().size() * 500 - command.areaManager.getArea(rt.getTarget().getPos()).getDanger() * 0.1000f + rt.getTarget().getMetalCost();
 
             if (rt.getWorkers().contains(u)) {
-                score += 300;
+                score += 800;
             }
 
             if (best == null || score > bestscore) {

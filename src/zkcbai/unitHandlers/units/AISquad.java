@@ -260,6 +260,7 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        trg = new AIFloat3(trg);
         AIFloat3 toTarget = new AIFloat3(trg);
         toTarget.sub(getPos());
         AIFloat3 ortho = new AIFloat3(toTarget.z, toTarget.y, - toTarget.x);

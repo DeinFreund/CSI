@@ -80,6 +80,17 @@ public class BuilderSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
+        float builderValue = 0;
+        float armyValue = 0;
+        for (AIUnit au : command.getUnits()) {
+            if (au.getDef().getBuildOptions().size() > 3){
+                builderValue += au.getDef().getBuildSpeed() * 30;
+            }else
+            if (!au.isBuilding() && au.getDPS() > 1) {
+                armyValue += au.getMetalCost();
+            }
+        }
+        if (builderValue * 2 > armyValue) return 0f;
         int bp = 0;
         int buildersBuilding = 0;
         for (UnitDef ud : command.getFactoryHandler().getQueue()) {

@@ -66,7 +66,8 @@ import zkcbai.unitHandlers.units.tasks.BuildTask;
  */
 public class Command implements AI {
 
-    public static final boolean LOG_TO_INFOLOG = true;
+    public static final boolean LOG_TO_INFOLOG = false;
+    public static final boolean GUI = false;
 
     private OOAICallback clbk;
     private int ownTeamId;
@@ -164,6 +165,10 @@ public class Command implements AI {
 
     public FactoryHandler getFactoryHandler() {
         return facHandler;
+    }
+    
+    public CreepHandler getCreepHandler(){
+        return creepHandler;
     }
 
     public BuilderHandler getBuilderHandler() {
@@ -899,7 +904,7 @@ public class Command implements AI {
                         }
                         break;
                     }
-                    if (AvengerSquad.fighters.contains(unit.getDef()) || (ScoutSquad.scouts.contains(unit.getDef()) && !RaiderSquad.raiders.contains(unit.getDef()))) {
+                    if (AvengerSquad.fighters.contains(unit.getDef()) || (ScoutSquad.scouts.contains(unit.getDef()) && (!RaiderSquad.raiders.contains(unit.getDef())) || avengerHandler.getUnits().size() < 2)) {
                         aiunit = avengerHandler.addUnit(unit);
                         break;
                     }

@@ -79,7 +79,7 @@ public class BansheeSquad extends SquadManager {
                 groundValue += au.getMetalCost();
             }
         }
-        if (groundValue < airValue) return 0;
+        if (groundValue < 2 * airValue) return 0.01f;
         if (command.getBansheeHandler().getUnits().size() < 3) {
             return 0.95f;
         }

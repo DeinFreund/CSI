@@ -381,6 +381,10 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 30 * 60, this, command.pathfinder.AVOID_ENEMIES,command).queue(this));
             return false;
         }
+        if (u.distanceTo(pos) > u.getDef().getBuildDistance() && Math.random() < 0.2) {
+            u.moveTo(pos, command.getCurrentFrame() + 30);
+            return false;
+        }
         if (false && u.distanceTo(pos) < building.getRadius() && building.getSpeed() <= 0.001) {
             //command.debug("Inside radius of " + building.getRadius() + " elmos.");
             AIFloat3 tpos = new AIFloat3(u.getPos());

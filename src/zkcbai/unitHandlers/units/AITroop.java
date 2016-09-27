@@ -129,7 +129,7 @@ public abstract class AITroop {
                 || handler.getCommand().getCurrentFrame() - lastNearestEnemy > 70 || (nearestEnemy != null && !nearestEnemy.isAlive())) {
             Set<Enemy> enemies = command.getEnemyUnitsIn(getPos(), 700);
             if (enemies.isEmpty()) {
-                enemies = command.getEnemyUnitsIn(getPos(), 1200);
+                enemies = command.getEnemyUnitsIn(getPos(), 1500);
             }
             nearestEnemy = null;
             for (Enemy e : enemies) {

@@ -210,7 +210,7 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                         for (Area a2 : a.getConnectedAreas(Pathfinder.MovementType.spider, new AreaChecker() {
                             @Override
                             public boolean checkArea(ZoneManager.Area a) {
-                                return (a.distanceTo(area.getPos()) < creep.getMaxRange()) && a.isFront() && a.isReachable() && a.getZone() == ZoneManager.Zone.own;
+                                return (a.distanceTo(area.getPos()) < Math.max(creep.getMaxRange(), creep.getDef().getLosRadius())) && a.isFront() && a.isReachable() && a.getZone() == ZoneManager.Zone.own;
                             }
                         })) {
                             score += 1f / (unprotectedAreas.get(a2) + 1);
@@ -225,12 +225,12 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                         if (best != null) {
                             creep.fight(best.getPos(), command.getCurrentFrame() + 100);
                             for (ZoneManager.Area a : unprotectedAreas.keySet()) {
-                                if (a.distanceTo(best.getPos()) < creep.getMaxRange()) {
+                                if (a.distanceTo(best.getPos()) < Math.max(creep.getMaxRange(), creep.getDef().getLosRadius())) {
                                     unprotectedAreas.put(a, unprotectedAreas.get(a) + 1);
                                 }
                             }
                         }
-                    }
+                    }   
                 } else if (creep.getNearestEnemy() != null) {
 
                     creep.fight(MoveTask.randomize(creep.getNearestEnemy().getPos(), 100), frame + 100);
