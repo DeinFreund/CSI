@@ -50,9 +50,9 @@ public class AssaultSquad extends SquadManager {
         }
     }
 
-    final private String[] assaultIds = {"armzeus", "corthud", "corraid", "correap", "amphassault", "shipraider", "nsaclash","spiderassault","slowmort"};
+    final private String[] assaultIds = {"armzeus", "corthud", "corraid", "correap", "amphfloater", "shipraider", "nsaclash","spiderassault","slowmort"};
     final static Set<UnitDef> assaults = new HashSet();
-    final private String[] riotIds = {"armwar", "cormak", "arm_venom", "spiderriot", "amphriot", "corlevlr", "tawf114", "shipraider", "hoverassault", "jumpblackhole"};
+    final private String[] riotIds = {"armwar", "cormak", "arm_venom", "spiderriot", "amphriot", "cormist", "tawf114", "shipraider", "hoverassault", "jumpblackhole"};
     final static Set<UnitDef> riots = new HashSet();
 
     final private String[] porcIds = {"corrl", "armllt", "armdeva" , "corhlt", "armpb"};
@@ -92,7 +92,8 @@ public class AssaultSquad extends SquadManager {
             }
             all += e.getMetalCost();
         }
-        return 1f - raiders / all;
+        command.debug("Assault usefulness: " + (0.9f - 0.88f * raiders / all));
+        return 0.9f - 0.88f * raiders / all;
     }
 
     @Override

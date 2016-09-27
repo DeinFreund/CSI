@@ -19,6 +19,7 @@ import zkcbai.UnitDestroyedListener;
 import zkcbai.UnitFinishedListener;
 import zkcbai.helpers.EconomyManager.Budget;
 import zkcbai.helpers.PositionChecker;
+import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -334,6 +335,10 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     @Override
     public boolean execute(AITroop u) {
         lastExecution = command.getCurrentFrame();
+        if (command.areaManager.getArea(pos).getZone() != ZoneManager.Zone.own && command.getCurrentFrame() > 300){
+            command.debug("BuildTask paused because Enemy presence");
+            return true;
+        }
         if (errors > 10) {
             completed(u);
             command.debug("aborted task execution because of errors:");
@@ -373,7 +378,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             AIFloat3 trg = new AIFloat3();
             trg.interpolate(pos, u.getPos(), 100f / u.distanceTo(pos));
 
-            u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 250, this, command).queue(this));
+            u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 30 * 60, this, command.pathfinder.AVOID_ENEMIES,command).queue(this));
             return false;
         }
         if (false && u.distanceTo(pos) < building.getRadius() && building.getSpeed() <= 0.001) {
@@ -537,6 +542,6 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void unitDestroyed(AIUnit u, Enemy e) {
-
+        assignedUnits.remove(u);
     }
 }

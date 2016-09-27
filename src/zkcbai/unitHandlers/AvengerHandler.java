@@ -23,12 +23,14 @@ import zkcbai.UpdateListener;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Zone;
+import zkcbai.unitHandlers.betterSquads.AvengerSquad;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
+import zkcbai.unitHandlers.units.tasks.WaitTask;
 import zkcbai.utility.Pair;
 
 /**
@@ -38,6 +40,7 @@ import zkcbai.utility.Pair;
 public class AvengerHandler extends UnitHandler implements UpdateListener, EnemyDiscoveredListener, EnemyEnterLOSListener, UnitFinishedListener {
 
     protected AISquad fighters = new AISquad(this);
+    protected Set<AIUnit> scouts = new HashSet();
     protected float fighterDPS = 0;
     protected Set<Enemy> enemyAir = new HashSet();
     protected Set<Enemy> longRangeAA = new HashSet();
@@ -66,13 +69,16 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     public AIUnit addUnit(Unit u) {
         AIUnit au = new AIUnit(u, this);
         aiunits.put(u.getUnitId(), au);
-        fighters.addUnit(au);
-        fighterDPS += au.getDPS();
-        au.setRetreat(AIUnit.RetreatState.Retreat65);
-        au.setLandWhenIdle(false);
-        au.setAutoRepair(false);
+        if (AvengerSquad.fighters.contains(u.getDef())) {
+            fighters.addUnit(au);
+            fighterDPS += au.getDPS();
+            au.setRetreat(AIUnit.RetreatState.Retreat65);
+            au.setLandWhenIdle(false);
+            au.setAutoRepair(false);
+        } else {
+            scouts.add(au);
+        }
 
-        troopIdle(au);
         return au;
     }
 
@@ -103,7 +109,13 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     }
 
     public void requestScout(Area pos) {
-        if (command.getCurrentFrame() - pos.getLastVisible() > 200) {
+        if (command.getCurrentFrame() - pos.getLastVisible() > 30 * 60) {
+            for (Area a : scoutPos) {
+                if (a.distanceTo(pos.getPos()) < 800) {
+                    return;
+                }
+            }
+            command.mark(pos.getPos(), "requested scout");
             scoutPos.add((pos));
         }
     }
@@ -124,6 +136,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
 
         if (t instanceof MoveTask) {
             command.mark(((MoveTask) t).getLastExecutingUnit().getPos(), "failed movetask, debug");
+            finishedTask(t);
         }
     }
 
@@ -131,9 +144,16 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     public void finishedTask(Task t) {
         if (t instanceof MoveTask && t.getInfo().contains("scout")) {
             MoveTask mt = (MoveTask) t;
-            fighters.addUnit((AIUnit) mt.getLastExecutingUnit());
+            if (AvengerSquad.fighters.contains(mt.getLastExecutingUnit().getDef())) {
+                fighters.addUnit((AIUnit) mt.getLastExecutingUnit());
+            } else {
+                scouts.add((AIUnit) mt.getLastExecutingUnit());
+            }
             command.mark(scoutTasks.get((AIUnit) mt.getLastExecutingUnit()).getPos(), "scouted");
-            scoutTasks.remove((AIUnit) mt.getLastExecutingUnit());
+            if (scoutTasks.remove((AIUnit) mt.getLastExecutingUnit()) == null){
+                command.debug("finished a non-existing scout task");
+                command.debugStackTrace();
+            }
         }
     }
 
@@ -147,11 +167,12 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
         enemyAir.remove(e);
         longRangeAA.remove(e);
     }
-    
+
     @Override
     public void unitDestroyed(AIUnit au, Enemy killer) {
         super.unitDestroyed(au, killer);
         friendlyAir.remove(au);
+        scouts.remove(au);
     }
 
     @Override
@@ -167,6 +188,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                     repairing.add(au);
                     fighters.removeUnit(au, this);
                     fighterDPS -= au.getDPS();
+                    au.assignTask(new WaitTask(command.getCurrentFrame() + 100, this));
                 }
             }
             for (AIUnit au : repairing.toArray(new AIUnit[repairing.size()])) {
@@ -178,12 +200,17 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 }
             }
             if (fighters.getUnits().isEmpty()) {
-                if (!repairing.isEmpty()) command.debug("All fighters repairing!");
+                if (!repairing.isEmpty()) {
+                    command.debug("All fighters repairing!");
+                }
                 return;
             }
+            Set<AIUnit> usableScouts = new HashSet();
+            usableScouts.addAll(scouts);
+            usableScouts.addAll(fighters.getUnits());
             TreeMap<Float, Pair<AIUnit, Area>> dists = new TreeMap();
             for (Area a : scoutPos.toArray(new Area[scoutPos.size()])) {
-                for (AIUnit fighter : fighters.getUnits()) {
+                for (AIUnit fighter : usableScouts) {
                     dists.put(fighter.distanceTo(a.getPos()), new Pair(fighter, a));
                 }
             }
@@ -200,6 +227,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 }
                 entry.getFirst().assignTask(new MoveTask(entry.getSecond().getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command).setInfo("scout"));
                 fighters.removeUnit(entry.getFirst(), this);
+                scouts.remove(entry.getFirst());
                 scoutTasks.put(entry.getFirst(), entry.getSecond());
                 scoutPos.remove(entry.getSecond());
                 if (fighters.getUnits().isEmpty()) {
@@ -210,14 +238,14 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 if (aiunits.containsKey(au.getUnit().getUnitId())) {
                     continue;
                 }
-                if (au.getArea().getZone() == Zone.hostile && au.getArea().getAADPS() * 3 > fighterDPS) {
+                if (au.getArea().getZone() == Zone.hostile && au.getArea().getEnemyAADPS() * 3 > fighterDPS) {
                     continue;
                 }
-                if (au.getArea().getAADPS() < 200 || (au.getDef().equals(command.getDropHandler().VALK))) {
+                if (au.getArea().getEnemyAADPS() < 200 || (au.getDef().equals(command.getDropHandler().VALK))) {
                     continue;
                 }
 
-                command.debug("avengers supporting " + au.getDef().getHumanName() + " because aadps: " + au.getArea().getAADPS());
+                command.debug("avengers supporting " + au.getDef().getHumanName() + " because aadps: " + au.getArea().getEnemyAADPS());
                 if (fighters.distanceTo(au.getPos()) < 700) {
                     fighters.fight(au.getPos(), command.getCurrentFrame() + 100);
                 } else {
@@ -227,7 +255,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             }
             for (Enemy e : enemyAir) { // enemies in friendly territorry
                 Area area = command.areaManager.getArea(e.getPos());
-                if ((area.getNearbyEnemies().size() < 4 || area.getZone() == Zone.own) && area.getAADPS() * 1.8 < fighterDPS) {
+                if ((area.getNearbyEnemies().size() < 4 || area.getZone() == Zone.own) && area.getEnemyAADPS() * 1.8 < fighterDPS) {
                     if (fighters.distanceTo(e.getPos()) < 1000) {
                         fighters.attack(e, command.getCurrentFrame() + 100);
                         command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName());
@@ -240,7 +268,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             }
             Enemy best = null;
             for (Enemy e : command.areaManager.getEnemyUnitsInAreas(command.areaManager.FRIENDLY)) {
-                if (best == null || best.getHealth() > e.getHealth()) {
+                if (best == null || best.getHealth() > e.getHealth() || (!best.isAntiAir() && best.getDef().isAbleToCloak())) {
                     best = e;
                 }
             }
@@ -249,31 +277,38 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 command.debug(fighters.getUnits().size() + " avengers attacking " + best.getDef().getHumanName());
                 return;
             }
-            for (Enemy e : enemyAir) {
-                Area area = command.areaManager.getArea(e.getPos());
-                if (area.getAADPS() * 8 < fighterDPS) {
-                    if (area.getAADPS() < 1){
-                        area.updateAADPS();
+            if (frame < 30 * 60 * 8) {
+                for (Enemy e : enemyAir) {
+                    Area area = command.areaManager.getArea(e.getPos());
+                    if ((area.getEnemyAADPS() + 100) * 8 < fighterDPS) {
+                        if (area.getEnemyAADPS() < 1) {
+                            area.updateAADPS();
+                        }
+                        if (fighters.distanceTo(e.getPos()) < 1000) {
+                            fighters.attack(e, command.getCurrentFrame() + 100);
+                            command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName() + " in enemy territory where"
+                                    + area.getEnemyAADPS() + " * 8 < " + fighterDPS);
+                        } else {
+                            command.debug(fighters.getUnits().size() + " avengers intercepting " + e.getDef().getHumanName() + " in enemy territory where"
+                                    + area.getEnemyAADPS() + " * 8 < " + fighterDPS);
+                            fighters.moveTo(e.getPos(), command.getCurrentFrame() + 100);
+                        }
+                        return;
                     }
-                    if (fighters.distanceTo(e.getPos()) < 1000) {
-                        fighters.attack(e, command.getCurrentFrame() + 100);
-                        command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName() + " in enemy territory where" 
-                                + area.getAADPS() + " * 8 < " + fighterDPS);
-                    } else {
-                        command.debug(fighters.getUnits().size() + " avengers intercepting " + e.getDef().getHumanName() + " in enemy territory where" 
-                                + area.getAADPS() + " * 8 < " + fighterDPS);
-                        fighters.moveTo(e.getPos(), command.getCurrentFrame() + 100);
-                    }
-                    return;
-                } 
+                }
             }
-            
+
+            fighters.moveTo(command.getStartPos(), command.getCurrentFrame() + 100);
             command.debug("no target for avengers");
         }
     }
 
     public Collection<Enemy> getEnemyLongRangeAntiAir() {
         return longRangeAA;
+    }
+
+    public Collection<Enemy> getEnemyAir() {
+        return enemyAir;
     }
 
     @Override

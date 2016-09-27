@@ -25,21 +25,21 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class SupportSquad extends SquadManager {
+public class AntiAirSquad extends SquadManager {
 
-    public SupportSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
+    public AntiAirSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
         this(fighterHandler, command, callback, null);
     }
 
-    public SupportSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, Collection<UnitDef> availableUnits) {
+    public AntiAirSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, Collection<UnitDef> availableUnits) {
         super(fighterHandler, command, callback, availableUnits);
         for (String s : supportIds) {
-            supports.add(command.getCallback().getUnitDefByName(s));
+            antiair.add(command.getCallback().getUnitDefByName(s));
         }
     }
 
-    final private String[] supportIds = {"armsnipe", "amphassault", "armmanni", "firewalker", "shieldfelon", "armcrabe", "corgol"};
-    final static Set<UnitDef> supports = new HashSet();
+    final private String[] supportIds = {"corcrash", "armjeth", "spideraa", "vehaa", "hoveraa", "amphaa"};
+    public final static Set<UnitDef> antiair = new HashSet();
 
     private Random rnd = new Random();
 
@@ -47,8 +47,7 @@ public class SupportSquad extends SquadManager {
     public List<UnitDef> getRequiredUnits(Collection<UnitDef> availableUnits) {
         List<UnitDef> possible = new ArrayList();
         for (UnitDef ud : availableUnits){
-            if (ud.getCost(command.metal) / (command.getCurrentFrame() / (30 * 60) + 1) > 7 * command.getBuilderHandler().getMetalIncome()) continue;
-            if (supports.contains(ud)) possible.add(ud);
+            if (antiair.contains(ud)) possible.add(ud);
         }
         List<UnitDef> retval = new ArrayList();
         if (!possible.isEmpty()){
@@ -59,19 +58,21 @@ public class SupportSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() < 30*60*4) return 0;
-        float assaultValue = 0;
-        float supportValue = 0;
+        if (command.getCurrentFrame() < 30*60*2) return 0;
+        float airValue = 0;
+        float antiairValue = 0;
         for (AIUnit au : command.getUnits()){
-            if (AssaultSquad.assaults.contains(au.getDef()) || AssaultSquad.riots.contains(au.getDef())){
-                assaultValue += au.getMetalCost();
-            }
-            if (supports.contains(au.getDef())){
-                supportValue += au.getMetalCost();
+            if (antiair.contains(au.getDef())){
+                antiairValue += au.getMetalCost();
             }
         }
-        command.debug("Support useful: " + Math.min(0.91f, -(float)Math.log(Math.max(0.00001, 1f - assaultValue / (supportValue * 2 + 1000)))));
-        return Math.min(0.905f, assaultValue / (supportValue * 2 + 1000));
+        for (Enemy e : command.getEnemyUnits(true)){
+            if (e.getDef().isAbleToFly()){
+                airValue += e.getMetalCost();
+            }
+        }
+        command.debug("AA usefulness: " + (Math.min(0.905f, airValue / (3 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()))));
+        return Math.min(0.905f, airValue / (3 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()));
     }
 
     @Override

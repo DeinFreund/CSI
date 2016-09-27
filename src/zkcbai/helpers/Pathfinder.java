@@ -193,7 +193,7 @@ public final class Pathfinder extends Helper {
      *
      */
     public Deque<AIFloat3> findPath(AIFloat3 start, AIFloat3 target, final MovementType movementType, final CostSupplier costs, boolean markReachable, boolean approximatePath) {
-        command.debug("async pathfinder using " + costs.getClass().getName(), false);
+        //command.debug("async pathfinder using " + costs.getClass().getName(), false);
         long time = System.currentTimeMillis();
         Comparator<pqEntry2> pqComp = new Comparator<pqEntry2>() {
 
@@ -270,7 +270,7 @@ public final class Pathfinder extends Helper {
                 return findPath(start, target, movementType, costs, markReachable, true);
             } else {
                 //command.mark(start, "start (impossible path)");
-                command.mark(target, "end (impossible path)");
+                //command.mark(target, "end (impossible path)");
                 command.debug("Impossible path");
                 command.debugStackTrace();
                 res.add(target);
@@ -529,13 +529,23 @@ public final class Pathfinder extends Helper {
         }
     };
     /**
+     * Fastest path to target while avoiding non flying enemies that are able to attack
+     */
+    public final CostSupplier AVOID_GROUND_ENEMIES = new CostSupplier() {
+
+        @Override
+        public float getCost(Area pos) {
+            return 4f * command.defenseManager.getGeneralDanger(pos.getPos(), true, true);
+        }
+    };
+    /**
      * Fastest path to target while avoiding antiair
      */
     public final CostSupplier AVOID_ANTIAIR = new CostSupplier() {
 
         @Override
         public float getCost(Area pos) {
-            return 4f * pos.getAADPS();
+            return 4f * pos.getEnemyAADPS(false);
         }
     };
 

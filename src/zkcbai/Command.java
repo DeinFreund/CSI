@@ -52,6 +52,8 @@ import zkcbai.unitHandlers.CreepHandler;
 import zkcbai.unitHandlers.TurretHandler;
 import zkcbai.unitHandlers.betterSquads.AvengerSquad;
 import zkcbai.unitHandlers.betterSquads.BansheeSquad;
+import zkcbai.unitHandlers.betterSquads.RaiderSquad;
+import zkcbai.unitHandlers.betterSquads.ScoutSquad;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeEnemy;
 import zkcbai.unitHandlers.units.FakeMex;
@@ -64,7 +66,7 @@ import zkcbai.unitHandlers.units.tasks.BuildTask;
  */
 public class Command implements AI {
 
-    public static final boolean LOG_TO_INFOLOG = false;
+    public static final boolean LOG_TO_INFOLOG = true;
 
     private OOAICallback clbk;
     private int ownTeamId;
@@ -284,11 +286,10 @@ public class Command implements AI {
     int lastRandomEnemyUpdate = -100000;
     List<Enemy> enemyList;
 
-    
-    
     public Enemy getRandomEnemy() {
         return getRandomEnemy(System.currentTimeMillis());
     }
+
     /**
      *
      * @return null if no enemy known
@@ -450,8 +451,8 @@ public class Command implements AI {
         if (list == null) {
             singleUpdateListeners.put(frame, new HashSet());
         }
-        if (singleUpdateListeners.get(frame).size() > 1000){
-            debug( singleUpdateListeners.get(frame).size()+" updates queued for frame " + frame);
+        if (singleUpdateListeners.get(frame).size() > 1000) {
+            debug(singleUpdateListeners.get(frame).size() + " updates queued for frame " + frame);
             debugStackTrace();
         }
         singleUpdateListeners.get(frame).add(listener);
@@ -511,12 +512,21 @@ public class Command implements AI {
     public synchronized int unitDamaged(Unit unit, Unit attacker, float damage, AIFloat3 dir, WeaponDef weaponDef, boolean paralyzer) {
         try {
             Enemy att = null;
-            if (attacker == null && getEnemyUnitsIn(unit.getPos(), 800).isEmpty() && getEnemyUnitsIn(unit.getPos(), 1200).isEmpty() && dir.lengthSquared() > 0.01) {
-                AIFloat3 npos = new AIFloat3(unit.getPos());
-                dir.normalize();
-                dir.scale(400);
-                npos.add(dir);
-                addFakeEnemy(new FakeSlasher(npos, this, clbk));
+            if (attacker == null && dir.lengthSquared() > 0.01) {
+                boolean duplicate = false;
+                for (Enemy e : getEnemyUnitsIn(unit.getPos(), weaponDef.getRange() + 500)) {
+                    if (e.getWeaponDefs().contains(weaponDef)) {
+                        duplicate = true;
+                    }
+                }
+                if (!duplicate) {
+                    AIFloat3 npos = new AIFloat3(unit.getPos());
+                    AIFloat3 vec = new AIFloat3(dir);
+                    vec.normalize();
+                    vec.scale(weaponDef.getRange() * 0.8f);
+                    npos.add(vec);
+                    addFakeEnemy(new FakeSlasher(npos, weaponDef, this, clbk));
+                }
             }
             if (attacker != null) {
                 att = enemies.get(attacker.getUnitId());
@@ -795,7 +805,7 @@ public class Command implements AI {
             int updatesEvaluated = 0;
             while (!singleUpdateListeners.isEmpty() && singleUpdateListeners.firstKey() <= frame) {
                 updatesEvaluated += singleUpdateListeners.firstEntry().getValue().size();
-                if (updatesEvaluated > 1000){
+                if (updatesEvaluated > 1000) {
                     debug(singleUpdateListeners.firstEntry().getValue().size() + " single update listeners for frame " + singleUpdateListeners.firstKey() + ". aborting. (Exception)");
                     break;
                 }
@@ -876,7 +886,6 @@ public class Command implements AI {
                     break;
                 default:
                     if (unit.getDef().getCustomParams().containsKey("commtype")) {
-                        debug("Identified a commander with unitdef: " + unit.getDef().getName());
                         CommanderHandler comHandler = new CommanderHandler(this, clbk);
                         comHandlers.add(comHandler);
                         aiunit = comHandler.addUnit(unit);
@@ -890,7 +899,7 @@ public class Command implements AI {
                         }
                         break;
                     }
-                    if (AvengerSquad.fighters.contains(unit.getDef())) {
+                    if (AvengerSquad.fighters.contains(unit.getDef()) || (ScoutSquad.scouts.contains(unit.getDef()) && !RaiderSquad.raiders.contains(unit.getDef()))) {
                         aiunit = avengerHandler.addUnit(unit);
                         break;
                     }
@@ -1036,6 +1045,10 @@ public class Command implements AI {
         buildTasks.remove(bt);
     }
 
+    public Collection<BuildTask> getBuildTasks() {
+        return buildTasks.keySet();
+    }
+
     private float mexradius;
 
     public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing) {
@@ -1046,17 +1059,21 @@ public class Command implements AI {
         }
         int eval = 0;
         List<BuildTask> outdated = new ArrayList();
-        for (BuildTask bt : areaManager.getArea(pos).getNearbyBuildTasks()) {
-            eval ++;
-            if (bt.isBeingWorkedOn(getCurrentFrame() - 30 * 60 * 5)) {
-                if (distance2D(bt.getPos(), pos) < bt.getBuilding().getRadius() + building.getRadius() +  (building.getName().contains("factory")  ? 400 : 70)) {
-                    return false;
+        Area area = areaManager.getArea(pos);
+        for (Area a : area.getNeighbours(2)) {
+            for (BuildTask bt : a.getBuildTasks()) {
+                eval++;
+                if (bt.isBeingWorkedOn(getCurrentFrame() - 30 * 60 * 5)) {
+                    if (distance2D(bt.getPos(), pos) < bt.getBuilding().getRadius() + building.getRadius() + (building.getName().contains("factory") ? 200 : 35)) {
+                        return false;
+                    }
+                } else {
+                    outdated.add(bt);
                 }
-            } else {
-                outdated.add(bt);
             }
         }
         for (BuildTask bt : outdated) {
+            mark(bt.getPos(), "cleared outdated buildtask for " + building.getHumanName());
             clearBuildTask(bt);
         }
         //debug(areaManager.getMexes().size() + " mexes");
@@ -1073,9 +1090,10 @@ public class Command implements AI {
             }
         }
         time = System.nanoTime() - time;
-        if (time > 0.1e6){
+        if (time > 0.1e6) {
             debug("checking build position took " + time + "ns. evaluated " + eval + " / " + buildTasks.size() + " build tasks.");
         }
+        //mark(pos, "good pos for " + building.getHumanName());
         //debug("checking for " + building.getHumanName() +" closed mex has a distance of " + mindist);
         return true;
     }
@@ -1087,13 +1105,27 @@ public class Command implements AI {
     }
 
     public static float distance2D(AIFloat3 a, AIFloat3 b) {
-        if (a == null || b == null){
+        if (a == null || b == null) {
             return 1e10f;
         }
         AIFloat3 delta = new AIFloat3(a);
         delta.sub(b);
         delta.y = 0;
         return delta.length();
+    }
+
+    public static Collection<WeaponDef> getWeaponDefs(UnitDef ud) {
+        Set<WeaponDef> defs = new HashSet();
+        for (WeaponMount wm : ud.getWeaponMounts()) {
+            if (wm.getWeaponDef().getName().toLowerCase().contains("fake")) {
+                continue;
+            }
+            if (wm.getWeaponDef().getName().toLowerCase().contains("noweapon")) {
+                continue;
+            }
+            defs.add(wm.getWeaponDef());
+        }
+        return defs;
     }
 
     public static float getDPS(UnitDef ud) {
@@ -1122,4 +1154,14 @@ public class Command implements AI {
         }
         return dps;
     }
+
+    public static float getMaxRange(UnitDef unitDef) {
+
+        float maxRange = 0;
+        for (WeaponMount wm : unitDef.getWeaponMounts()) {
+            maxRange = Math.max(wm.getWeaponDef().getRange(), maxRange);
+        }
+        return maxRange;
+    }
+
 }

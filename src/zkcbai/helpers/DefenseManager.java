@@ -27,7 +27,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     private Set<Enemy> defenses = new HashSet();
     private Set<Enemy> riots = new HashSet();
     private Set<Enemy> fighters = new HashSet();
-    
+
     private Set<UnitDef> antiair = new HashSet();
 
     private final Set<UnitDef> riotDefs = new HashSet();
@@ -78,18 +78,26 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     }
 
     public float getGeneralDanger(AIFloat3 pos) {
+        return getGeneralDanger(pos, false, true);
+    }
+
+    public float getGeneralDanger(AIFloat3 pos, boolean excludeFliers, boolean excludeAntiAir) {
         float result = 0;
         for (Enemy e : command.areaManager.getArea(pos).getNearbyEnemies()) {
+            if (e.isAbleToFly() && excludeFliers) continue;
+            if (e.isAntiAir() && excludeAntiAir) continue;
             result += (Command.distance2D(e.getLastPos(), pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getMetalCost();
             result += (Command.distance2D(e.getLastPos(), pos) <= e.getMaxRange() * 2.7 ? 0.5 : 0) * e.getMetalCost();
         }
         return result;
     }
-    
+
     public float getAntiAirDanger(AIFloat3 pos) {
         float result = 0;
         for (Enemy e : defenses) {
-            if (!antiair.contains(e.getDef())) continue;
+            if (!antiair.contains(e.getDef())) {
+                continue;
+            }
             if (e.getUnit() != null && e.getUnit().isBeingBuilt() && e.getRelativeHealth() < 0.9) {
                 continue;
             }
@@ -226,9 +234,8 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
         }
     }
 
-    
     @Override
     public void unitDestroyed(Unit u, Enemy e) {
-        
+
     }
 }

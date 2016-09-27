@@ -124,13 +124,16 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
         List<Point> positions = new ArrayList();
         Collection<AIUnit> units = activeUnits;
         if (units.isEmpty()) units = allUnits;
+        AIFloat3 position = new AIFloat3();
         for (AIUnit au : units) {
+            position.add(au.getPos());
             positions.add(new Point(au.getPos().x, au.getPos().z));
         }
+        position.scale(1f / units.size());
         Point p = SmallestEnclosingCircle.makeCircle(positions).c;
         AIFloat3 pos = new AIFloat3((float) p.x, 0, (float) p.y);
         pos.y = handler.getCommand().getCallback().getMap().getElevationAt(pos.x, pos.z);
-        return pos;
+        return position;
     }
     
     @Override

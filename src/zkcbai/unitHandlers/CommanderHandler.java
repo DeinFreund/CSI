@@ -13,9 +13,8 @@ import java.util.HashSet;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
-import zkcbai.helpers.AreaChecker;
+import zkcbai.helpers.EconomyManager.Budget;
 import zkcbai.helpers.PositionChecker;
-import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
@@ -65,14 +64,14 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
             final UnitDef fac = command.getFactoryHandler().getNextFac(facareas);
             AIFloat3 compos = new AIFloat3(com.getPos().x + 100, com.getPos().y, com.getPos().z);
 
-            Task bt = new BuildTask(fac, compos, null, this, clbk, command, 10, -1f, false, new PositionChecker() {
+            Task t = new BuildTask(fac, compos, null, this, clbk, command, 10, -1f, false, new PositionChecker() {
                 @Override
                 public boolean checkPosition(AIFloat3 pos) {
                     return (facareas.contains(command.areaManager.getArea(pos)));
                 }
             }).setInfo("plop");
-            com.assignTask(bt);
-            command.registerBuildTask((BuildTask) bt);
+            com.assignTask(t);
+            command.registerBuildTask((BuildTask) t);
 
             lastBuildTask = com.getTask();
         } else {
@@ -101,13 +100,22 @@ public class CommanderHandler extends UnitHandler implements UpdateListener {
     @Override
     public void finishedTask(Task t) {
 
-        if (com == null) return;
+        if (t.getInfo().contains("startsolar")) {
+            command.getBuilderHandler().unregisterBuildTask((BuildTask) t);
+        }
+        if (com == null) {
+            return;
+        }
         //command.debug("Commander finished a task");
         switch (t.getInfo()) {
             case "plop":
                 command.debug("Commander plopped fac");
                 plopped = t.getResult() != null;
                 lastBuildTask = (command.areaManager.getNearestBuildableMex(startPos).createBuildTask(this).setInfo("startmex"));
+
+                t = new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), Budget.economy, this, clbk, command, 10, -1f, false).setInfo("startsolar");
+                command.getBuilderHandler().registerBuildTask((BuildTask) t);
+                command.registerBuildTask((BuildTask) t);
                 break;
             /*case "win1":
                 lastBuildTask = (new BuildTask(clbk.getUnitDefByName("armsolar"), com.getPos(), this, clbk, command).setInfo("win2"));

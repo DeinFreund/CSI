@@ -133,6 +133,9 @@ public abstract class AITroop {
             }
             nearestEnemy = null;
             for (Enemy e : enemies) {
+                if (e.getDef().isAbleToFly() && !getDef().isAbleToFly()) {
+                    continue;
+                }
                 if (nearestEnemy == null || nearestEnemy.distanceTo(getPos()) - nearestEnemy.getMaxRange() > e.distanceTo(getPos()) - e.getMaxRange()) {
                     nearestEnemy = e;
                 }
@@ -147,7 +150,7 @@ public abstract class AITroop {
             throw new AssertionError("AITroop without handler | handler has no command");
         }
         if (!getUnits().isEmpty()) {
-            handler.getCommand().debug(getUnits().iterator().next().getUnit().getUnitId() + " (" + getDef().getHumanName() +  ") is now controlled by a " + handler.getClass().getName());
+            handler.getCommand().debug(getUnits().iterator().next().getUnit().getUnitId() + " (" + getDef().getHumanName() + ") is now controlled by a " + handler.getClass().getName());
         }
         this.handler = handler;
     }
@@ -211,17 +214,26 @@ public abstract class AITroop {
         }
         tasksThisFrame++;
         if (tasksThisFrame > 120) {
-            throw new RuntimeException("Too many tasks!");
+            throw new RuntimeException("Too many tasks for " + getDef().getHumanName());
         }
         //getCommand().mark(getPos(), "doing task");
         if (task == null || task.execute(this)) {
             task = null;
             if (!taskqueue.isEmpty()) {
                 task = taskqueue.poll();
+                long t = System.currentTimeMillis();
                 doTask();
+                t = System.currentTimeMillis() - t;
+                if (t > 1) {
+                    getCommand().debug("Executing " + task.getClass().getName() + " took " + t + " ms.");
+                }
             } else {
-
+                long t = System.currentTimeMillis();
                 handler.troopIdle(this);
+                t = System.currentTimeMillis() - t;
+                if (t > 1) {
+                    getCommand().debug("Requesting new task for " + getDef().getHumanName() + " by " + handler.getClass().getName() + " took " + t + " ms.");
+                }
             }
         }
 
@@ -262,14 +274,14 @@ public abstract class AITroop {
     public void repair(Unit trg, int timeout) {
         repair(trg, OPTION_NONE, timeout);
     }
-    
+
     /**
      *
      * @return average health of units
      */
-    public float getHealth(){
+    public float getHealth() {
         float sum = 0;
-        for (AIUnit au : getUnits()){
+        for (AIUnit au : getUnits()) {
             sum += au.getHealth();
         }
         return sum / getUnits().size();

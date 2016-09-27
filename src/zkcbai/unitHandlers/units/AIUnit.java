@@ -33,8 +33,8 @@ import zkcbai.unitHandlers.units.tasks.WaitTask;
  */
 public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
-    private static final float repairPercentage = 0.45f;
-    private static final float repairHP = 4000f;
+    private static final float REPAIR_PERCENTAGE = 0.55f;
+    private static final float REPAIR_HP = 4000f;
 
     private final Unit unit;
     private final int unitId;
@@ -65,7 +65,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         super(handler);
         unit = u;
         unitId = unit.getUnitId();
-        handler.getCommand().debug(unitId + " (" + getDef().getHumanName() +  ") is now controlled by a " + handler.getClass().getName());
+        handler.getCommand().debug(unitId + " (" + getDef().getHumanName() + ") is now controlled by a " + handler.getClass().getName());
 
         if (u.getDef().getSpeed() > 0) {
             reachableAreas = handler.getCommand().areaManager.getArea(u.getPos()).getConnectedAreas(Pathfinder.MovementType.getMovementType(u.getDef()));
@@ -141,27 +141,19 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
                     best = au;
                 }
             }
-            if (best.distanceTo(getPos()) < 200) {
+            if (best.distanceTo(getPos()) < 300) {
                 retreatTask = new WaitTask(getCommand().getCurrentFrame() + 30, this);
             } else {
                 retreatTask = (new MoveTask(best.getPos(), getCommand().getCurrentFrame() + 30, this, getCommand()));
             }
         } else {
-
-            ZoneManager.Area safe = getArea().getNearestArea(new AreaChecker() {
-
-                @Override
-                public boolean checkArea(ZoneManager.Area a) {
-                    return a.isSafe() && a.getZone() == ZoneManager.Zone.own;
-                }
-            }, getMovementType());
-            retreatTask = (new MoveTask(safe.getPos(), getCommand().getCurrentFrame() + 30, this, getCommand()));
+            retreatTask = (new MoveTask(getArea().getNearestArea(getCommand().areaManager.SAFE, getMovementType()).getPos(), getCommand().getCurrentFrame() + 30, this, getCommand()));
         }
     }
 
     @Override
     public void finishedTask(Task t) {
-        if (t.equals(retreatTask)) {
+        if (t.equals(retreatTask) && !dead) {
             makeRetreatTask();
         }
     }
@@ -203,10 +195,10 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     }
 
     @Override
-    public float getHealth(){
+    public float getHealth() {
         return getUnit().getHealth();
     }
-    
+
     /**
      * Used to notify the unit that it's being repaired
      *
@@ -240,7 +232,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
      * @param damage float representing absolute damage
      */
     public void damaged(Enemy attacker, float damage) {
-        if (autoRepair && getUnit().getHealth() / getDef().getHealth() < repairPercentage && getUnit().getHealth() < repairHP && !isBuilding() && !needRepairs) {
+        if (autoRepair && getUnit().getHealth() / getDef().getHealth() < REPAIR_PERCENTAGE && getUnit().getHealth() < REPAIR_HP && !isBuilding() && !needRepairs) {
             getCommand().mark(getPos(), "need repairs");
             needRepairs = true;
             preRepairTask = task;
@@ -256,8 +248,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     }
 
     public void checkDead() {
-        if (unit.getPos().lengthSquared() < 0.1){
-            getCommand().debug("aiunit " + unitId + "("+ (unit.getDef() != null ? unit.getDef().getHumanName() : "null") +") might be dead");
+        if (unit.getPos().lengthSquared() < 0.1) {
+            getCommand().debug("aiunit " + unitId + "(" + (unit.getDef() != null ? unit.getDef().getHumanName() : "null") + ") might be dead");
         }
         if (dead) {
             handler.getCommand().debug("polled dead aiunit " + unitId + "");
@@ -267,7 +259,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
                 public void update(int frame) {
                     handler.getCommand().unitDestroyed(unit, null);
                 }
-            }, handler.getCommand().getCurrentFrame() + 1); 
+            }, handler.getCommand().getCurrentFrame() + 1);
         }
     }
 
@@ -307,7 +299,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             return;
         }
         for (AIUnit au : handler.getCommand().getFactoryHandler().getUnits()) {
-            if (distanceTo(au.getPos()) < 70 && getDef().getSpeed() > 0) {
+            if (distanceTo(au.getPos()) < 70 && getDef().getSpeed() > 0 && !au.getDef().getName().contains("gunship") && !au.getDef().getName().contains("plane")) {
                 AIFloat3 npos = new AIFloat3(au.getPos());
                 npos.x += 400;
                 npos = MoveTask.randomize(npos, 300);
@@ -323,14 +315,15 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     @Override
     protected void doTask() {
-
+        checkDead();
+        
         if (autoRepair && needRepairs && !isBuilding() && handler.retreatForRepairs(this) && (task == null || !task.equals(retreatTask))) {
 
             for (RepairListener rl : repairListeners) {
                 rl.retreating(this);
             }
             assignTask(retreatTask);
-            getCommand().debug(getDef().getHumanName() +  " retreating");
+            getCommand().debug(getDef().getHumanName() + " retreating");
         }
         super.doTask();
     }
@@ -580,7 +573,11 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         lastCall = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         try {
-            unit.fight(trg, options, Integer.MAX_VALUE);
+            if (getMaxRange() > 400 && getNearestEnemy() != null && getNearestEnemy().distanceTo(getPos()) < getMaxRange() * 0.9) {
+                unit.moveTo(getArea().getNearestArea(getCommand().areaManager.SAFE).getPos(), options, Integer.MAX_VALUE);
+            } else {
+                unit.fight(trg, options, Integer.MAX_VALUE);
+            }
         } catch (Exception ex) {
             handler.getCommand().debug("AIUnit exception: ", ex);
             handler.getCommand().unitDestroyed(unit, null);

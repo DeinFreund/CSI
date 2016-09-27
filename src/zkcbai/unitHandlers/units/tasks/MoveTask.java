@@ -34,7 +34,6 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
     private static Random rnd = new Random();
     private boolean requestingPath = false;
     private final UnitDef GLAIVE;
-    
 
     public MoveTask(AIFloat3 target, TaskIssuer issuer, Command cmd) {
         this(target, Integer.MAX_VALUE, issuer, cmd);
@@ -89,7 +88,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
     @Override
     public boolean execute(AITroop u) {
 
-        int delay =Math.max((int)(17 * GLAIVE.getSpeed() / u.getDef().getSpeed()), 3);
+        int delay = Math.max((int) (17 * GLAIVE.getSpeed() / u.getDef().getSpeed()), 3);
         lastUnit = u;
         command.areaManager.executedTask();
         if (command.areaManager.getExecutedTasks() > 100) {
@@ -100,8 +99,11 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
             updatePath(u);
         }
         if (path == null && requestingPath) {
-            if (u.getUnits().iterator().next().getUnit().getCurrentCommands().isEmpty()) u.moveTo(target, command.getCurrentFrame() + delay);
-            else u.wait(command.getCurrentFrame() + delay);
+            if (u.getUnits().iterator().next().getUnit().getCurrentCommands().isEmpty()) {
+                u.moveTo(target, command.getCurrentFrame() + delay);
+            } else {
+                u.wait(command.getCurrentFrame() + delay);
+            }
             return false;
         }
         if (errors > 15) {
@@ -110,7 +112,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
             issuer.abortedTask(this);
             return true;
         }
-        while ((!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 280 * Math.max(0.7, u.getDef().getSpeed() / GLAIVE.getSpeed()) && path.size() > 1) || (u.distanceTo(path.getFirst()) < 50)))){
+        while ((!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 280 * Math.max(0.7, u.getDef().getSpeed() / GLAIVE.getSpeed()) && path.size() > 1) || (u.distanceTo(path.getFirst()) < 50)))) {
 //               || (u.getDef().isAbleToFly() && u.getUnits().size() > 1 && u.distanceTo(path.getFirst()) < 1000) ) {
             path.pollFirst();
             //command.debug("removing first checkpoint");
@@ -130,6 +132,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         if (path.size() > 0 && distance(first, path.getFirst()) > 100) {
             u.moveTo(randomize(path.getFirst(), 100), AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + delay);
         }
+        u.moveTo(target, AITroop.OPTION_SHIFT_KEY, u.getCommand().getCurrentFrame() + delay);
         path.addFirst(first);
         return false;
     }
@@ -176,11 +179,11 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         lastPath = command.getCurrentFrame();
         this.path = path;
         //command.debug("path has " + path.size() + " steps");
-        
+
         if (path.size() <= 1) {
             lastPath = command.getCurrentFrame() - repathTime + 30;
         }
-/*
+        /*
             target.x = Math.max(0, Math.min(command.getCallback().getMap().getWidth() * 8 - 1, target.x + (float) Math.random() * 400 - 200));
             target.z = Math.max(0, Math.min(command.getCallback().getMap().getHeight() * 8 - 1, target.z + (float) Math.random() * 400 - 200));
 

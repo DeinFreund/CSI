@@ -84,14 +84,14 @@ public class BuilderSquad extends SquadManager {
         int buildersBuilding = 0;
         for (UnitDef ud : command.getFactoryHandler().getQueue()) {
             bp += ud.getBuildSpeed();
-            if (ud.getBuildSpeed() > 0) {
+            if (ud.getBuildSpeed() > 0 || ud.getName().contains("plane")) {
                 buildersBuilding++;
             }
         }
         for (AIUnit au : command.getBuilderHandler().getBuilders()) {
             bp += au.getDef().getBuildSpeed();
         }
-        if (bp - 10 > 2 * command.getBuilderHandler().getMetalIncome() || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size() || bp > 200) {
+        if (bp - 10 > 2 * command.getBuilderHandler().getMetalIncome() || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size() || bp > 200 || bp > (command.getCurrentFrame() + 30 * 60) * 10 / (30 * 45)) {
             return -1f;
         } else {
             //command.debug("Total BP only " + bp + "/" + (int)(2 * command.getBuilderHandler().getMetalIncome() + 10) + " m/s");

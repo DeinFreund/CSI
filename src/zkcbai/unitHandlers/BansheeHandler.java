@@ -164,15 +164,30 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                 for (Enemy e : command.getEnemyUnits(false)) {
 
                     Area enemyArea = command.areaManager.getArea(e.getPos());
-                    if (enemyArea.getAADPS() > 15  * banshees.getUnits().size() * banshees.getUnits().size()) {
+                    if (enemyArea.getEnemyAADPS() <= 0.1){
+                        enemyArea.updateAADPS();
+                    }
+                    if (enemyArea.getEnemyAADPS() + (enemyArea.getZone() == Zone.hostile ? 120 : -10) > 10  * banshees.getUnits().size() * banshees.getUnits().size()) {
                         continue;
                     }
-                    float score = e.getMetalCost() / e. getHealth() * 1000 / (1000 + 3 * banshees.distanceTo(e.getPos())) * 100 / (100 + enemyArea.getAADPS()) * 200 / (e.getDPS() + 200);
-                    if (e.getDef().isAbleToCloak() && e.getMetalCost() > 200) {
-                        score *= 5;
+                    float score = e.getMetalCost() / e. getHealth() * 1000 / (500 + 3 * banshees.distanceTo(e.getPos())) * 100 / (100 + enemyArea.getEnemyAADPS()) * 200 / (e.getDPS() + 200);
+                    float nearbyAlly = 0;
+                    float nearbyNoFighter = 0;
+                    for (AIUnit au : command.getUnitsIn(e.getPos(), 800)){
+                        if (au.getDef().isAbleToAttack()) nearbyAlly += au.getMetalCost();
+                        else nearbyNoFighter += au.getMetalCost();
+                    }
+                    if (nearbyAlly < 150 && nearbyNoFighter > 50){
+                        score *= 3;
+                    }
+                    if (e.getDef().isAbleToCloak() && e.getMetalCost() > 200 && !e.isAntiAir() && enemyArea.getZone() == Zone.own) {
+                        score *= 10;
                     }
                     if (command.getCommandDelay() > 60 && !e.isVisible()){
                         score /= 10;
+                    }
+                    if (e.getDef().getSpeed() > 0.9 * command.getCallback().getUnitDefByName("corhurc2").getSpeed()){
+                        score /= 4;
                     }
                     if (enemyArea.getZone() != Zone.hostile) score *=2;
                     if (score > best) {
@@ -188,7 +203,8 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                         banshees.attack(target, command.getCurrentFrame() + 60);
                     }
                 } else {
-                    banshees.assignTask(new MoveTask(banshees.getArea().getNearestArea(command.areaManager.SAFE).getPos(), command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
+                    banshees.assignTask(new MoveTask(banshees.getArea().getNearestArea(command.getCurrentFrame() < 30 * 60 * 5 ? command.areaManager.FRIENDLY : command.areaManager.SAFE).getPos(), 
+                            command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
                     command.debug("no target for banshees");
                 }
             }

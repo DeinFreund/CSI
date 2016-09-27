@@ -12,6 +12,7 @@ import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UnitDestroyedListener;
 import zkcbai.UpdateListener;
+import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
@@ -50,8 +51,9 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
             issuer.finishedTask(this);
             return true;
         }
-        if (u.distanceTo(target.getPos()) > u.getDef().getBuildDistance()) {
-            u.assignTask(new MoveTask(target.getPos(), u.getCommand().getCurrentFrame() + 60, this, u.getCommand().pathfinder.AVOID_ENEMIES, u.getCommand()).queue(this));
+        if (u.distanceTo(target.getPos()) > 400 || target.getArea().getZone() != Zone.own) {
+            u.assignTask(new MoveTask(target.getArea().getNearestArea(command.areaManager.SAFE, target.getMovementType()).getPos(), 
+                    u.getCommand().getCurrentFrame() + 60, this, u.getCommand()).queue(this));
             return false;
         }
         u.repair(target.getUnit(), (short) 0, u.getCommand().getCurrentFrame() + 60);
@@ -117,6 +119,7 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
 
     @Override
     public void unitDestroyed(AIUnit u, Enemy killer) {
+        workers.remove(u);
         if (u.equals(this.target)){
             completed(null);
             issuer.abortedTask(this);

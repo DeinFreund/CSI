@@ -5,7 +5,6 @@
  */
 package zkcbai.unitHandlers;
 
-import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import java.util.ArrayList;
@@ -20,12 +19,14 @@ import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Zone;
+import zkcbai.unitHandlers.betterSquads.AntiAirSquad;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
+import zkcbai.unitHandlers.units.tasks.WaitTask;
 
 /**
  *
@@ -85,7 +86,7 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public boolean retreatForRepairs(AITroop u) {
-        return false;
+        return u.getDef().getHealth() > 1800;
     }
 
     @Override
@@ -119,11 +120,19 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
             Random rnd = new Random();
             int smart = 0;
             for (final AIUnit creep : aiunits.values().toArray(new AIUnit[aiunits.values().size()])) {
+                if (creep.needsRepairs()) {
+                    creep.assignTask(new WaitTask(command.getCurrentFrame() + 200, this));
+                    continue;
+                }
                 if (System.currentTimeMillis() - time < 180 && command.getCommandDelay() < 30) {
                     smart++;
 
                     AIUnit nearestAlly = null;
+                    float nearbyAllyStrength = 0;
                     for (AIUnit ally : command.getUnitsIn(creep.getPos(), 1300)) {
+                        if (ally.getDef().isAbleToAttack()) {
+                            nearbyAllyStrength += ally.getMetalCost();
+                        }
                         if (ally.equals(creep)) {
                             continue;
                         }
@@ -138,32 +147,55 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                         creep.fight(nearestAlly.getNearestEnemy().getPos(), command.getCurrentFrame() + 80);
                         command.debug(creep.getDef().getHumanName() + " helping out " + nearestAlly.getDef().getHumanName() + " against " + nearestAlly.getNearestEnemy().getDef().getHumanName());
                     }
-
                     /*
                     if (creep.getArea().getZone() != Zone.own) {
                         creep.moveTo(creep.getArea().getNearestArea(command.areaManager.FRIENDLY, creep.getMovementType()).getPos(),
                                 command.getCurrentFrame() + 100);
                         continue;
                     }*/
-                    if (command.defenseManager.getDanger(creep.getPos()) * 2.5 > creep.getMetalCost()) {
-
-                        creep.moveTo(creep.getArea().getNearestArea(command.areaManager.FRIENDLY, creep.getMovementType()).getPos(),
-                                command.getCurrentFrame() + 100);
-                        continue;
-                    }
                     Enemy closestEnemy = creep.getNearestEnemy();
-                    if (closestEnemy != null) {
-                        /*Area closestFriendly = command.areaManager.getArea(closestEnemy.getPos()).getNearestArea(command.areaManager.FRIENDLY, creep.getMovementType());
-                        if (closestEnemy.distanceTo(closestFriendly.getPos()) - closestFriendly.getEnclosingRadius() < closestEnemy.getMaxRange()) {*/
-                        if (command.defenseManager.getDanger(closestEnemy.getPos()) * 2.5 < creep.getMetalCost()) {
+                    float danger = command.defenseManager.getDanger(creep.getPos()) + command.defenseManager.getImmediateDanger(creep.getPos());
+
+                    if (AntiAirSquad.antiair.contains(creep.getDef())) {
+                        Enemy closestTarget = null;
+                        for (Enemy e : command.getAvengerHandler().getEnemyAir()) {
+                            if (!e.isTimedOut() && (closestTarget == null || e.distanceTo(creep.getPos()) < closestTarget.distanceTo(creep.getPos()))) {
+                                closestTarget = e;
+                            }
+                        }
+                        if (closestTarget != null
+                                && (closestTarget.distanceTo(creep.getPos()) < 700 && nearbyAllyStrength > danger
+                                || command.areaManager.getArea(closestTarget.getPos()).getZone() != Zone.hostile)) {
+                            if (closestTarget.distanceTo(creep.getPos()) < 700) {
+                                creep.attack(closestTarget, command.getCurrentFrame() + 100);
+                            } else {
+                                creep.assignTask(new MoveTask(closestTarget.getPos(), command.getCurrentFrame() + 50, this, command.pathfinder.AVOID_GROUND_ENEMIES, command));
+                            }
+                            continue;
+                        }
+                    } else if (closestEnemy != null) {
+                        Area closestFriendly = command.areaManager.getArea(closestEnemy.getPos()).getNearestArea(command.areaManager.FRIENDLY, creep.getMovementType());
+
+                        if (closestEnemy.getDef().isAbleToFly() && closestEnemy.getMetalCost() > 200
+                                && !closestEnemy.getDef().getName().equals("gunshipaa") && !AntiAirSquad.antiair.contains(creep.getDef())) {
+                            danger += closestEnemy.getMetalCost() * 4;
+                        }
+                        if (danger * 2 < nearbyAllyStrength || closestEnemy.distanceTo(closestFriendly.getPos()) - closestFriendly.getEnclosingRadius() < closestEnemy.getMaxRange()) {
                             if ((closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || closestEnemy.getDef().getName().equalsIgnoreCase("armsolar")
-                                    || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor") || rnd.nextInt(6) < 1) && closestEnemy.getUnit() != null) {
+                                    || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor") || rnd.nextInt(6) < 1) && closestEnemy.getUnit() != null
+                                    && creep.getMaxRange() < 400 && !creep.getDef().getName().equals("cormist")) {
                                 creep.attack(closestEnemy, command.getCurrentFrame() + 100);
                             } else {
                                 creep.fight(closestEnemy.getPos(), command.getCurrentFrame() + 100);
                             }
 
                             continue;
+                        } else if (closestEnemy.distanceTo(creep.getPos()) < closestEnemy.getMaxRange() * 1.1 + 250) {
+
+                            creep.moveTo(creep.getArea().getNearestArea(command.areaManager.SAFE, creep.getMovementType()).getPos(),
+                                    command.getCurrentFrame() + 100);
+                            continue;
+
                         }
                     }
 
@@ -171,6 +203,7 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                     float bestscore = Float.NEGATIVE_INFINITY;
 
                     for (ZoneManager.Area a : unprotectedAreas.keySet()) {
+                        if (a.getCenterHeight() <= 0) continue;
                         float score = -creep.distanceTo(a.getPos()) / 100f;
                         final Area area = a;
 

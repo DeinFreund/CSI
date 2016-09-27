@@ -21,6 +21,7 @@ import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.FighterHandler;
 import static zkcbai.unitHandlers.betterSquads.ScoutSquad.dangerChecker;
+import static zkcbai.unitHandlers.betterSquads.SupportSquad.supports;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -51,14 +52,13 @@ public class BansheeSquad extends SquadManager {
     final static private String[] fighterIds = {"armkam"};
     public final static Set<UnitDef> fighters = new HashSet();
 
-
     @Override
     public List<UnitDef> getRequiredUnits(Collection<UnitDef> availableUnits) {
         Set<UnitDef> unitset = new HashSet(availableUnits);
         for (UnitDef ud : fighters) {
             if (unitset.contains(ud)) {
                 List<UnitDef> req = new ArrayList();
-                    req.add(ud);
+                req.add(ud);
                 return req;
             }
         }
@@ -67,7 +67,20 @@ public class BansheeSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        if (command.getBansheeHandler().getUnits().size() < 3){
+        float groundValue = 0;
+        float airValue = 0;
+        for (AIUnit au : command.getUnits()) {
+            if (au.isBuilding() || au.getDPS() < 1) {
+                continue;
+            }
+            if (au.getDef().isAbleToFly()) {
+                airValue += au.getMetalCost();
+            } else {
+                groundValue += au.getMetalCost();
+            }
+        }
+        if (groundValue < airValue) return 0;
+        if (command.getBansheeHandler().getUnits().size() < 3) {
             return 0.95f;
         }
         if (command.getCurrentFrame() < 30 * 60 * 5) {
@@ -95,7 +108,6 @@ public class BansheeSquad extends SquadManager {
     }
 
     Enemy target = null;
-
 
     @Override
     public void abortedTask(Task t) {

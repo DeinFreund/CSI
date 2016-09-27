@@ -53,9 +53,9 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
 
     }
 
-    final private String[] scoutIds = {"armpw", "corak", "corfav", "blastwing", "amphraider3", "shipscout", "corsh", "armflea", "puppy"};
+    final static private String[] scoutIds = {"armpw", "corak", "corfav", "blastwing", "amphraider3", "shipscout", "corsh", "armflea", "puppy"};
 
-    final private List<UnitDef> scouts = new ArrayList();
+    final static public Set<UnitDef> scouts = new HashSet();
 
     private AISquad aisquad;
 
@@ -91,16 +91,11 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() - lastScoutSquad < 30 * 120 || command.getFactoryHandler().getBuildOptions().contains(clbk.getUnitDefByName("fighter"))) {
+        if (command.getFactoryHandler().getBuildOptions().contains(clbk.getUnitDefByName("fighter"))) {
             return 0;
         }
-        int vis = 0;
-        for (Area a : command.areaManager.getAreas()) {
-            if (a.isInLOS()) {
-                vis++;
-            }
-        }
-        return 1f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f;
+        if (command.getAvengerHandler().getUnits().isEmpty()) return 0.91f;
+        return 0f;
     }
 
     @Override

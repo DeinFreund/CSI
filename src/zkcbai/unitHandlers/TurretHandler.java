@@ -96,13 +96,13 @@ public class TurretHandler extends UnitHandler implements UpdateListener {
             target.y = clbk.getMap().getElevationAt(target.x, target.z);
             unclippedtarget = new AIFloat3(target);
             if (target.x > command.areaManager.getMapWidth()) {
-                target.x = command.areaManager.getMapWidth();
+                target.x = command.areaManager.getMapWidth() - 1;
             }
             if (target.x < 0) {
                 target.x = 0;
             }
             if (target.z > command.areaManager.getMapHeight()) {
-                target.z = command.areaManager.getMapHeight();
+                target.z = command.areaManager.getMapHeight() - 1;
             }
             if (target.z < 0) {
                 target.z = 0;
@@ -155,6 +155,14 @@ public class TurretHandler extends UnitHandler implements UpdateListener {
     public void reportSpam() {
     }
 
+    @Override
+    public void unitDestroyed( AIUnit u, Enemy e) {
+        super.unitDestroyed(u, e);
+        if (u.equals(delayLLT)){
+            delayLLT = null;
+        }
+    }
+    
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
     }

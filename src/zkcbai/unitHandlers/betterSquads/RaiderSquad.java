@@ -52,7 +52,7 @@ public class RaiderSquad extends SquadManager {
     }
 
     final static private String[] raiderIds = {"armpw", "corak", "corgator", "logkoda", "amphraider3", "subraider", "corsh", "corpyro"};
-    final static Set<UnitDef> raiders = new HashSet();
+    final static public Set<UnitDef> raiders = new HashSet();
 
     final static private String[] porcIds = {"corrl", "armllt"};
     final static Set<UnitDef> porc = new HashSet();
@@ -91,6 +91,7 @@ public class RaiderSquad extends SquadManager {
     @Override
     public float getUsefulness() {
         if (command.getCurrentFrame() < 30 * 60 * 5) {
+            command.debug("Raider usefulness: 0.7");
             return 0.7f;
         }
         int vis = 0;
@@ -99,6 +100,7 @@ public class RaiderSquad extends SquadManager {
                 vis++;
             }
         }
+            command.debug("Raider usefulness: " + (0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f));
         return 0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f;
     }
 

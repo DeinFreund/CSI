@@ -9,6 +9,12 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import com.springrts.ai.oo.clb.WeaponDef;
+import com.springrts.ai.oo.clb.WeaponMount;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import zkcbai.Command;
 
 /**
@@ -17,18 +23,48 @@ import zkcbai.Command;
  */
 public class FakeSlasher extends FakeEnemy {
 
-    public FakeSlasher(AIFloat3 pos, Command cmd, OOAICallback clbk) {
-        super(getComDef(cmd), pos, cmd, clbk);
-        cmd.debug("New fake slasher created at " + pos);
+    private static Map<WeaponDef, List<UnitDef>> weaponUnitDefs;
+    private WeaponDef identWeapon;
+
+    public FakeSlasher(AIFloat3 pos, WeaponDef weapon, Command cmd, OOAICallback clbk) {
+        super(getUnitDef(cmd, weapon), pos, cmd, clbk);
+        cmd.debug("New fake " + getDef().getHumanName() + " created at " + pos);
+        this.identWeapon = weapon;
     }
 
-    private static UnitDef getComDef(Command cmd) {
-        return cmd.getCallback().getUnitDefByName("cormist");
+    private static UnitDef getUnitDef(Command cmd, WeaponDef weapon) {
+        if (weaponUnitDefs == null) {
+            weaponUnitDefs = new HashMap();
+            for (UnitDef ud : cmd.getCallback().getUnitDefs()) {
+                for (WeaponMount wm : ud.getWeaponMounts()) {
+                    if (wm.getWeaponDef().getName().toLowerCase().contains("fake")) {
+                        continue;
+                    }
+                    if (wm.getWeaponDef().getName().toLowerCase().contains("noweapon")) {
+                        continue;
+                    }
+                    if (!weaponUnitDefs.containsKey(wm.getWeaponDef())) {
+                        weaponUnitDefs.put(wm.getWeaponDef(), new ArrayList());
+                    }
+                    weaponUnitDefs.get(wm.getWeaponDef()).add(ud);
+                }
+            }
+        }
+        UnitDef best = null;
+        for (UnitDef ud : weaponUnitDefs.get(weapon)) {
+            if (best == null || ud.getCost(cmd.metal) < best.getCost(cmd.metal)) {
+                best = ud;
+            }
+        }
+        if (best == null) {
+            best = cmd.getCallback().getUnitDefByName("cormist");
+        }
+        return best;
     }
 
     @Override
     public boolean isUnit(Unit u) {
-        return distanceTo(u.getPos()) < 500;
+        return u.getDef() != null && Command.getWeaponDefs(u.getDef()).contains(identWeapon);
     }
 
     @Override

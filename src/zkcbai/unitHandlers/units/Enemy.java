@@ -9,8 +9,11 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import com.springrts.ai.oo.clb.WeaponDef;
 import com.springrts.ai.oo.clb.WeaponMount;
-import java.util.Random;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaChecker;
@@ -48,6 +51,9 @@ public class Enemy {
     protected boolean inLOS = false;
     protected float metalcost = 0;
     protected float dps = -1;
+    protected boolean antiair = false;
+    protected boolean isFlier = false;
+    private static Set<UnitDef> aaUnits;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         this(u.getPos(), cmd, clbk);
@@ -64,6 +70,15 @@ public class Enemy {
         isBuilding = false;
         lastSeen = cmd.getCurrentFrame();
 
+        if (aaUnits == null) {
+            aaUnits = new HashSet<>();
+
+            aaUnits.add(clbk.getUnitDefByName("corrl"));
+            aaUnits.add(clbk.getUnitDefByName("corllt"));
+            aaUnits.add(clbk.getUnitDefByName("gunshipsupport"));//rapier
+            aaUnits.add(clbk.getUnitDefByName("fighter"));
+            aaUnits.add(clbk.getUnitDefByName("slowmort")); //moderator
+        }
     }
 
     private int deadpollFrame = -1;
@@ -206,12 +221,11 @@ public class Enemy {
         if (!isAlive()) {
             polledDead();
         }
-        if (dps < 0){
+        if (dps < 0) {
             identify();
         }
-        if (dps > 0 && getDef().getWeaponMounts().isEmpty()){
-            command.debug("WubWub damage without weapon");
-            command.debugStackTrace();
+        if (dps > 0 && getDef().getWeaponMounts().isEmpty()) {
+            command.debug("WubWub damage without weapon(" + getDef().getHumanName() + ")");
             dps = 0;
         }
         return dps;
@@ -247,10 +261,10 @@ public class Enemy {
      *
      * @return cached last resource
      */
-    public AIFloat3 getLastPos(){
+    public AIFloat3 getLastPos() {
         return lastPosPossible;
     }
-    
+
     public float distanceTo(AIFloat3 trg) {
         if (!isAlive()) {
             polledDead();
@@ -299,6 +313,10 @@ public class Enemy {
         }
 
     };
+
+    public Collection<WeaponDef> getWeaponDefs() {
+        return command.getWeaponDefs(getDef());
+    }
 
     /**
      *
@@ -377,7 +395,7 @@ public class Enemy {
             identify();
         }
         time = System.nanoTime() - time;
-        if (time > 1e6){
+        if (time > 2e6) {
             command.debug("Update of enemy took " + time + " ns");
         }
         //command.mark(getPos(), getPos().toString());
@@ -392,17 +410,22 @@ public class Enemy {
         if (neverSeen) {
             health = unit.getHealth();
             unitDef = unit.getDef();
-            metalcost = getDef().getCost(command.metal);
-            dps = Command.getDPS(getDef());
-            maxRange = unit.getMaxRange();
+            identify();
             if (unitDef.getName().equals("cormex")) {
                 command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
             }
-            isBuilding = unit.getDef().getSpeed() <= 0.01;
         }
         neverSeen = false;
         lastSeen = command.getCurrentFrame();
         update(command.getCurrentFrame());
+    }
+
+    public boolean isAntiAir() {
+        return antiair;
+    }
+    
+    public boolean isAbleToFly(){
+        return isFlier;
     }
 
     public float getMetalCost() {
@@ -427,10 +450,9 @@ public class Enemy {
         if (!isAlive()) {
             polledDead();
         }
-        if (!neverSeen) {
-            return;
-        }
-        if (unit != null) {
+        long time = System.nanoTime();
+
+        if (unit != null && neverSeen && (unitDef == null || unitDef.getSpeed() < maxVelocity - 0.001f)) {
             maxVelocity = Math.max(unit.getVel().length(), maxVelocity);
             if (command.getEnemyUnitDefSpeedMap().ceilingEntry(unit.getVel().length() - 1e-6f) != null) {
                 unitDef = command.getEnemyUnitDefSpeedMap().ceilingEntry(unit.getVel().length() - 1e-6f).getValue();
@@ -443,11 +465,16 @@ public class Enemy {
         for (WeaponMount wm : unitDef.getWeaponMounts()) {
             maxRange = Math.max(wm.getWeaponDef().getRange(), maxRange);
         }
-        //command.debug(unitDef.getHumanName() + " identified by Radar");
         health = unitDef.getHealth();
-        
         metalcost = unitDef.getCost(command.metal);
-            dps = Command.getDPS(getDef());
+        dps = Command.getDPS(getDef());
+        isBuilding = getDef().getSpeed() <= 0.01;
+        antiair = dps > 0 && getDef().getWeaponMounts().get(0).getWeaponDef().isAbleToAttackGround() == false || aaUnits.contains(getDef());
+        isFlier = getDef().isAbleToFly();
+        time = System.nanoTime() - time;
+        if (time > 0.1e6) {
+            command.debug("Identification of " + getDef().getHumanName() + " took " + time + " ns.");
+        }
     }
 
     public void enterRadar() {

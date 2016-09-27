@@ -126,10 +126,10 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                     if (command.distance2D(e.getPos(), e.getLastAccuratePos()) > 500) {
                         continue;
                     }
-                    if (command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
+                    if (command.areaManager.getArea(e.getPos()).getEnemyAADPS() > 150) {
                         continue;
                     }
-                    if (e.getMetalCost() < 800 || command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
+                    if (e.getMetalCost() < 800 || command.areaManager.getArea(e.getPos()).getEnemyAADPS() > 150) {
                         continue;
                     }
                     if (vip == null || e.getLastAccuratePosTime() > vip.getLastAccuratePosTime()) {
@@ -138,10 +138,10 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 }
                 if (vip == null || command.getCurrentFrame() - vip.getLastAccuratePosTime() > 300) {
                     for (Enemy e : command.getEnemyUnits(true)) {
-                        if (!e.isBuilding() || e.getMetalCost() < 600 || command.areaManager.getArea(e.getPos()).getAADPS() > 150) {
+                        if (!e.isBuilding() || e.getMetalCost() < 600 || command.areaManager.getArea(e.getPos()).getEnemyAADPS() > 150) {
                             continue;
                         }
-                        if (vip == null || command.areaManager.getArea(e.getPos()).getAADPS() < command.areaManager.getArea(vip.getPos()).getAADPS()) {
+                        if (vip == null || command.areaManager.getArea(e.getPos()).getEnemyAADPS() < command.areaManager.getArea(vip.getPos()).getEnemyAADPS()) {
                             vip = e;
                         }
                     }
@@ -152,7 +152,6 @@ public class DropHandler extends UnitHandler implements UpdateListener {
 
                 if (vip != null && command.getCurrentFrame() - vip.getLastAccuratePosTime() > 300) {
                     command.getAvengerHandler().requestScout(command.areaManager.getArea(vip.getPos()));
-                    command.mark(vip.getPos(), "requested scout");
                 } else if (vip != null/* && !command.getAvengerHandler().getUnits().isEmpty()*/ && !gnats.isEmpty()) {
                     u.assignTask(new DropTask(vip, this, command));
                     return;
@@ -176,7 +175,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                         }
                         metalKilled += near.getMetalCost();
                     }
-                    if (command.areaManager.getArea(e.getPos()).getAADPS() > 150
+                    if (command.areaManager.getArea(e.getPos()).getEnemyAADPS() > 150
                             || metalKilled < 0.92 * (ROACH.getCost(command.metal) + VALK.getCost(command.metal))) {
                         continue;
                     }
@@ -287,7 +286,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 jj = f;
             }
         }
-        if (gs != null) {
+        if (gs != null && (command.getFactoryHandler().getFacs().size() >= 4 || command.getCurrentFrame() > 30 * 60 * 4)) {
 
             if (!buildingValk && emptyTransports.size() + loadedTransports.size() < roaches.size() + skuttles.size() + (buildingSkuttle ? 1 : 0) + (buildingRoach ? 1 : 0)) {
                 gs.queueUnit(VALK);

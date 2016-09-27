@@ -29,22 +29,17 @@ public abstract class FakeEnemy extends Enemy implements UpdateListener {
             throw new AssertionError("FakeEnemy UnitDef is null");
         }
         this.fakeUnitDef = fakeUnitDef;
-        this.unitDef = fakeUnitDef;
         this.createTime = cmd.getCurrentFrame();
-        health = fakeUnitDef.getHealth();
-        maxRange = 0;
-        for (WeaponMount wm : fakeUnitDef.getWeaponMounts()) {
-            maxRange = Math.max(wm.getWeaponDef().getRange(), maxRange);
-        }
-        if (unitDef.getName().equals("cormex")) {
+        if (fakeUnitDef.getName().equals("cormex")) {
             command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
         }
-        isBuilding = getDef().getSpeed() <= 0.01;
         removeTime = command.getCurrentFrame() + 30 * 60 * (int) fakeUnitDef.getCost(command.metal) / 200;
+        
+        cmd.addSingleUpdateListener(this, removeTime + 10);
+        identify();
         if (isBuilding) {
             removeTime += 30 * 60 * 5;
         }
-        cmd.addSingleUpdateListener(this, removeTime + 10);
     }
 
     @Override
@@ -61,6 +56,7 @@ public abstract class FakeEnemy extends Enemy implements UpdateListener {
     @Override
     public void identify() {
         unitDef = fakeUnitDef;
+        super.identify();
     }
 
     @Override

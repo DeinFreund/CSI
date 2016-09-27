@@ -18,7 +18,7 @@ import zkcbai.unitHandlers.units.AIUnit;
 public class EconomyManager extends Helper {
 
     float generosity = 0;
-    float adaption = 5e-2f;
+    float adaption = 5e-3f;
 
     Map<Budget, Float> fraction = new HashMap(); //all fractions should add to 1
     Map<Budget, Float> used = new HashMap();
@@ -31,8 +31,8 @@ public class EconomyManager extends Helper {
         super(cmd, clbk);
         totalMetal = clbk.getEconomy().getCurrent(command.metal);
         fraction.put(Budget.economy, 0.4f);
-        fraction.put(Budget.defense, 0.2f);
-        fraction.put(Budget.offense, 0.4f);
+        fraction.put(Budget.defense, 0.1f);
+        fraction.put(Budget.offense, 0.5f);
         used.put(Budget.economy, 0f);
         used.put(Budget.defense, 0f);
         used.put(Budget.offense, 0f);
@@ -41,7 +41,7 @@ public class EconomyManager extends Helper {
     public void useBudget(Budget budget, float amt) {
         if (getRemainingBudget(budget) < 0) {
             command.debug("Warning: " + budget.name() + " budget overdrawn by " + amt + " at ");
-            command.debugStackTrace();
+            //command.debugStackTrace();
         }
         used.put(budget, used.get(budget) + amt);
     }
@@ -70,7 +70,7 @@ public class EconomyManager extends Helper {
 
             if (frame == 49) {
 
-                used.put(Budget.economy, used.get(Budget.economy) - coms * 400f);
+                used.put(Budget.economy, used.get(Budget.economy) - coms * 500f);
                 used.put(Budget.defense, used.get(Budget.defense) - coms * 50f);
                 used.put(Budget.offense, used.get(Budget.offense) - coms * 150f);
                 command.debug("Accounting for " + command.getCommanderHandlers().size() + " commanders' start income.");
@@ -80,13 +80,19 @@ public class EconomyManager extends Helper {
             totalMetal += (command.getBuilderHandler().getMetalIncome()) / 30f * (frame - lastFrame);
         }
         lastFrame = frame;
-        if (frame % 100 == 2) {
+        if (frame % 300 == 2) {
             command.debug("Economy budget: " + getRemainingBudget(Budget.economy));
             command.debug("Offense budget: " + getRemainingBudget(Budget.offense));
             command.debug("Defense budget: " + getRemainingBudget(Budget.defense));
+            command.debug("Metal income: " + command.getBuilderHandler().getAverageMetalIncome());
+            command.debug("Energy income: " + command.getBuilderHandler().getEnergyIncome());
         }
         if (frame > 30 * 30) {
             float mid = 0.33f * command.getBuilderHandler().getMetalStorage();
+            float min = Math.min(getRemainingBudget(Budget.economy), Math.min( getRemainingBudget(Budget.defense), getRemainingBudget(Budget.offense)));
+            float max = Math.max(getRemainingBudget(Budget.economy), Math.max( getRemainingBudget(Budget.defense), getRemainingBudget(Budget.offense)));
+            if (clbk.getEconomy().getCurrent(command.metal) < mid && max < -500) return;
+            if (clbk.getEconomy().getCurrent(command.metal) > mid && min > 1500) return;
             generosity += Math.signum(clbk.getEconomy().getCurrent(command.metal) - mid)
                     * adaption * Math.pow(Math.abs(Math.min(mid * 2, clbk.getEconomy().getCurrent(command.metal)) - mid), 1.7) / 20f;
         }
