@@ -70,8 +70,8 @@ public class SupportSquad extends SquadManager {
                 supportValue += au.getMetalCost();
             }
         }
-        command.debug("Support useful: " + Math.min(0.91f, -(float)Math.log(Math.max(0.00001, 1f - assaultValue / (supportValue * 2 + 1000)))));
-        return Math.min(0.905f, assaultValue / (supportValue * 2 + 1000));
+        command.debug("Support useful: " + Math.min(0.9f, -(float)Math.log(Math.max(0.00001, 1f - assaultValue / (supportValue * 2 + 1000)))));
+        return Math.min(0.9f, assaultValue / (supportValue * 2 + 1000));
     }
 
     @Override

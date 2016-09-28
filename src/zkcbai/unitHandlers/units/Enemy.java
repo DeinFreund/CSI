@@ -126,6 +126,9 @@ public class Enemy {
         }, command.getCurrentFrame() + 1);
     }
 
+    public Area getArea(){
+        return command.areaManager.getArea(getPos());
+    }
     /**
      * only use when you can't use a UnitDestroyedListener instead
      *
@@ -262,6 +265,13 @@ public class Enemy {
      * @return cached last resource
      */
     public AIFloat3 getLastPos() {
+        return lastPos;
+    }
+    /**
+     *
+     * @return cached last resource
+     */
+    public AIFloat3 getLastPosPossible() {
         return lastPosPossible;
     }
 

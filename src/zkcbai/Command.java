@@ -912,7 +912,7 @@ public class Command implements AI {
                         aiunit = bansheeHandler.addUnit(unit);
                         break;
                     }
-                    if (unit.getDef().equals(dropHandler.VALK) || unit.getDef().equals(dropHandler.SKUTTLE) || unit.getDef().equals(dropHandler.ROACH) || unit.getDef().equals(dropHandler.GNAT)) {
+                    if (unit.getDef().equals(dropHandler.VALK) || unit.getDef().equals(dropHandler.SKUTTLE) || unit.getDef().equals(dropHandler.ROACH) || unit.getDef().equals(dropHandler.GNAT) || unit.getDef().equals(dropHandler.LICHO)) {
                         aiunit = dropHandler.addUnit(unit);
                         break;
                     }

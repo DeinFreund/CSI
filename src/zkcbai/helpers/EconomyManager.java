@@ -47,6 +47,10 @@ public class EconomyManager extends Helper {
     }
 
     public float getRemainingBudget(Budget budget) {
+        if (clbk.getEconomy().getCurrent(command.metal) > 0.9 * command.getBuilderHandler().getMetalStorage()
+                && clbk.getEconomy().getCurrent(command.energy) > 0.9 * command.getBuilderHandler().getMetalStorage()) {
+            return 1000f;
+        }
         return fraction.get(budget) * (totalMetal + generosity) - used.get(budget);
     }
 

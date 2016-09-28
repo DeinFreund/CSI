@@ -34,7 +34,7 @@ import zkcbai.unitHandlers.units.tasks.WaitTask;
 public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     private static final float REPAIR_PERCENTAGE = 0.55f;
-    private static final float REPAIR_HP = 4000f;
+    private static final float REPAIR_HP = 8000f;
 
     private final Unit unit;
     private final int unitId;
@@ -251,7 +251,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         if (unit.getPos().lengthSquared() < 0.1) {
             getCommand().debug("aiunit " + unitId + "(" + (unit.getDef() != null ? unit.getDef().getHumanName() : "null") + ") might be dead");
         }
-        if (dead) {
+        if (dead || (getDef() == null) ) {
             handler.getCommand().debug("polled dead aiunit " + unitId + "");
             handler.getCommand().debugStackTrace();
             handler.getCommand().addSingleUpdateListener(new UpdateListener() {
@@ -268,7 +268,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         if (handler instanceof DevNullHandler || handler.getCommand() == null) {
             return;
         }
-        if ((wakeUpFrame < 0 || wakeUpFrame > 1000000) && handler.getCommand().getCurrentFrame() - lastCommandTime > 30
+        if ((wakeUpFrame < getCommand().getCurrentFrame() || wakeUpFrame > 1000000) && handler.getCommand().getCurrentFrame() - lastCommandTime > 30
                 && unit.getCurrentCommands().isEmpty()) {
             handler.getCommand().debug("reawaken " + getUnit().getUnitId() + "(" + getDef().getHumanName() + ") controlled by " + handler.getClass().getName());
             idle();
@@ -413,7 +413,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
                 unit.attack(trg.getUnit(), options, Integer.MAX_VALUE);
             } else {
                 unit.moveTo(trg.getPos(), options, Integer.MAX_VALUE);
-                timeout = getCommand().getCurrentFrame() + 15;
+                timeout = getCommand().getCurrentFrame() + 10;
             }
         } catch (Exception ex) {
             handler.getCommand().debug("AIUnit exception: ", ex);

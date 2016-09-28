@@ -5,6 +5,7 @@
  */
 package zkcbai.unitHandlers;
 
+import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import java.util.ArrayList;
@@ -154,7 +155,8 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                         continue;
                     }*/
                     Enemy closestEnemy = creep.getNearestEnemy();
-                    float danger = command.defenseManager.getDanger(creep.getPos()) + command.defenseManager.getImmediateDanger(creep.getPos());
+                    AIFloat3 pos = closestEnemy != null ? closestEnemy.getPos() : creep.getPos();
+                    float danger = 3 * command.defenseManager.getDanger(pos) + command.defenseManager.getImmediateDanger(pos);
 
                     if (AntiAirSquad.antiair.contains(creep.getDef())) {
                         Enemy closestTarget = null;
@@ -180,7 +182,7 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                                 && !closestEnemy.getDef().getName().equals("gunshipaa") && !AntiAirSquad.antiair.contains(creep.getDef())) {
                             danger += closestEnemy.getMetalCost() * 4;
                         }
-                        if (danger * 2 < nearbyAllyStrength || closestEnemy.distanceTo(closestFriendly.getPos()) - closestFriendly.getEnclosingRadius() < closestEnemy.getMaxRange()) {
+                        if (danger * 1.5 < nearbyAllyStrength || closestEnemy.distanceTo(closestFriendly.getPos()) - closestFriendly.getEnclosingRadius() < closestEnemy.getMaxRange()) {
                             if ((closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || closestEnemy.getDef().getName().equalsIgnoreCase("armsolar")
                                     || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor") || rnd.nextInt(6) < 1) && closestEnemy.getUnit() != null
                                     && creep.getMaxRange() < 400 && !creep.getDef().getName().equals("cormist")) {

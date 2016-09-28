@@ -10,6 +10,7 @@ import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -122,18 +123,24 @@ public class AISquad extends AITroop implements AIUnitHandler, UpdateListener, U
     @Override
     public AIFloat3 getPos() {
         List<Point> positions = new ArrayList();
+        List<Float> xpos = new ArrayList();
+        List<Float> ypos = new ArrayList();
         Collection<AIUnit> units = activeUnits;
         if (units.isEmpty()) units = allUnits;
         AIFloat3 position = new AIFloat3();
         for (AIUnit au : units) {
             position.add(au.getPos());
             positions.add(new Point(au.getPos().x, au.getPos().z));
+            xpos.add(au.getPos().x);
+            ypos.add(au.getPos().z);
         }
+        Collections.sort(xpos);
+        Collections.sort(ypos);
         position.scale(1f / units.size());
         Point p = SmallestEnclosingCircle.makeCircle(positions).c;
-        AIFloat3 pos = new AIFloat3((float) p.x, 0, (float) p.y);
+        AIFloat3 pos = new AIFloat3((float) xpos.get(xpos.size() / 2), 0, (float) ypos.get(ypos.size() / 2));
         pos.y = handler.getCommand().getCallback().getMap().getElevationAt(pos.x, pos.z);
-        return position;
+        return pos;
     }
     
     @Override

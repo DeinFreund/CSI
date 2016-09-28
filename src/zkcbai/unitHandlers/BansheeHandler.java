@@ -167,6 +167,9 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                     if (enemyArea.getEnemyAADPS() <= 0.1){
                         enemyArea.updateAADPS();
                     }
+                    if (enemyArea.getNearestArea(command.areaManager.FRIENDLY).distanceTo(e.getPos()) > 800){
+                        continue;
+                    }
                     if (enemyArea.getEnemyAADPS() + (enemyArea.getZone() == Zone.hostile ? 120 : -10) > 10  * banshees.getUnits().size() * banshees.getUnits().size()) {
                         continue;
                     }
@@ -189,7 +192,10 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                     if (e.getDef().getSpeed() > 0.9 * command.getCallback().getUnitDefByName("corhurc2").getSpeed()){
                         score /= 4;
                     }
-                    if (enemyArea.getZone() != Zone.hostile) score *=2;
+                    if (e.getDef().getName().equals("armsolar")){ 
+                        score /= 4; //compensate for armor
+                    }
+                    if (enemyArea.getZone() == Zone.own) score *=3;
                     if (score > best) {
                         target = e;
                         best = score;

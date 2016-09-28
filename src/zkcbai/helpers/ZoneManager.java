@@ -129,7 +129,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
     public final AreaChecker SAFE = new AreaChecker() {
         @Override
         public boolean checkArea(Area a) {
-            return a.getNearbyEnemies().isEmpty() && a.getEnemyAADPS() < 1;
+            return a.getNearbyEnemies().isEmpty() && a.getEnemyAADPS() < 1 && a.getZone() == Zone.own;
         }
     };
     public final AreaChecker HOSTILE_RAIDER_ACCESSIBLE = new AreaChecker() {
@@ -285,6 +285,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
 
     private void parseStartScript() {
         AIFloat3 compos = null;
+        String script = clbk.getGame().getSetupScript();
+        command.debug("startscript:\n" + script);
+
         /*
         try {
             String script = clbk.getGame().getSetupScript();
@@ -948,8 +951,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             }
             return best;
         }
-        
-        public float getCenterHeight(){
+
+        public float getCenterHeight() {
             return clbk.getMap().getElevationAt(getPos().x, getPos().z);
         }
 
@@ -1139,13 +1142,13 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
         protected float enemyAadps = 0;
 
         protected int lastAADPSupdate = 0;
-        
+
         public float getEnemyAADPS() {
             return getEnemyAADPS(true);
         }
-        
+
         public float getEnemyAADPS(boolean update) {
-            if (command.getCurrentFrame() - lastAADPSupdate > 45 && update){
+            if (command.getCurrentFrame() - lastAADPSupdate > 45 && update) {
                 updateAADPS();
             }
             return enemyAadps;
@@ -1612,7 +1615,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
         }
 
         public void updateFramebuffer() {
-            if (getHeight() <= 0) return;
+            if (getHeight() <= 0) {
+                return;
+            }
             long time0 = System.currentTimeMillis();
             BufferedImage newimg = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
             Graphics g = newimg.getGraphics();

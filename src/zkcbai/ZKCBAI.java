@@ -70,17 +70,18 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
         this.teamId = teamId;
         int startbox = -1;
         int myIndex = 0;
-        clbk.getGame().sendTextMessage("my team id1 is " + teamId, 0);
-        clbk.getGame().sendTextMessage("my team id2 is " + clbk.getGame().getMyTeam(), 0);
-        clbk.getGame().sendTextMessage("my team id3 is " + clbk.getGame().getMyAllyTeam(), 0);
+//        clbk.getGame().sendTextMessage("my team id1 is " + teamId, 0);
+//        clbk.getGame().sendTextMessage("my team id2 is " + clbk.getGame().getMyTeam(), 0);
+//        clbk.getGame().sendTextMessage("my team id3 is " + clbk.getGame().getMyAllyTeam(), 0);
         for (Team t : callback.getAllyTeams()) {
+            if (!isIngroup(t.getTeamId(), clbk) && isIngroup(clbk.getGame().getMyTeam(), clbk)) continue;
             if (t.getTeamId() < clbk.getGame().getMyTeam()) {
                 if (myIndex == 0) {
                     teamToGive = t.getTeamId();
                 }
                 myIndex++;
             }
-            clbk.getGame().sendTextMessage("ally: " + t.getTeamId(), 0);
+            //clbk.getGame().sendTextMessage("ally: " + t.getTeamId(), 0);
             if (t.getTeamId() == clbk.getGame().getMyTeam() || startbox < 0) {
                 startbox = (int) Math.round(t.getRulesParamFloat("start_box_id", -1f));
             }
@@ -102,6 +103,14 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
         return 0;
     }
 
+    private boolean isIngroup(int teamId, OOAICallback clbk){
+        String[] script = clbk.getGame().getSetupScript().split("\n");
+        for (int line = 0; line < script.length; line++){
+            if (script[line].startsWith("team=" + teamId) && script[line - 1].startsWith("shortname=CSI")) return true;
+        }
+        return false;
+    } 
+    
     @Override
     public int luaMessage(String inData) {
         if (slave) {

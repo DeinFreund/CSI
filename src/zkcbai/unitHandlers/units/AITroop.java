@@ -136,6 +136,9 @@ public abstract class AITroop {
                 if (e.getDef().isAbleToFly() && !getDef().isAbleToFly()) {
                     continue;
                 }
+                if (e.isAntiAir() && !this.getDef().isAbleToFly() && Math.random() > 0.05){
+                    continue;
+                }
                 if (nearestEnemy == null || nearestEnemy.distanceTo(getPos()) - nearestEnemy.getMaxRange() > e.distanceTo(getPos()) - e.getMaxRange()) {
                     nearestEnemy = e;
                 }

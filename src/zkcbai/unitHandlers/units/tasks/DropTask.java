@@ -162,7 +162,7 @@ public class DropTask extends Task implements TaskIssuer, UnitDestroyedListener,
         correction.negate();
         correction.add(mirrored);
         correction.normalize();
-        correction.scale(2 * Command.distance2D(tpos, pos) / (command.getCommandDelay() + 2));
+        correction.scale(2 * Command.distance2D(tpos, pos) / (command.getCommandDelay() + 6));
         correction.add(tpos);
         mirrored.scale(500);
         mirrored.add(pos);

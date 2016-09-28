@@ -29,6 +29,9 @@ public class FakeSlasher extends FakeEnemy {
     public FakeSlasher(AIFloat3 pos, WeaponDef weapon, Command cmd, OOAICallback clbk) {
         super(getUnitDef(cmd, weapon), pos, cmd, clbk);
         cmd.debug("New fake " + getDef().getHumanName() + " created at " + pos);
+        if (getDef().getCost(command.metal) > 3000){
+            command.getAvengerHandler().requestScout(getArea());
+        }
         this.identWeapon = weapon;
     }
 

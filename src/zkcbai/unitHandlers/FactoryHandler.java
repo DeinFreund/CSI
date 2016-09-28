@@ -60,6 +60,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         squads.add(new BansheeSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new SupportSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new AntiAirSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new LichoSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         startsquads.add(squads.get(0));
         startsquads.add(squads.get(0));
 
@@ -538,7 +539,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 troopIdle(unit);
             }
             if (buildOrders.isEmpty()) {
-                command.debug(unit.getDef().getHumanName() + " idle");
+                //command.debug(unit.getDef().getHumanName() + " idle");
             }
         }
 
