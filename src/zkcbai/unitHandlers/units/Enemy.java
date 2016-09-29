@@ -168,6 +168,7 @@ public class Enemy {
         }
         if (unit != null && unit.getPos().length() > 0) {
             lastPos = lastPosPossible = unit.getPos();
+            lastSeen = command.getCurrentFrame();
             return new AIFloat3(lastPos);
         }
         return new AIFloat3(lastPosPossible);
@@ -295,7 +296,7 @@ public class Enemy {
         if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700 || getDef().isAbleToFly()) {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
         } else {
-            return !clbk.getFriendlyUnitsIn(pos, Math.max(150, getDef().getDecloakDistance())).isEmpty();
+            return !clbk.getFriendlyUnitsIn(pos, Math.max(50, getDef().getDecloakDistance())).isEmpty();
         }
 
     }
@@ -339,6 +340,7 @@ public class Enemy {
         if (isBuilding) {
             return 0;
         }
+        if (command.getCurrentFrame() - lastUpdate > 5) getPos();
         if (Command.distance2D(lastPos, lastPosPossible) > 1000) {
             return (command.getCurrentFrame() - lastSeen) * 3 + 180;
         }
@@ -356,6 +358,7 @@ public class Enemy {
 
     public void update(int frame) {
         long time = System.nanoTime();
+        lastUpdate = frame;
         if (!isAlive()) {
             polledDead();
             return;
@@ -364,7 +367,6 @@ public class Enemy {
             destroyMyself();
         }
         health = Math.min(getDef().getHealth(), health + (frame - lastUpdate) * regen * getDef().getHealth());
-        lastUpdate = frame;
         if (unit != null && unit.getHealth() > 0) {
             //in LOS
             health = unit.getHealth();

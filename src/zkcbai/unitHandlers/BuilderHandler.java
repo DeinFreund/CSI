@@ -187,15 +187,18 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 //command.debug("Worker with BuildTask idling");
                 score += 500;
             }
-            if ((bt.getBuilding().getWeaponMounts().size() > 0 && bt.getBuilding().getSpeed() < 0.1f) || bt.getBuilding().equals(radar)) {
+            if ((bt.getBuilding().getWeaponMounts().size() > 0 && bt.getBuilding().getSpeed() < 0.1f)) {
                 score += 600;
+            }
+            if (bt.getBuilding().equals(radar)){
+                score += 1000;
             }
             if (u.getMetalCost() > 500 && bt.getBuilding().getWeaponMounts().size() > 0 && energyIncome > 10) {
                 //compush
                 score += 500;
             }
             if (bt.getBuilding().getName().equals("cormex") && !((avgMetalIncome > energyIncome && clbk.getEconomy().getCurrent(command.energy) < 350) || avgMetalIncome > energyIncome * 1.1)) {
-                score += 500 * getEnergyIncome() / avgMetalIncome;
+                score += 700 * getEnergyIncome() / avgMetalIncome;
                 if (command.getCurrentFrame() > 30 * 60 * 7) {
                     score += 1000;
                 }
@@ -209,7 +212,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if ((bt.getBuilding().isAbleToAssist() || bt.getBuilding().getBuildOptions().size() > 5)
                     && clbk.getEconomy().getCurrent(command.metal) > 0.5 * getMetalStorage()
                     && clbk.getEconomy().getCurrent(command.energy) > 0.5 * getMetalStorage()) {
-                score += 1000 * clbk.getEconomy().getCurrent(command.metal) / getMetalStorage();
+                score += 2000 * clbk.getEconomy().getCurrent(command.metal) / getMetalStorage();
             }
             if (best == null || score > bestscore) {
                 bestscore = score;
@@ -252,10 +255,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if (a.getZone() == Zone.own && !a.isFront()) {
                 score += 800;
             }
-            command.mark(a.getPos(), a.getReclaim() + " reclaim");
             if (best == null || score > bestscore) {
                 bestscore = score;
-                best = new ReclaimTask(a.getPos(), Math.max(a.getWidth(), a.getHeight()), this, command);
+                best = new ReclaimTask(a.getPos(), a.getEnclosingRadius(), this, command);
             }
         }
 

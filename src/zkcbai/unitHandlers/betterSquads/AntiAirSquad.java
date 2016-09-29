@@ -66,7 +66,7 @@ public class AntiAirSquad extends SquadManager {
                 antiairValue += au.getMetalCost();
             }
         }
-        for (Enemy e : command.getEnemyUnits(true)){
+        for (Enemy e : command.getEnemyUnits(false)){
             if (e.getDef().isAbleToFly()){
                 airValue += e.getMetalCost();
             }

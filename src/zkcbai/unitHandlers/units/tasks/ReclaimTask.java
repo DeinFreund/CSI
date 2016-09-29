@@ -21,7 +21,7 @@ import zkcbai.unitHandlers.units.Enemy;
  *
  * @author User
  */
-public class ReclaimTask extends Task implements TaskIssuer{
+public class ReclaimTask extends Task implements TaskIssuer {
 
     private AIFloat3 target;
     private float range;
@@ -39,17 +39,27 @@ public class ReclaimTask extends Task implements TaskIssuer{
 
     @Override
     public boolean execute(AITroop u) {
-        if (finished) return true;
-        workers.add((AIUnit)u);
+        if (finished) {
+            return true;
+        }
+        workers.add((AIUnit) u);
         if (errors > 10) {
             completed(u);
             issuer.abortedTask(this);
             return true;
         }
-        if (command.areaManager.getArea(target).getReclaim() < 0.1f || (u.distanceTo(target) < u.getDef().getBuildDistance() * 1.5 && command.getCallback().getFeaturesIn(target, range).isEmpty()) ) {
-            completed(u);
-            issuer.finishedTask(this);
-            return true;
+        if (command.areaManager.getArea(target).getReclaim() < 0.1f || (u.distanceTo(target) < u.getDef().getBuildDistance() * 1.5 && command.getCallback().getFeaturesIn(target, range).isEmpty())) {
+            command.areaManager.getArea(target).updateReclaim();
+            if (command.areaManager.getArea(target).getReclaim() > 0.1f) {
+                command.debug("Reclaim not properly updated");
+                command.debugStackTrace();
+                u.wait(command.getCurrentFrame() + 30);
+                return false;
+            } else {
+                completed(u);
+                issuer.finishedTask(this);
+                return true;
+            }
         }
         if (u.distanceTo(target) > u.getDef().getBuildDistance()) {
             u.assignTask(new MoveTask(target, u.getCommand().getCurrentFrame() + 60, this, u.getCommand().pathfinder.AVOID_ENEMIES, u.getCommand()).queue(this));

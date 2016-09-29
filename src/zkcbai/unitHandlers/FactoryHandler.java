@@ -193,7 +193,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                     }
                 }
                 boolean isStartSquad = false;
-                if (!startsquads.isEmpty()) {
+                if (!startsquads.isEmpty() && startsquads.peek().getRequiredUnits(fac.getBuildOptions()) != null) {
                     do {
                         best = startsquads.poll();
                         isStartSquad = true;
@@ -348,7 +348,11 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         buildPositions.clear();
         buildPositions.addAll(position);
         if (facsPlanned == 1) {
-            bestFac = clbk.getUnitDefByName("factorygunship"); //hardcode light vehicle factory 
+            if (Math.max(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
+                bestFac = clbk.getUnitDefByName("factoryplane");
+            } else {
+                bestFac = clbk.getUnitDefByName("factorygunship");
+            }
             buildPositions.clear();
             buildPositions.addAll(command.areaManager.getAreas());
         }
@@ -356,7 +360,11 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             // bestFac = clbk.getUnitDefByName("factoryjump"); //hardcode light vehicle factory 
         }
         if (facsPlanned == 3) {
-            bestFac = clbk.getUnitDefByName("factoryplane"); //hardcode light vehicle factory 
+            if (Math.max(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
+                bestFac = clbk.getUnitDefByName("factorygunship");
+            } else {
+                bestFac = clbk.getUnitDefByName("factoryplane");
+            }
             buildPositions.clear();
             buildPositions.addAll(command.areaManager.getAreas());
         }
@@ -423,6 +431,9 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     @Override
     public void update(int frame) {
         if (frame % 7 == 1) {
+            if (factories.size() > 10){
+                command.debug(factories.size() + " factories!");
+            }
             for (Factory f : factories) {
                 if (f.getCurrentTask() == null) {
                     f.buildNextUnit();

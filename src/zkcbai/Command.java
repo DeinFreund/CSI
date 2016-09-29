@@ -166,8 +166,8 @@ public class Command implements AI {
     public FactoryHandler getFactoryHandler() {
         return facHandler;
     }
-    
-    public CreepHandler getCreepHandler(){
+
+    public CreepHandler getCreepHandler() {
         return creepHandler;
     }
 
@@ -1081,7 +1081,13 @@ public class Command implements AI {
             mark(bt.getPos(), "cleared outdated buildtask for " + building.getHumanName());
             clearBuildTask(bt);
         }
-        //debug(areaManager.getMexes().size() + " mexes");
+        for (AIUnit fac : facHandler.getUnits()) {
+            eval++;
+            if (distance2D(fac.getPos(), pos) < fac.getDef().getRadius() + building.getRadius() + 200) {
+                return false;
+            }
+
+        }
         float mindist = Float.MAX_VALUE;
         for (Mex m : areaManager.getArea(pos).getNearbyMexes()) {
             mindist = Math.min(mindist, m.distanceTo(pos));

@@ -21,6 +21,7 @@ import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.DevNullHandler;
+import zkcbai.unitHandlers.betterSquads.AntiAirSquad;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.RepairTask;
 import zkcbai.unitHandlers.units.tasks.Task;
@@ -251,7 +252,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         if (unit.getPos().lengthSquared() < 0.1) {
             getCommand().debug("aiunit " + unitId + "(" + (unit.getDef() != null ? unit.getDef().getHumanName() : "null") + ") might be dead");
         }
-        if (dead || (getDef() == null) ) {
+        if (dead || (unit.getDef() == null) ) {
+            dead = true;
             handler.getCommand().debug("polled dead aiunit " + unitId + "");
             handler.getCommand().debugStackTrace();
             handler.getCommand().addSingleUpdateListener(new UpdateListener() {
@@ -294,6 +296,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     @Override
     public void idle() {
+        long time = System.nanoTime();
         checkDead();
         if (handler.getCommand() == null) {
             return;
@@ -309,12 +312,17 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         }
         lastIdle = getCommand().getCurrentFrame();
         clearUpdateListener();
+        time = System.nanoTime() - time;
+        if (time > 0.5e6){
+            getCommand().debug("Fac collision checks took " + time + "ns");
+        }
 
         doTask();
     }
 
     @Override
     protected void doTask() {
+        long time = System.nanoTime();
         checkDead();
         
         if (autoRepair && needRepairs && !isBuilding() && handler.retreatForRepairs(this) && (task == null || !task.equals(retreatTask))) {
@@ -324,6 +332,10 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             }
             assignTask(retreatTask);
             getCommand().debug(getDef().getHumanName() + " retreating");
+        }
+        time = System.nanoTime() - time;
+        if (time > 0.5e6){
+            getCommand().debug("Retreat checks took " + time + "ns");
         }
         super.doTask();
     }
@@ -382,6 +394,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         if (timeout < 0) {
             timeout = Integer.MAX_VALUE;
         }
+        trg = new AIFloat3(Math.max(0, Math.min(getCommand().areaManager.getMapWidth() - 1, trg.x)), trg.y, Math.max(0, Math.min(getCommand().areaManager.getMapHeight() - 1, trg.z)));
         lastCommandTime = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         try {
@@ -413,6 +426,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
                 unit.attack(trg.getUnit(), options, Integer.MAX_VALUE);
             } else {
                 unit.moveTo(trg.getPos(), options, Integer.MAX_VALUE);
+                unit.attack(trg.getUnit(), OPTION_SHIFT_KEY, Integer.MAX_VALUE);
                 timeout = getCommand().getCurrentFrame() + 10;
             }
         } catch (Exception ex) {
@@ -573,7 +587,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         lastCall = handler.getCommand().getCurrentFrame();
         areaManager.executedCommand();
         try {
-            if (getMaxRange() > 400 && getNearestEnemy() != null && getNearestEnemy().distanceTo(getPos()) < getMaxRange() * 0.9) {
+            if (getMaxRange() > 400 && getNearestEnemy() != null && getNearestEnemy().distanceTo(getPos()) < Math.max(400, getMaxRange() * 0.8)
+                    && !AntiAirSquad.antiair.contains(getDef())) {
                 unit.moveTo(getArea().getNearestArea(getCommand().areaManager.SAFE).getPos(), options, Integer.MAX_VALUE);
             } else {
                 unit.fight(trg, options, Integer.MAX_VALUE);

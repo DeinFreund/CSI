@@ -129,7 +129,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
     public final AreaChecker SAFE = new AreaChecker() {
         @Override
         public boolean checkArea(Area a) {
-            return a.getNearbyEnemies().isEmpty() && a.getEnemyAADPS() < 1 && a.getZone() == Zone.own;
+            return a.getNearbyEnemies().isEmpty() && a.getEnemyAADPS() < 50 && a.getZone() == Zone.own;
         }
     };
     public final AreaChecker HOSTILE_RAIDER_ACCESSIBLE = new AreaChecker() {
@@ -1039,6 +1039,11 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
         public float getReclaim() {
             return reclaim;
         }
+        
+        public void updateReclaim(){
+            lastReclaimCache = -1000;
+            isInLOS();
+        }
 
         /**
          *
@@ -1057,9 +1062,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                     long time = System.nanoTime();
                     lastReclaimCache = command.getCurrentFrame();
                     reclaim = 0;
-                    for (Feature f : clbk.getFeaturesIn(getPos(), Math.max(getHeight(), getWidth()))) {
+                    for (Feature f : clbk.getFeaturesIn(getPos(), getEnclosingRadius())) {
                         if (f.getDef().getContainedResource(command.metal) > 0 && getArea(f.getPosition()).equals(this)) {
-                            reclaim += f.getReclaimLeft();
+                            reclaim += f.getDef().getContainedResource(command.metal);
                         }
                     }
                     if (reclaim > 10) {
@@ -1106,7 +1111,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             getDanger();
             Set<Enemy> ret = new HashSet();
             for (Enemy e : nearbyEnemiesArr) {
-                if (e.isAlive()) {
+                if (e.isAlive() && !e.isTimedOut()) {
                     ret.add(e);
                 }
             }

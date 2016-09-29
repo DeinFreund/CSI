@@ -525,7 +525,7 @@ public final class Pathfinder extends Helper {
 
         @Override
         public float getCost(Area pos) {
-            return 4f * command.defenseManager.getGeneralDanger(pos.getPos());
+            return 0.4f * command.defenseManager.getGeneralDanger(pos.getPos());
         }
     };
     /**

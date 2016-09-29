@@ -255,7 +255,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             }
             for (Enemy e : enemyAir) { // enemies in friendly territorry
                 Area area = command.areaManager.getArea(e.getPos());
-                if ((area.getNearbyEnemies().size() < 4 || area.getZone() == Zone.own) && area.getEnemyAADPS() * 1.8 < fighterDPS) {
+                if ((area.getNearbyEnemies().size() < 4 || area.getZone() != Zone.hostile) && area.getEnemyAADPS() * 1.8 < fighterDPS) {
                     if (fighters.distanceTo(e.getPos()) < 1000) {
                         fighters.attack(e, command.getCurrentFrame() + 100);
                         command.debug(fighters.getUnits().size() + " avengers attacking " + e.getDef().getHumanName());
@@ -280,7 +280,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             if (frame < 30 * 60 * 8) {
                 for (Enemy e : enemyAir) {
                     Area area = command.areaManager.getArea(e.getPos());
-                    if ((area.getEnemyAADPS() + 100) * 8 < fighterDPS) {
+                    if ((area.getEnemyAADPS() + 100) * 4 < fighterDPS) {
                         if (area.getEnemyAADPS() < 1) {
                             area.updateAADPS();
                         }
@@ -298,7 +298,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                 }
             }
 
-            fighters.moveTo(command.getStartPos(), command.getCurrentFrame() + 100);
+            fighters.moveTo(fighters.getArea().getNearestArea(command.areaManager.SAFE).getPos(), command.getCurrentFrame() + 100);
             command.debug("no target for avengers");
         }
     }
