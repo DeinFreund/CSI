@@ -183,8 +183,8 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                     if (nearbyAlly < 150 && nearbyNoFighter > 50){
                         score *= 3;
                     }
-                    if (e.getDef().isAbleToCloak() && e.getMetalCost() > 200 && !e.isAntiAir() && enemyArea.getZone() == Zone.own) {
-                        score *= 10;
+                    if (e.getDef().isAbleToCloak() && e.getMetalCost() > 200 && !e.isAntiAir() && enemyArea.getZone() != Zone.hostile) {
+                        score *= 5;
                     }
                     if (command.getCommandDelay() > 60 && !e.isVisible()){
                         score /= 10;

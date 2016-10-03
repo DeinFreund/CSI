@@ -55,10 +55,15 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
         List<String> commanderNames = new ArrayList<String>();
 
         for (UnitDef ud : unitdefs) {
+            String lvl1 = ud.getName();
             Map<String, String> customParams = ud.getCustomParams();
             String level = customParams.get("level");
             if (level != null) {
-                if (Integer.parseInt(level) == 0 && ud.getTooltip().contains("Support")) {
+
+                if ((!lvl1.contains("dyntrainer")) || (!lvl1.contains("base"))) {
+                    continue;
+                }
+                if (ud.getTooltip().contains("Support")) {
                     commanderNames.add(ud.getName());
                 }
             }
@@ -66,7 +71,10 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
 
         int index = (int) Math.floor(Math.random() * commanderNames.size());
         String name = commanderNames.get(index);
-        callback.getLua().callRules("ai_commander:" + name, -1);
+        clbk.getGame().sendTextMessage("selecting commander: " + name, 0);
+        String cmd = "ai_commander:" + name;
+
+        callback.getLua().callRules(cmd, cmd.length());
         this.teamId = teamId;
         int startbox = -1;
         int myIndex = 0;
@@ -74,7 +82,9 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
 //        clbk.getGame().sendTextMessage("my team id2 is " + clbk.getGame().getMyTeam(), 0);
 //        clbk.getGame().sendTextMessage("my team id3 is " + clbk.getGame().getMyAllyTeam(), 0);
         for (Team t : callback.getAllyTeams()) {
-            if (!isIngroup(t.getTeamId(), clbk) && isIngroup(clbk.getGame().getMyTeam(), clbk)) continue;
+            if (!isIngroup(t.getTeamId(), clbk) && isIngroup(clbk.getGame().getMyTeam(), clbk)) {
+                continue;
+            }
             if (t.getTeamId() < clbk.getGame().getMyTeam()) {
                 if (myIndex == 0) {
                     teamToGive = t.getTeamId();
@@ -91,7 +101,7 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
         float startx = (clbk.getGame().getRulesParamFloat("startpos_x_" + startbox + "_" + (myIndex % startposes + 1), 0));
         float startz = (clbk.getGame().getRulesParamFloat("startpos_z_" + startbox + "_" + (myIndex % startposes + 1), 0));
 
-        clbk.getGame().sendStartPosition(true, new AIFloat3(startx, 0, startz));
+        clbk.getGame().sendStartPosition(false, new AIFloat3(startx, 0, startz));
 
         if (myIndex > 0) {
             slave = true;
@@ -103,14 +113,16 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
         return 0;
     }
 
-    private boolean isIngroup(int teamId, OOAICallback clbk){
+    private boolean isIngroup(int teamId, OOAICallback clbk) {
         String[] script = clbk.getGame().getSetupScript().split("\n");
-        for (int line = 0; line < script.length; line++){
-            if (script[line].startsWith("team=" + teamId) && script[line - 1].startsWith("shortname=CSI")) return true;
+        for (int line = 0; line < script.length; line++) {
+            if (script[line].startsWith("team=" + teamId) && script[line - 1].startsWith("shortname=CSI")) {
+                return true;
+            }
         }
         return false;
-    } 
-    
+    }
+
     @Override
     public int luaMessage(String inData) {
         if (slave) {

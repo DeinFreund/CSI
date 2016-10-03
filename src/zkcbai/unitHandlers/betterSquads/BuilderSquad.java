@@ -16,6 +16,7 @@ import java.util.Queue;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.helpers.AreaChecker;
+import zkcbai.helpers.EconomyManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.FighterHandler;
@@ -102,8 +103,8 @@ public class BuilderSquad extends SquadManager {
         for (AIUnit au : command.getBuilderHandler().getBuilders()) {
             bp += au.getDef().getBuildSpeed();
         }
-        if (bp - 10 > 2 * command.getBuilderHandler().getMetalIncome() || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size()
-                || bp > 200 || bp > (command.getCurrentFrame() + 30 * 60) * 10 / (30 * 45)) {
+        if (bp - 20 > 2.5 * command.getBuilderHandler().getMetalIncome() + Math.min(10, command.economyManager.getRemainingBudget(EconomyManager.Budget.economy) / 100) || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size()
+                || bp > 200 || bp > (command.getCurrentFrame() + 30 * 60) * 10 / (30 * 35)) {
             return -1f;
         } else {
             //command.debug("Total BP only " + bp + "/" + (int)(2 * command.getBuilderHandler().getMetalIncome() + 10) + " m/s");

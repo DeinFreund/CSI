@@ -20,6 +20,7 @@ import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.FighterHandler;
+import static zkcbai.unitHandlers.betterSquads.LichoSquad.bombers;
 import static zkcbai.unitHandlers.betterSquads.ScoutSquad.dangerChecker;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
@@ -67,10 +68,26 @@ public class AvengerSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() < 30 * 60 * 5) {
-            return 0.9f;
+        float aavalue, enemyairvalue, groundvalue, fightervalue;
+        aavalue = enemyairvalue = groundvalue = fightervalue = 0;
+        for (AIUnit au : command.getUnits()){
+            if (au.getDef().isAbleToAttack() && au.getDef().getBuildSpeed() < 0.1 && au.getDef().getSpeed() > 0.1){
+                groundvalue += au.getMetalCost();
+            }
+            if (AvengerSquad.fighters.contains(au.getDef()) || AntiAirSquad.antiair.contains(au.getDef())){
+                aavalue += au.getMetalCost();
+            }
+            if (AvengerSquad.fighters.contains(au.getDef()) || BansheeSquad.fighters.contains(au.getDef())){
+                fightervalue += au.getMetalCost();
+            }
         }
-        return 0.5f;
+        for (Enemy e : command.getAvengerHandler().getEnemyAir()){
+            enemyairvalue += e.getMetalCost();
+        }
+        if (groundvalue + 300 < 3 * fightervalue){
+            return 0f;
+        }
+        return Math.min(0.9f, enemyairvalue / (aavalue + 100f) + 0.1f);
         //return 0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f;
     }
 

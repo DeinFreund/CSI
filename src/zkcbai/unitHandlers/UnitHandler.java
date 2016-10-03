@@ -85,7 +85,13 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
     }
 
     public Collection<AIUnit> getUnits() {
-        return aiunits.values();
+        long time = System.nanoTime();
+        Collection<AIUnit> retval = aiunits.values();
+        time = System.nanoTime() - time;
+        if (time > 0.2e6){
+            command.debug("Getting units took " + time + " ns");
+        }
+        return retval;
     }
 
 }

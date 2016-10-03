@@ -469,7 +469,6 @@ public final class Pathfinder extends Helper {
      return;
 
      }*/
-
     float getHeuristic(int start, int trg) {
         //return Math.abs(start % smwidth - trg % smwidth) + Math.abs(start / smwidth - trg / smwidth);//manhattan distance only works without diagonal paths
         return (float) Math.sqrt((start % smwidth - trg % smwidth) * (start % smwidth - trg % smwidth) + (start / smwidth - trg / smwidth) * (start / smwidth - trg / smwidth));
@@ -589,6 +588,10 @@ public final class Pathfinder extends Helper {
 
     @Override
     public void update(int frame) {
+        /*while (!getPathfinderRequests().isEmpty()) {
+        PathfinderRequest request = getPathfinderRequests().poll();
+        request.listener.foundPath(findPath(request.start, request.target, request.movementType, request.costs, request.markReachable, false));
+        }*/
     }
 
 //      /**

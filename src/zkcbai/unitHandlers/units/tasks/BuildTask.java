@@ -99,7 +99,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
                         continue;
                     }
                     boolean valid = true;
-                    for (BuildTask bt : command.areaManager.getArea(pos).getNearbyBuildTasks()) {
+                    for (BuildTask bt : command.areaManager.getArea(pos).getNearbyBuildTasks(3)) {
                         if (Command.distance2D(bt.getPos(), pos) < _minDist + building.getRadius() + bt.getBuilding().getRadius()) {
                             valid = false;
                         }
@@ -140,7 +140,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
                         continue;
                     }
                     boolean valid = true;
-                    for (BuildTask bt : command.areaManager.getArea(pos).getNearbyBuildTasks()) {
+                    for (BuildTask bt : command.areaManager.getArea(pos).getNearbyBuildTasks(3)) {
                         if (Command.distance2D(bt.getPos(), pos) < _minDist + building.getRadius() + bt.getBuilding().getRadius()) {
                             valid = false;
                         }
@@ -327,6 +327,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     protected int lastBuildOrderTime = -10000;
 
+    protected int attempts = 0;
+
     /**
      *
      * @param u AITroop to use for task
@@ -335,11 +337,11 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     @Override
     public boolean execute(AITroop u) {
         lastExecution = command.getCurrentFrame();
-        if (command.areaManager.getArea(pos).getZone() != ZoneManager.Zone.own && command.getCurrentFrame() > 300){
+        if (command.areaManager.getArea(pos).getZone() != ZoneManager.Zone.own && command.getCurrentFrame() > 300) {
             command.debug("BuildTask paused because Enemy presence");
             return true;
         }
-        if (errors > 10) {
+        if (errors > 10 && building.getCost(command.metal) < 1000) {
             completed(u);
             command.debug("aborted task execution because of errors:");
             for (String s : errorMessages) {
@@ -378,11 +380,16 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             AIFloat3 trg = new AIFloat3();
             trg.interpolate(pos, u.getPos(), 100f / u.distanceTo(pos));
 
-            u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 30 * 60, this, command.pathfinder.AVOID_ENEMIES,command).queue(this));
+            u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 30 * 5, this, command.pathfinder.AVOID_ENEMIES, command).queue(this));
             return false;
         }
-        if (u.distanceTo(pos) > u.getDef().getBuildDistance() && Math.random() < 0.2) {
-            u.moveTo(pos, command.getCurrentFrame() + 30);
+        if (u.distanceTo(pos) > 2 * u.getDef().getBuildDistance() && Math.random() < 0.1) {
+            if (attempts++ > 5) {
+                u.moveTo(pos, command.getCurrentFrame() + 30 * Math.min((int) Math.abs(clbk.getMap().getElevationAt(pos.x, pos.z) - u.getPos().y), 30 * 40));
+            } else {
+
+                u.moveTo(pos, command.getCurrentFrame() + 30);
+            }
             return false;
         }
         if (false && u.distanceTo(pos) < building.getRadius() && building.getSpeed() <= 0.001) {
@@ -481,7 +488,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public Object getResult() {
-        return command.getAIUnit(result);
+        return result;
     }
 
     @Override

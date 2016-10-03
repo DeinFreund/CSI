@@ -78,6 +78,7 @@ public class Enemy {
             aaUnits.add(clbk.getUnitDefByName("gunshipsupport"));//rapier
             aaUnits.add(clbk.getUnitDefByName("fighter"));
             aaUnits.add(clbk.getUnitDefByName("slowmort")); //moderator
+            aaUnits.add(clbk.getUnitDefByName("cormist")); //moderator
         }
     }
 
@@ -112,7 +113,7 @@ public class Enemy {
 
     protected void destroyMyself() {
         final Enemy meMyselfAndI = this;
-        command.debug("queued destroy");
+        command.debug("queued destroy of " + (unitDef != null ? unitDef.getHumanName() : hashCode()));
         command.addSingleUpdateListener(new UpdateListener() {
             @Override
             public void update(int frame) {
@@ -126,9 +127,10 @@ public class Enemy {
         }, command.getCurrentFrame() + 1);
     }
 
-    public Area getArea(){
+    public Area getArea() {
         return command.areaManager.getArea(getPos());
     }
+
     /**
      * only use when you can't use a UnitDestroyedListener instead
      *
@@ -155,13 +157,30 @@ public class Enemy {
         return lastAccPosTime;
     }
 
+    protected int lastPosCheck = -100;
+
     public AIFloat3 getPos() {
         if (!isAlive()) {
             polledDead();
         }
+        long time = System.nanoTime();
+        if (command.getCurrentFrame() - lastSeen < 600) {
+            AIFloat3 likelyPos = new AIFloat3(lastVel);
+            likelyPos.scale(command.getCurrentFrame() - lastPosCheck);
+            likelyPos.add(lastPosPossible);
+            if (command.areaManager.getArea(likelyPos).isReachable()) {
+                lastPosPossible = likelyPos;
+            }
+        }
+        lastPosCheck = command.getCurrentFrame();
+
         if ((shouldBeVisible(lastPosPossible) && !isVisible())) {
             command.debug(getDef().getHumanName() + " correcting visible position");
             update(command.getCurrentFrame());
+        }
+        time = System.nanoTime() - time;
+        if (time > 0.5e6) {
+            command.debug("getpos took " + time + "ns");
         }
         if (isBuilding() && !neverSeen) {
             return lastPos;
@@ -169,6 +188,7 @@ public class Enemy {
         if (unit != null && unit.getPos().length() > 0) {
             lastPos = lastPosPossible = unit.getPos();
             lastSeen = command.getCurrentFrame();
+            lastVel = getVel();
             return new AIFloat3(lastPos);
         }
         return new AIFloat3(lastPosPossible);
@@ -182,14 +202,20 @@ public class Enemy {
     }
 
     public UnitDef getDef() {
+        long time = System.nanoTime();
         if (!isAlive()) {
             polledDead();
-        }
+        }/*
         if (unit != null && unit.getDef() != null) {
             return unit.getDef();
-        }
+        }*/
         if (unitDef == null) {
             identify();
+        }
+        
+        time = System.nanoTime() - time;
+        if (time > 0.5e6) {
+            command.debug("getdef took " + time + "ns");
         }
         return unitDef;
     }
@@ -237,6 +263,8 @@ public class Enemy {
 
     protected void setUnit(Unit unit) {
         this.unit = unit;
+        unitDef = unit.getDef();
+        identify();
     }
 
     public Unit getUnit() {
@@ -268,6 +296,7 @@ public class Enemy {
     public AIFloat3 getLastPos() {
         return lastPos;
     }
+
     /**
      *
      * @return cached last resource
@@ -296,7 +325,7 @@ public class Enemy {
         if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700 || getDef().isAbleToFly()) {
             return command.radarManager.isInRadar(pos) || command.losManager.isInLos(pos);
         } else {
-            return !clbk.getFriendlyUnitsIn(pos, Math.max(50, getDef().getDecloakDistance())).isEmpty();
+            return !clbk.getFriendlyUnitsIn(pos, Math.max(35f, 0.9f * getDef().getDecloakDistance())).isEmpty();
         }
 
     }
@@ -337,10 +366,17 @@ public class Enemy {
         if (!isAlive()) {
             polledDead();
         }
+        long time = System.nanoTime();
         if (isBuilding) {
             return 0;
         }
-        if (command.getCurrentFrame() - lastUpdate > 5) getPos();
+        if (command.getCurrentFrame() - lastPosCheck > 5) {
+            getPos();
+        }
+        time = System.nanoTime() - time;
+        if (time > 0.5e6) {
+            command.debug("timesincelastseen took " + time + "ns");
+        }
         if (Command.distance2D(lastPos, lastPosPossible) > 1000) {
             return (command.getCurrentFrame() - lastSeen) * 3 + 180;
         }
@@ -351,13 +387,19 @@ public class Enemy {
         if (!isAlive()) {
             polledDead();
         }
-        return timeSinceLastSeen() > 1000 * 100 / Math.max(getDef().getSpeed(), 20) * 30 / Math.max(30, command.getCommandDelay());
+        long time = System.nanoTime();
+        boolean retval = timeSinceLastSeen() > 1000 * 100 / Math.max(getDef().getSpeed(), clbk.getUnitDefByName("armwar").getSpeed()) * 30 / Math.max(30, command.getCommandDelay());
+        time = System.nanoTime() - time;
+        if (time > 0.5e6) {
+            command.debug("istimedout took " + time + "ns");
+        }
+        return retval;
     }
 
     private int lastUpdate = 0;
 
     public void update(int frame) {
-        long time = System.nanoTime();
+        long time0 = System.nanoTime();
         lastUpdate = frame;
         if (!isAlive()) {
             polledDead();
@@ -366,6 +408,7 @@ public class Enemy {
         if (timeSinceLastSeen() > 30 * 60 * (int) getDef().getCost(command.metal) / 50) {
             destroyMyself();
         }
+        long time1 = System.nanoTime();
         health = Math.min(getDef().getHealth(), health + (frame - lastUpdate) * regen * getDef().getHealth());
         if (unit != null && unit.getHealth() > 0) {
             //in LOS
@@ -374,6 +417,8 @@ public class Enemy {
             lastAccPosTime = frame;
         }
         //command.debug(getDef().getHumanName() + " : " + shouldBeVisible(lastPosPossible) + " " + isVisible());
+
+        long time2 = System.nanoTime();
         if (unit != null && unit.getPos().length() > 0) {
             //in Radar
             lastPos = lastPosPossible = unit.getPos();
@@ -388,14 +433,14 @@ public class Enemy {
             } else {
                 Area npos;
                 AIFloat3 likelyPos = new AIFloat3(lastVel);
-                likelyPos.scale(Math.min(400, command.getCurrentFrame() - lastSeen));
+                likelyPos.scale(Math.min(600, command.getCurrentFrame() - lastSeen));
                 likelyPos.add(lastPos);
                 npos = command.areaManager.getArea(likelyPos).getNearestArea(invisible, getMovementType());
                 if (npos != null) {
                     lastPosPossible = npos.getPos();
                 } else {
                     command.debug("No possible pos found for " + getDef().getHumanName());
-                    command.enemyDestroyed(this, unit);
+                    destroyMyself();
                 }
             }
         } else {
@@ -403,13 +448,18 @@ public class Enemy {
                 command.mark(lastPosPossible, "invisible blastwing");
             }*/
         }
+
+        long time3 = System.nanoTime();
         if (neverSeen && unit != null && unit.getVel().length() > maxVelocity) {
             identify();
         }
-        time = System.nanoTime() - time;
-        if (time > 2e6) {
-            command.debug("Update of enemy took " + time + " ns");
+
+        long time4 = System.nanoTime();
+
+        if (time4 - time0 > 1e6) {
+            command.debug("Update of enemy  " + getDef().getHumanName() + " took " + (time4 - time3) + "/" + (time3 - time2) + "/" + (time2 - time1) + "/" + (time1 - time0) + "ns. ");
         }
+
         //command.mark(getPos(), getPos().toString());
     }
 
@@ -422,6 +472,9 @@ public class Enemy {
         if (neverSeen) {
             health = unit.getHealth();
             unitDef = unit.getDef();
+            if (unitDef.getName().equalsIgnoreCase("wolverine_mine")) {
+                destroyMyself();
+            }
             identify();
             if (unitDef.getName().equals("cormex")) {
                 command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
@@ -435,8 +488,8 @@ public class Enemy {
     public boolean isAntiAir() {
         return antiair;
     }
-    
-    public boolean isAbleToFly(){
+
+    public boolean isAbleToFly() {
         return isFlier;
     }
 
@@ -464,6 +517,9 @@ public class Enemy {
         }
         long time = System.nanoTime();
 
+        if (unit != null && unit.getDef() != null){
+            unitDef = unit.getDef();
+        }
         if (unit != null && neverSeen && (unitDef == null || unitDef.getSpeed() < maxVelocity - 0.001f)) {
             maxVelocity = Math.max(unit.getVel().length(), maxVelocity);
             if (command.getEnemyUnitDefSpeedMap().ceilingEntry(unit.getVel().length() - 1e-6f) != null) {
@@ -495,6 +551,7 @@ public class Enemy {
     }
 
     public void leaveLOS() {
+        command.debug(getDef().getHumanName() + " left LOS");
         inLOS = false;
         lastSeen = command.getCurrentFrame();
         update(command.getCurrentFrame());

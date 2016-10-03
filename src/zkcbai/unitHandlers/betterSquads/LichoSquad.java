@@ -16,6 +16,7 @@ import java.util.Queue;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.helpers.AreaChecker;
+import zkcbai.helpers.EconomyManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.helpers.ZoneManager.Zone;
@@ -51,14 +52,13 @@ public class LichoSquad extends SquadManager {
     final static private String[] bomberIds = {"armcybr"};
     public final static Set<UnitDef> bombers = new HashSet();
 
-
     @Override
     public List<UnitDef> getRequiredUnits(Collection<UnitDef> availableUnits) {
         Set<UnitDef> unitset = new HashSet(availableUnits);
         for (UnitDef ud : bombers) {
             if (unitset.contains(ud)) {
                 List<UnitDef> req = new ArrayList();
-                    req.add(ud);
+                req.add(ud);
                 return req;
             }
         }
@@ -67,28 +67,42 @@ public class LichoSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() < 30 * 60 * 5) {
-            return 0.1f;
-        }
         int fighters = 0;
         int aa = 0;
         int bomber = 0;
-        for (AIUnit au : command.getUnits()){
-            if (bombers.contains(au.getDef())){
-                bomber ++;
+        for (AIUnit au : command.getUnits()) {
+            if (bombers.contains(au.getDef())) {
+                bomber++;
             }
-            if (AvengerSquad.fighters.contains(au.getDef())){
-                fighters ++;
+            if (AvengerSquad.fighters.contains(au.getDef())) {
+                fighters++;
             }
-            if (AntiAirSquad.antiair.contains(au.getDef())){
-                aa ++;
+            if (AntiAirSquad.antiair.contains(au.getDef())) {
+                aa++;
             }
         }
-        
-        if (command.getCurrentFrame() - 30 * 60 * 12 > bomber * 30 * 60 * 8) {
+        float groundvalue, fightervalue;
+        groundvalue = fightervalue = 0;
+        for (AIUnit au : command.getUnits()){
+            if (au.getDef().isAbleToAttack() && au.getDef().getBuildSpeed() < 0.1 && au.getDef().getSpeed() > 0.1){
+                groundvalue += au.getMetalCost();
+            }
+            if (AvengerSquad.fighters.contains(au.getDef()) || BansheeSquad.fighters.contains(au.getDef()) || bombers.contains(au.getDef())){
+                fightervalue += au.getMetalCost();
+            }
+        }
+        if (groundvalue + 300 < 2 * fightervalue){
+            return 0f;
+        }
+
+        if (command.getCurrentFrame() - 30 * 60 * 10 > bomber * 30 * 60 * 8) {
             return 0.91f;
         }
-        return Math.min(0.9f, (fighters + aa - 5 * bomber) / 20f);
+        if (command.economyManager.getRemainingBudget(EconomyManager.Budget.offense) > 1800) {
+            return 0.8f;
+        }
+        command.debug("LichoSquad usefulness: " + Math.min(0.9f, Math.max((fighters + aa - 5 * bomber) / 20f, 0.5f) * 2f - 1.01f));
+        return Math.min(0.9f, Math.max((fighters + aa - 5 * bomber) / 20f, 0.5f) * 2f - 1.01f);
         //return 0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f;
     }
 
@@ -108,7 +122,6 @@ public class LichoSquad extends SquadManager {
     }
 
     Enemy target = null;
-
 
     @Override
     public void abortedTask(Task t) {

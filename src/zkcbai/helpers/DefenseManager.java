@@ -66,13 +66,18 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
      * @return
      */
     public float getImmediateDanger(AIFloat3 pos) {
+        long time = System.nanoTime();
         float result = 0;
-        for (Enemy e : fighters) {
+        for (Enemy e : command.getEnemyUnitsIn(pos, 1200)) {
             /*if (e.getDef().getHumanName().contains("com")) {
              result += 200;
              continue;
              }*/
-            result += (e.distanceTo(pos) <= e.getMaxRange() * 2 ? 1 : 0) * e.getDef().getCost(command.metal);
+            result += ((e.distanceTo(pos) <= e.getMaxRange() + 350) ? 1 : 0) * (e.getDef().getCustomParams().containsKey("commtype") ? 500 : e.getDef().getCost(command.metal));
+        }
+        time = System.nanoTime() - time;
+        if (time > 0.5e6) {
+            command.debug("getting danger took " + time + " ns");
         }
         return result;
     }
@@ -84,8 +89,12 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
     public float getGeneralDanger(AIFloat3 pos, boolean excludeFliers, boolean excludeAntiAir) {
         float result = 0;
         for (Enemy e : command.areaManager.getArea(pos).getNearbyEnemies()) {
-            if (e.isAbleToFly() && excludeFliers) continue;
-            if (e.isAntiAir() && excludeAntiAir) continue;
+            if (e.isAbleToFly() && excludeFliers) {
+                continue;
+            }
+            if (e.isAntiAir() && excludeAntiAir) {
+                continue;
+            }
             result += (Command.distance2D(e.getLastPosPossible(), pos) <= e.getMaxRange() * 1.5 ? 0.5 : 0) * e.getMetalCost();
             result += (Command.distance2D(e.getLastPosPossible(), pos) <= e.getMaxRange() * 2.7 ? 0.5 : 0) * e.getMetalCost();
         }

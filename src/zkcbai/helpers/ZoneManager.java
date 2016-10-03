@@ -12,10 +12,11 @@ import com.springrts.ai.oo.clb.Team;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import java.awt.Color;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.geom.Rectangle2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ import static zkcbai.helpers.Helper.command;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager.Area.Connection;
 import zkcbai.helpers.ZoneManager.Area.DebugConnection;
+import zkcbai.helpers.ZoneManager.Area.DebugString;
 import zkcbai.helpers.ZoneManager.Owner;
 import static zkcbai.helpers.ZoneManager.Owner.enemy;
 import static zkcbai.helpers.ZoneManager.Owner.none;
@@ -230,7 +232,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             pnl = new MapGUI();
             frm.add(pnl);
             frm.setVisible(true);
-            frm.setSize(500, 500 * clbk.getMap().getHeight() / clbk.getMap().getWidth());
+            frm.setSize(900 * clbk.getMap().getWidth() / clbk.getMap().getHeight(), 900);
         }
     }
 
@@ -396,6 +398,27 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             parseStartScript();
         }
 
+        if (frame % (30 * 30) == 52 && frame > 300) {
+            int enemy, own, total;
+            enemy = own = total = 0;
+            for (Area a : getAreas()) {
+                if (a.getZone() == Zone.hostile)  enemy ++;
+                if (a.getZone() == Zone.own)  own ++;
+                total ++;
+            }
+            if (enemy >  3 * own) {
+
+                clbk.getGame().sendTextMessage("/say CSI: GG WP", 0);
+                for (Unit u : clbk.getFriendlyUnits()) {
+                    u.selfDestruct((short) 0, Integer.MAX_VALUE);
+                }
+            }
+            if (own > 3 * enemy && own > 0.6 * total) {
+
+                clbk.getGame().sendTextMessage("/say CSI: Resign already!", 0);
+            }
+        }
+
         if (frame % 150 == 100) {
             if (checkCounter + priorityCounter < areas.size()) {
                 command.debug("Area update interval is " + (5f * areas.size() / (priorityCounter + checkCounter)) + " seconds");
@@ -442,10 +465,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                 command.debug("Updated " + (areacounter) + " Area caches in " + (System.nanoTime() - time1) + "ns.");
             }
 
-            if (frame % 120 == 11 && pnl != null) {
+            if (frame % (14 * (command.getCurrentFrame() + 5000) / 5000) == 11 && pnl != null) {
                 long time2 = System.currentTimeMillis();
-                pnl.updateFramebuffer();
-                pnl.updateUI();
+                try {
+                    pnl.updateFramebuffer();
+                    pnl.updateUI();
+                } catch (Exception ex) {
+                    command.debug("Error drawing framebuffer ", ex);
+                }
                 if (System.currentTimeMillis() - time2 > 80) {
                     command.debug("Updating Framebuffer took " + (System.currentTimeMillis() - time2) + "ms.");
                 }
@@ -466,8 +493,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
          enemy = e;
          }
          }*/
-        final int ITERATIONS = 10;
-        final int PATH_LENGTH = 80;
+        final int ITERATIONS = 16;
+        final int PATH_LENGTH = 70;
         final int enemies = command.getEnemyUnits(true).size();
         //MovementType movementType = MovementType.getMovementType(command.getFactoryHandler().getNextFac(new HashSet()).getBuildOptions().get(0));
         for (int i = 0; i < ITERATIONS; i++) {
@@ -476,7 +503,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             }
             AIUnit own2 = command.getRandomUnit();
             int antilag = 10;
-            /*while (!own2.isBuilding()) {
+            while (own2.getDef().isAbleToFly()) {
                 own2 = command.getRandomUnit();
                 if (antilag-- < 0) {
                     break;
@@ -484,7 +511,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             }
             if (antilag < 0) {
                 continue;
-            }*/
+            }
             final AIUnit own = own2;
             final int units = command.getUnits().size();
             float value = own.getMetalCost();
@@ -503,25 +530,25 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
 
                 @Override
                 public boolean checkArea(zkcbai.helpers.ZoneManager.Area a) {
-                    a.addFlow(finvalue * units / (500 * ITERATIONS * PATH_LENGTH));
+                    a.addFlow(finvalue * units / (400 * ITERATIONS * PATH_LENGTH));
                     return true;
                     //return !own.isBuilding() || a.distanceTo(own.getPos()) < own.getMaxRange();
                 }
-            }, MovementType.spider /*own.isBuilding() ? MovementType.bot : own.getMovementType()*/);
+            }, own.isBuilding() ? MovementType.bot : own.getMovementType());
             Enemy tenemy = command.getRandomEnemy();
             for (int blub = 0; blub < 10; blub++) {
-                if (tenemy != null && tenemy.getDef().isAbleToAttack()) {
+                if (tenemy != null && (tenemy.getDef().isAbleToAttack() || command.getCurrentFrame() < 30 * 60 * 10 || true) && !tenemy.isAbleToFly()) {
                     break;
                 }
                 tenemy = command.getRandomEnemy();
             }
             final Enemy enemy = tenemy;
-            if (enemy != null && enemy.getDef().isAbleToAttack()) {
+            if (enemy != null && (tenemy.getDef().isAbleToAttack() || command.getCurrentFrame() < 30 * 60 * 10  || true)  && !enemy.isAbleToFly()) {
                 getArea(enemy.getPos()).randomWalk(PATH_LENGTH, new AreaChecker() {
 
                     @Override
                     public boolean checkArea(zkcbai.helpers.ZoneManager.Area a) {
-                        a.addFlow(-enemy.getMetalCost() * enemies / (500 * ITERATIONS * PATH_LENGTH));
+                        a.addFlow(-(enemy.getDef().getName().equals("cormex") ? 150 : enemy.getMetalCost()) * 2 * enemies / (400 * ITERATIONS * PATH_LENGTH));
                         return true;
                         //return !enemy.isBuilding() || a.distanceTo(enemy.getPos()) < enemy.getMaxRange();
                     }
@@ -529,8 +556,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             }
         }
         //}
-        if (frame % 17 == 0) {
-            cmdsPerSec = cmds / 50f * 30;
+        if (frame % 30 == 7) {
+            cmdsPerSec = cmds;
             cmds = 0;
         }
         if (frame % 150 == 42) {
@@ -682,6 +709,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
         cmds++;
     }
 
+    public float getCommandsPerSecond() {
+        return cmdsPerSec;
+    }
+
     private int tasks = 0;
 
     public void executedTask() {
@@ -712,6 +743,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
         private List<Connection> connections = new ArrayList();
         private Map<MovementType, List<Connection>> connMap = new HashMap();
         private Set<DebugConnection> debugConns = new HashSet();
+        private Set<DebugString> debugStrings = new HashSet();
         private int lastPathCalcTime = -100000;
         private float flow = 0;
         private float negativeFlow = 0;
@@ -792,9 +824,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             return buildTasks;
         }
 
-        public Collection<BuildTask> getNearbyBuildTasks() {
+        public Collection<BuildTask> getNearbyBuildTasks(int radius) {
             Collection<BuildTask> nearby = new HashSet<>();
-            for (Area a : getNeighbours()) {
+            for (Area a : getNeighbours(radius)) {
                 nearby.addAll(a.getBuildTasks());
             }
             return nearby;
@@ -890,7 +922,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             }
             clearFancyPaths();
             while (!connQueue.isEmpty()) {
-                addConnection(connQueue.peek().endpoint, connQueue.peek().length, connQueue.poll().movementType);
+                if (connQueue.peek().endpoint.getCenterHeight() > 0 || connQueue.peek().movementType.equals(MovementType.air)) {
+                    addConnection(connQueue.peek().endpoint, connQueue.peek().length, connQueue.peek().movementType);
+                }
+                connQueue.poll();
             }
         }
 
@@ -1039,8 +1074,8 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
         public float getReclaim() {
             return reclaim;
         }
-        
-        public void updateReclaim(){
+
+        public void updateReclaim() {
             lastReclaimCache = -1000;
             isInLOS();
         }
@@ -1073,7 +1108,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                         reclaimAreas.remove(this);
                     }
                     time = System.nanoTime() - time;
-                    if (time > 2e6) {
+                    if (time > 0.5e6) {
                         command.debug("Update of reclaimables took " + time + "ns.");
                     }
                 }
@@ -1203,15 +1238,22 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                 dangerCache = 0;
                 int enemiesEvaluated = 0;
                 for (Enemy e : command.getEnemyUnits(false)) {
+                    long time1 = System.nanoTime();
                     enemiesEvaluated++;
-                    float speed = 3 * Math.max(30, e.getDef().getSpeed());
-                    dangerCache += e.getDPS() * e.getHealth() / speed / Math.sqrt(2 * Math.PI)
-                            * Math.exp(-e.distanceTo(pos) * e.distanceTo(pos) / (speed * speed));
+                    //float speed = 3 * Math.max(30, e.getDef().getSpeed());
+                    //dangerCache += e.getDPS() * e.getHealth() / speed / Math.sqrt(2 * Math.PI) * Math.exp(-e.distanceTo(pos) * e.distanceTo(pos) / (speed * speed));
+
+                    long time2 = System.nanoTime();
                     if (getArea(e.getPos()).equals(this)) {
                         enemies.add(e);
                     }
+                    long time3 = System.nanoTime();
                     if (e.distanceTo(pos) < getNearbyRadius()) {
                         nearbyEnemies.add(e);
+                    }
+                    long time4 = System.nanoTime();
+                    if (time4 - time1 > 0.5e6) {
+                        command.debug("Evaluating enemy danger took " + (time4 - time3) + "/" + (time3 - time2) + "/" + (time2 - time) + "/" + "ns.");
                     }
                 }
                 nearbyEnemiesArr = nearbyEnemies.toArray(new Enemy[nearbyEnemies.size()]);
@@ -1239,6 +1281,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                 return false;
             }
             if (command.getCurrentFrame() - lastIsFrontCache > 100) {
+                long time = System.nanoTime();
                 int hostile = 0;
                 int neutral = 0;
                 int own = 0;
@@ -1246,6 +1289,9 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                 for (int dx = -radius; dx <= radius; dx++) {
                     for (int dy = -radius; dy <= radius; dy++) {
                         if (x + dx >= map.length || y + dy >= map[0].length || x + dx < 0 || y + dy < 0) {
+                            continue;
+                        }
+                        if (!map[x + dx][y + dy].isReachable()) {
                             continue;
                         }
                         Zone zone = map[x + dx][y + dy].getZone();
@@ -1259,16 +1305,60 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                     }
                 }
                 lastIsFrontCache = command.getCurrentFrame();
-                isFrontCache = (neutral + hostile) / (float) (neutral + hostile + own) > 0.2;
+                isFrontCache = (neutral + hostile) / (float) (neutral + hostile + own) > 0.13;
+                if (command.getCurrentFrame() > 30 * 60 * 8 && hostile <= 1){
+                    isFrontCache = false;
+                }
+                time = System.nanoTime() - time;
+                if (time > 0.5e6) {
+                    command.debug("Updating isFront took " + time + "ns");
+                }
             }
             return isFrontCache;
         }
 
+        private int lastIsSecondFrontCache = -200;
+        private boolean isSecondFrontCache;
+
+        public boolean isSecondFront() {
+            if (getZone() != Zone.own || isFront()) {
+                return false;
+            }
+            if (command.getCurrentFrame() - lastIsSecondFrontCache > 100) {
+                long time = System.nanoTime();
+                int total = 0;
+                int front = 0;
+                int radius = 3;
+                for (int dx = -radius; dx <= radius; dx++) {
+                    for (int dy = -radius; dy <= radius; dy++) {
+                        if (x + dx >= map.length || y + dy >= map[0].length || x + dx < 0 || y + dy < 0) {
+                            continue;
+                        }
+                        if (!map[x + dx][y + dy].isReachable()) {
+                            continue;
+                        }
+                        if (map[x + dx][y + dy].isFront()) {
+                            front++;
+                        }
+                        total++;
+                    }
+                }
+                lastIsSecondFrontCache = command.getCurrentFrame();
+                isSecondFrontCache = (front) / (float) (total) > 0.13;
+                time = System.nanoTime() - time;
+                if (time > 0.5e6) {
+                    command.debug("Updating isSecondFront took " + time + "ns");
+                }
+            }
+            return isSecondFrontCache;
+        }
+
         public float getValue() {
-            if (command.getCurrentFrame() - lastValueCache > 60) {
+            if (command.getCurrentFrame() - lastValueCache > 600000) {
+                long time = System.nanoTime();
                 lastValueCache = command.getCurrentFrame();
                 valueCache = 0;
-                for (AIUnit u : command.getUnits()) {
+                for (AIUnit u : command.getUnitsIn(pos, getEnclosingRadius() * 7)) {
                     float speed = 8 * Math.max(40, u.getUnit().getDef().getSpeed());
                     float val = u.getUnit().getDef().getCost(command.metal);
                     float dist = Math.max(0, u.distanceTo(pos));
@@ -1277,6 +1367,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                     }
                     valueCache += val / speed / Math.sqrt(2 * Math.PI)
                             * Math.exp(-dist * dist / (speed * speed));
+                }
+                time = System.nanoTime() - time;
+                if (time > 1e6) {
+                    command.debug("Update of Value cache took " + time + " ns");
                 }
             }
             return valueCache;
@@ -1439,6 +1533,14 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             return debugConns;
         }
 
+        public void addDebugString(String string, int timeout) {
+            debugStrings.add(new DebugString(string,  timeout));
+        }
+
+        public Collection<DebugString> getDebugStrings() {
+            return debugStrings;
+        }
+
         @Override
         public void update(int frame) {
             getZone();
@@ -1500,6 +1602,22 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             @Override
             public void update(int frame) {
                 debugConns.remove(this);
+            }
+        }
+        public class DebugString implements UpdateListener {
+
+            public final String data;
+            public final int timeout;
+
+            public DebugString(String data, int timeout) {
+                this.data = data;
+                this.timeout = timeout;
+                command.addSingleUpdateListener(this, timeout);
+            }
+
+            @Override
+            public void update(int frame) {
+                debugStrings.remove(this);
             }
         }
     }
@@ -1611,6 +1729,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
         }
 
         BufferedImage framebuffer = new BufferedImage(1, 1, BufferedImage.TYPE_3BYTE_BGR);
+        BufferedImage basebuffer = new BufferedImage(1, 1, BufferedImage.TYPE_3BYTE_BGR);
 
         @Override
         protected void paintComponent(Graphics g) {
@@ -1619,88 +1738,53 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
 
         }
 
-        public void updateFramebuffer() {
-            if (getHeight() <= 0) {
-                return;
-            }
-            long time0 = System.currentTimeMillis();
-            BufferedImage newimg = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
-            Graphics g = newimg.getGraphics();
-            float[][] val = new float[getWidth()][getHeight()];
-
-            long time1 = System.currentTimeMillis();
+        private void updateBasebuffer() {
             float w = getWidth() / (float) map.length;
             float h = getHeight() / (float) map[0].length;
-
-            float maxDanger = Float.MIN_VALUE;
-            float maxValue = Float.MIN_VALUE;
-            float maxImportance = Float.MIN_VALUE;
-            for (int x = 0; x < map.length; x++) {
-                for (int y = 0; y < map[x].length; y++) {
-                    maxDanger = Math.max(maxDanger, map[x][y].getDanger());
-                    maxValue = Math.max(maxValue, map[x][y].getValue());
-                    maxImportance = Math.max(maxImportance, map[x][y].getValue() * map[x][y].getDanger());
-                }
-            }
-            long time2 = System.currentTimeMillis();
+            BufferedImage newimg = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = (Graphics2D) newimg.getGraphics();
+            RenderingHints rh = new RenderingHints(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHints(rh);
             for (int x = 0; x < map.length; x++) {
                 for (int y = 0; y < map[x].length; y++) {
                     Color stringcol = Color.black;
+                    Color bgcol = Color.black;
                     switch (map[x][y].getZone()) {
                         case own:
-                            g.setColor(Color.blue);
-                            //g.setColor(new Color(Area.map[x][y].guaranteedUnits*255/Area.totUnits,Area.map[x][y].guaranteedUnits*255/Area.totUnits , 255-Area.map[x][y].guaranteedUnits*255/Area.totUnits));
+                            bgcol = Color.blue;
+                            //bgcol = new Color(Area.map[x][y].guaranteedUnits*255/Area.totUnits,Area.map[x][y].guaranteedUnits*255/Area.totUnits , 255-Area.map[x][y].guaranteedUnits*255/Area.totUnits));
                             stringcol = Color.white;
                             break;
                         case hostile:
-                            g.setColor(new Color(200, 0, 0));
+                            bgcol = new Color(200, 0, 0);
                             stringcol = Color.white;
                             break;
                         case fortified:
-                            g.setColor(new Color(100, 0, 0));
+                            bgcol = new Color(100, 0, 0);
                             stringcol = Color.white;
                             break;
                         case neutral:
-                            g.setColor(new Color(200, 200, 200));
+                            bgcol = new Color(200, 200, 200);
                             stringcol = Color.white;
                             break;
                     }
                     if (map[x][y].isFront()) {
-                        g.setColor(new Color(190, 0, 190));
+                        bgcol = new Color(190, 0, 190);
                         stringcol = Color.white;
                     }
-                    /*
-                     if (ScoutSquad.dangerChecker.checkArea(map[x][y])) {
-                     g.setColor(Color.green);
-                     } else {
-                     g.setColor(Color.red);
-                     }*/
-
-                    float minFlow = -0.3f;
-                    float maxFlow = 0.3f;
-                    float flow = Math.signum(map[x][y].getFlow()) * (float) Math.pow(Math.abs(map[x][y].getFlow()), 0.4f);
-                    //g.setColor(interpolate(Color.green, Color.red, Math.min(2 * maxFlow, Math.max(0, flow - minFlow)) / (2 * maxFlow)));
-
                     if (!command.losManager.isInLos(map[x][y].getPos())) {
-                        g.setColor(g.getColor().darker());
+                        bgcol = bgcol.darker();
                         if (!command.radarManager.isInRadar(map[x][y].getPos())) {
-                            g.setColor(g.getColor().darker());
+                            bgcol = bgcol.darker();
                         }
                     }
                     if (command.getCurrentFrame() - map[x][y].getLastVisible() > 30 * 60 * 5) {
-                        g.setColor(Color.black);
+                        bgcol = bgcol.darker().darker();
                     }
-                    //float danger = map[x][y].getDanger() / maxDanger;
-                    //float value = map[x][y].getValue() / maxValue;
-                    /*float[] hsb = new float[3];
-                     Color.RGBtoHSB(g.getColor().getRed(), g.getColor().getGreen(), g.getColor().getBlue(),hsb );
-                     if (map[x][y].getZone() != Zone.own){
-                     hsb[0] = 0;
-                     hsb[1] = map[x][y].getDanger()*map[x][y].getValue()/maxImportance;
-                     g.setColor(new Color(Color.HSBtoRGB(hsb[0], hsb[1], hsb[2])));
-                     }*/
+                    g.setColor(bgcol);
                     g.fillRect((int) Math.round(x * w), (int) Math.round(y * h), (int) w + 1, (int) h + 1);
-                    //g.setColor(Color.darkGray);
                     int dx[] = {-1, 0};
                     int dy[] = {0, -1};
                     for (int blub = 0; blub < dx.length; blub++) {
@@ -1716,7 +1800,6 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                                 minSlope = Math.min(minSlope, c.movementType.getMaxSlope());
                             }
                         }
-                        g.setColor(Color.white);
                         switch (MovementType.getMovementType(minSlope)) {
                             case air:
                                 g.setColor(Color.black.darker());
@@ -1739,11 +1822,55 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                         g.drawLine((int) Math.round(x * w), (int) Math.round(y * h + h),
                                 (int) Math.round((x + 1) * w), (int) Math.round((y) * h));
                     }
-                    //g.drawRect((int)Math.round(x * w), (int)Math.round(y * h), (int)Math.round(w), (int)Math.round(h));
-                    g.setColor(stringcol);
-                    //g.drawString(String.valueOf(Area.map[x][y].guaranteedUnits), x * w + w / 2 - 2, y * h + h / 2 + 4);
+                    if (map[x][y].getEnemyAADPS() * 1.8 > command.getAvengerHandler().getAvengerDPS()) {
+                        g.setColor(Color.orange.darker());
+                        g.drawLine((int) Math.round(x * w), (int) Math.round((y) * h),
+                                (int) Math.round((x + 1) * w), (int) Math.round(y * h + h));
+                    }
                 }
             }
+            basebuffer = newimg;
+        }
+
+        private int lastBaseUpdate = -1000;
+
+        public void updateFramebuffer() {
+            if (getHeight() <= 0) {
+                return;
+            }
+            long time0 = System.currentTimeMillis();
+
+            float[][] val = new float[getWidth()][getHeight()];
+
+            long time1 = System.currentTimeMillis();
+            float w = getWidth() / (float) map.length;
+            float h = getHeight() / (float) map[0].length;
+
+            float maxDanger = Float.MIN_VALUE;
+            float maxValue = Float.MIN_VALUE;
+            float maxImportance = Float.MIN_VALUE;
+            for (int x = 0; x < map.length; x++) {
+                for (int y = 0; y < map[x].length; y++) {
+                    maxDanger = Math.max(maxDanger, map[x][y].getDanger());
+                    maxValue = Math.max(maxValue, map[x][y].getValue());
+                    maxImportance = Math.max(maxImportance, map[x][y].getValue() * map[x][y].getDanger());
+                }
+            }
+
+            if (command.getCurrentFrame() - lastBaseUpdate > 30 * 3 * (command.getCurrentFrame() + 5000) / 5000) {
+                updateBasebuffer();
+                lastBaseUpdate = command.getCurrentFrame();
+            }
+
+            BufferedImage newimg = toCompatibleImage(new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB));
+            Graphics2D g = (Graphics2D) newimg.getGraphics();
+            g.drawImage(basebuffer, 0, 0, this);
+            RenderingHints rh = new RenderingHints(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHints(rh);
+
+            long time2 = System.currentTimeMillis();
 
             for (int x = 0; x < map.length; x++) {
                 for (int y = 0; y < map[x].length; y++) {
@@ -1754,10 +1881,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                         g.drawLine((int) Math.round((x + 0.5f) * w), (int) Math.round((y + 0.5) * h),
                                 (int) Math.round((dc.endpoint.x + 0.5) * w), (int) Math.round((dc.endpoint.y + 0.5) * h));
                     }
+                    g.setColor(Color.white);
+                    for (DebugString dc : map[x][y].getDebugStrings()) {
+
+                        g.drawString(dc.data, (int) Math.round((x + 0.f) * w) + 2, (int) Math.round((y + 0.) * h) + 2);
+                    }
                 }
             }
-
             long time3 = System.currentTimeMillis();
+
             for (Mex m : mexes) {
                 switch (m.getOwner()) {
                     case own:
@@ -1777,14 +1909,43 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             }
 
             long time4 = System.currentTimeMillis();
-            g.setColor(Color.orange);
-            g.drawString(Math.round(cmdsPerSec * 10) / 10f + " cmds/sec", 10, 10);
 
-            g.drawString("Offense budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.offense)), 10, 25);
-            g.drawString("Economy budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.economy)), 10, 40);
-            g.drawString("Defense budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.defense)), 10, 55);
-            g.drawString("Generosity: " + Math.round(command.economyManager.generosity), 10, 70);
-            g.drawString("Grid nodes: " + command.getBuilderHandler().getGridNodes().size(), 10, 85);
+            g.setColor(Color.yellow);
+            for (Enemy e : command.getEnemyUnits(true)) {
+                if (!e.isTimedOut()) {
+                    continue;
+                }
+                int radius = (int) Math.ceil(Math.sqrt(e.getMetalCost() / 10));
+                int x = (int) Math.round(e.getPos().x * getWidth() / mwidth) - radius / 2;
+                int y = (int) Math.round(e.getPos().z * getHeight() / mheight) - radius / 2;
+                g.fillOval(x, y, radius, radius);
+                if (e.getDef().getBuildSpeed() > 0) {
+                    g.drawOval(x - 3, y - 3, radius + 5, radius + 5);
+                }
+            }
+            g.setColor(new Color(255, 90, 0));
+            for (Enemy e : command.getEnemyUnits(false)) {
+                int radius = (int) Math.ceil(Math.sqrt(e.getMetalCost() / 10));
+                int x = (int) Math.round(e.getPos().x * getWidth() / mwidth) - radius / 2;
+                int y = (int) Math.round(e.getPos().z * getHeight() / mheight) - radius / 2;
+                g.fillOval(x, y, radius, radius);
+                if (e.getDef().getBuildSpeed() > 0) {
+                    g.drawOval(x - 3, y - 3, radius + 5, radius + 5);
+                }
+            }
+            g.setColor(Color.green);
+            for (AIUnit e : command.getUnits()) {
+                int radius = (int) Math.ceil(Math.sqrt(e.getMetalCost() / 10));
+                int x = (int) Math.round(e.getPos().x * getWidth() / mwidth) - radius / 2;
+                int y = (int) Math.round(e.getPos().z * getHeight() / mheight) - radius / 2;
+                g.fillOval(x, y, radius, radius);
+                if (e.getDef().getBuildSpeed() > 0) {
+                    g.drawOval(x - 3, y - 3, radius + 5, radius + 5);
+                }
+            }
+
+            g.setColor(Color.white);
+
             String queue = "";
             String building = "";
             for (Factory f : command.getFactoryHandler().getFacs()) {
@@ -1795,9 +1956,15 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                     building += f.getCurrentTask().getBuilding().getHumanName() + ", ";
                 }
             }
-            g.drawString("Avg update time: " + ((int) (10 * command.avgUpdateTime)) / 10.0 + "ms", 10, 100);
-            g.drawString("Queue: " + queue, 10, 115);
-            g.drawString("Building: " + building, 10, 130);
+            g.drawString(Math.round(cmdsPerSec * 10) / 10f + " cmds/sec", 300, 15);
+            g.drawString("Offense budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.offense)), 300, 30);
+            g.drawString("Economy budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.economy)), 300, 45);
+            g.drawString("Defense budget: " + Math.round(command.economyManager.getRemainingBudget(Budget.defense)), 300, 60);
+            g.drawString("Generosity: " + Math.round(command.economyManager.generosity), 300, 75);
+            g.drawString("Grid nodes: " + command.getBuilderHandler().getGridNodes().size(), 300, 90);
+            g.drawString("Avg update time: " + ((int) (10 * command.avgUpdateTime)) / 10.0 + "ms", 300, 105);
+            g.drawString("Queue: " + queue, 300, 120);
+            g.drawString("Building: " + building, 300, 135);
             g.setColor(Color.yellow);
             for (GridNode gn : command.getBuilderHandler().getGridNodes()) {
                 int x = (int) Math.round((gn.pos.x - gn.range) * getWidth() / mwidth);
@@ -1816,9 +1983,10 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
             }
 
             long time5 = System.currentTimeMillis();
+            /*
             Graphics2D g2d = (Graphics2D) g;
             FontMetrics fm = g2d.getFontMetrics();
-            for (Enemy e : command.getEnemyUnits(true)) {
+            for (Enemy e : command.getEnemyUnits(false)) {
                 String name = e.getDef().getHumanName() + " " + Math.ceil(e.getRelativeHealth() * 100) + "%";
                 Rectangle2D r = fm.getStringBounds(name, g2d);
                 int x = (int) Math.round(e.getPos().x * getWidth() / mwidth) - (int) r.getWidth() / 2;
@@ -1830,16 +1998,48 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                 g.setColor(Color.orange);
                 g.drawString(name, x, y);
             }
+             */
 
             long time6 = System.currentTimeMillis();
             framebuffer = newimg;
-            time6 -= time5;
-            time5 -= time4;
-            time4 -= time3;
-            time3 -= time2;
-            time2 -= time1;
-            time1 -= time0;
-            //command.debug(time6 + " " + time5 + " " + time4 + " " + time3 + " " + time2 + " " + time1);
+            if (time6 - time0 > 10) {
+                time6 -= time5;
+                time5 -= time4;
+                time4 -= time3;
+                time3 -= time2;
+                time2 -= time1;
+                time1 -= time0;
+                command.debug(time6 + " " + time5 + " " + time4 + " " + time3 + " " + time2 + " " + time1);
+            }
+        }
+
+        private BufferedImage toCompatibleImage(BufferedImage image) {
+            // obtain the current system graphical settings
+            GraphicsConfiguration gfx_config = GraphicsEnvironment.
+                    getLocalGraphicsEnvironment().getDefaultScreenDevice().
+                    getDefaultConfiguration();
+
+            /*
+	 * if image is already compatible and optimized for current system 
+	 * settings, simply return it
+             */
+            if (image.getColorModel().equals(gfx_config.getColorModel())) {
+                return image;
+            }
+
+            // image is not optimized, so create a new image that is
+            BufferedImage new_image = gfx_config.createCompatibleImage(
+                    image.getWidth(), image.getHeight(), image.getTransparency());
+
+            // get the graphics context of the new image to draw the old image on
+            Graphics2D g2d = (Graphics2D) new_image.getGraphics();
+
+            // actually draw the image and dispose of context no longer needed
+            g2d.drawImage(image, 0, 0, null);
+            g2d.dispose();
+
+            // return the new optimized image
+            return new_image;
         }
 
         Color interpolate(Color a, Color b, float fac) {

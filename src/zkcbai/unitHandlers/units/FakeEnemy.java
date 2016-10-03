@@ -33,8 +33,9 @@ public abstract class FakeEnemy extends Enemy implements UpdateListener {
         if (fakeUnitDef.getName().equals("cormex")) {
             command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
         }
-        removeTime = command.getCurrentFrame() + 30 * 60 * (int) fakeUnitDef.getCost(command.metal) / 200;
-        
+        removeTime = command.getCurrentFrame() + 30 * 60 * Math.max(4, (int) fakeUnitDef.getCost(command.metal) / 200);
+
+        command.debug("Fake " + fakeUnitDef.getHumanName() + " will be removed at " + removeTime);
         cmd.addSingleUpdateListener(this, removeTime + 10);
         identify();
         if (isBuilding) {

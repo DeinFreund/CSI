@@ -43,6 +43,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
     public final UnitDef LICHO = clbk.getUnitDefByName("armcybr");
 
     private Map<AIUnit, AIUnit> loadedTransports = new HashMap();
+    private Map<AIUnit, Enemy> lichoTarget = new HashMap();
     private Set<AIUnit> emptyTransports = new HashSet();
     private Set<AIUnit> roaches = new HashSet();
     private Set<AIUnit> skuttles = new HashSet();
@@ -132,7 +133,9 @@ public class DropHandler extends UnitHandler implements UpdateListener {
 
             Enemy vip = null;
             if (loadedTransports.get(u).getDef().equals(SKUTTLE)) {
-                for (Enemy e : command.getEnemyUnits(true)) {
+                vip = getAOETarget(SKUTTLE.getDeathExplosion().getAreaOfEffect(), 0.93f * SKUTTLE.getDeathExplosion().getDamage().getTypes().get(1), ROACH.getDeathExplosion().getEdgeEffectiveness(), 599, 150, new AIFloat3(), Float.MAX_VALUE, true);
+
+                /*for (Enemy e : command.getEnemyUnits(true)) {
                     if (command.distance2D(e.getPos(), e.getLastAccuratePos()) > 500 || e.isAbleToFly()) {
                         continue;
                     }
@@ -159,7 +162,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                             }
                         }
                     }
-                }
+                }*/
                 if (vip == null) {
                     command.debug("Couldn't find target for skuttledrop");
                 }
@@ -171,7 +174,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                     return;
                 }
             } else if (loadedTransports.get(u).getDef().equals(ROACH)) {
-                vip = getAOETarget(ROACH.getDeathExplosion().getAreaOfEffect(), 0.92f * ROACH.getDeathExplosion().getDamage().getTypes().get(1), ROACH.getDeathExplosion().getEdgeEffectiveness(), 0.92f * (ROACH.getCost(command.metal) + VALK.getCost(command.metal)), 150, new AIFloat3(), Float.MAX_VALUE);
+                vip = getAOETarget(ROACH.getDeathExplosion().getAreaOfEffect(), 0.92f * ROACH.getDeathExplosion().getDamage().getTypes().get(1), ROACH.getDeathExplosion().getEdgeEffectiveness(), 0.92f * (ROACH.getCost(command.metal) + VALK.getCost(command.metal)), 150, new AIFloat3(), Float.MAX_VALUE, true);
 
                 if (vip != null && command.getCommandDelay() < 30) {
                     if (u.distanceTo(vip.getPos()) > 2500) {
@@ -191,14 +194,20 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                     return;
                 }
             }
-        } else if (lichos.contains(u)) {
-            WeaponDef wd = LICHO.getWeaponMounts().get(0).getWeaponDef();
-            Enemy vip = getAOETarget(wd.getAreaOfEffect(), wd.getDamage().getTypes().get(1), wd.getEdgeEffectiveness(), 0f, 1000, u.getPos(), u.getArea().getZone() == ZoneManager.Zone.hostile ? 1000 : Float.MAX_VALUE);
+        }
+        if (u.getDef().equals(LICHO)) {
+            Enemy vip;
+            if (lichoTarget.containsKey(u) && lichoTarget.get(u).isAlive() && lichoTarget.get(u).getArea().getNearestArea(command.areaManager.FRIENDLY).distanceTo(lichoTarget.get(u).getPos()) < 900) {
+                vip = lichoTarget.get(u);
+            } else {
+                WeaponDef wd = LICHO.getWeaponMounts().get(0).getWeaponDef();
+                vip = getAOETarget(wd.getAreaOfEffect(), wd.getDamage().getTypes().get(1), wd.getEdgeEffectiveness(), 0f, 300, u.getPos(), (u.getArea().getZone() == ZoneManager.Zone.hostile || (u.getNearestEnemy() != null && u.getNearestEnemy().distanceTo(u.getPos()) < 800)) ? 1800 : Float.MAX_VALUE, false);
 
+            }
             boolean isRepairing = false;
             for (AIUnit au : command.getUnitsIn(u.getPos(), 100)) {
                 if (au.getDef().isAbleToAssist() || au.getDef().getBuildOptions().size() > 5) {
-                    isRepairing = u.getHealth() / u.getDef().getHealth() < 0.96;
+                    isRepairing = u.getHealth() / u.getDef().getHealth() < 0.92;
                 }
             }
             if (vip == null) {
@@ -211,8 +220,11 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                     u.attack(vip, command.getCurrentFrame() + 15);
                 }
                 command.mark(vip.getPos(), "licho targeting " + vip.getDef().getHumanName());
+                lichoTarget.put(u, vip);
                 return;
-            } else if (u.getArea().getZone() != ZoneManager.Zone.own) {
+            }
+            lichoTarget.remove(u);
+            if (u.getArea().getZone() != ZoneManager.Zone.own) {
                 AIFloat3 safepos = u.getArea().getNearestArea(command.areaManager.SAFE).getPos();
                 if (u.distanceTo(safepos) > 300) {
                     u.assignTask(new MoveTask(safepos, command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
@@ -221,8 +233,14 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 }
             }
             u.assignTask(new WaitTask(command.getCurrentFrame() + 300, this));
-            if (u.distanceTo(command.getStartPos()) > 1500) {
-                u.moveTo(command.getStartPos(), command.getCurrentFrame() + 100);
+            AIFloat3 startpos = command.getStartPos();
+            for (Factory f : command.getFactoryHandler().getFacs()) {
+                if (f.unit.distanceTo(u.getPos()) < u.distanceTo(startpos)) {
+                    startpos = f.unit.getPos();
+                }
+            }
+            if (u.distanceTo(startpos) > 2000) {
+                u.moveTo(startpos, command.getCurrentFrame() + 100);
                 command.debug("licho going home");
             } else {
                 u.wait(command.getCurrentFrame() + 100);
@@ -234,19 +252,19 @@ public class DropHandler extends UnitHandler implements UpdateListener {
         u.wait(command.getCurrentFrame() + 30);
     }
 
-    protected Enemy getAOETarget(final float blastradius, final float damage, final float edgeEffectiveness, final float minValue, final float maxAA, final AIFloat3 pos, final float searchRange) {
+    protected Enemy getAOETarget(final float blastradius, final float damage, final float edgeEffectiveness, final float minValue, final float maxAA, final AIFloat3 pos, final float searchRange, final boolean nofliers) {
         final float falloff = (1f - edgeEffectiveness) / blastradius;
         float bestMetal = 0;
         Enemy vip = null;
         for (Enemy e : command.getEnemyUnits(true)) {
-            if (e.timeSinceLastSeen() > 30 * 10 || e.getDef().isAbleToFly() || Command.distance2D(e.getPos(), e.getLastPos()) > 200
-                    || e.distanceTo(pos) > searchRange || (e.getDef().isAbleToCloak() && ( e.getMetalCost() < 1000 || e.timeSinceLastSeen() > 30 * 3))) {
+            if (e.timeSinceLastSeen() > 30 * 10 || (e.getDef().isAbleToFly() && nofliers) || Command.distance2D(e.getPos(), e.getLastPos()) > 200
+                    || e.distanceTo(pos) > searchRange || (e.getDef().isAbleToCloak() && (e.getMetalCost() < 1000 || e.timeSinceLastSeen() > 30 * 3))) {
                 continue;
             }
             float metalKilled = 0;
             for (Enemy near : command.getEnemyUnitsIn(e.getPos(), blastradius)) {
 
-                if (near.timeSinceLastSeen() > 30 * 5 || near.getDef().isAbleToFly()) {
+                if (near.timeSinceLastSeen() > 30 * 5 || (near.getDef().isAbleToFly() && (nofliers || e.getDef().getSpeed() > clbk.getUnitDefByName("corvamp").getSpeed() - 0.01))) {
                     continue;
                 }
                 if (near.getHealth() > damage * (1 - near.distanceTo(e.getPos()) * falloff)) {
@@ -259,8 +277,8 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                     || metalKilled < minValue) {
                 continue;
             }
-            if (metalKilled > bestMetal) {
-                if (e.getArea().getNearestArea(command.areaManager.FRIENDLY).distanceTo(e.getPos()) < 900 || command.getCurrentFrame() < 30 * 60 * 8) {
+            if (metalKilled > bestMetal && e.isVisible(false)) {
+                if (e.getArea().getNearestArea(command.areaManager.FRIENDLY).distanceTo(e.getPos()) < 700 || command.getCurrentFrame() < 30 * 60 * 8) {
                     vip = e;
                     bestMetal = metalKilled;
                 }
@@ -336,7 +354,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
         if (frame % 31 == 3) {
             command.debug("checking lichos");
             for (AIUnit au : lichos) {
-                au.checkIdle();
+                troopIdle(au);
             }
         }
         Factory gs = null;
@@ -353,7 +371,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 jj = f;
             }
         }
-        if (gs != null && (command.getFactoryHandler().getFacs().size() >= 4 || command.getCurrentFrame() > 30 * 60 * 4)) {
+        if (gs != null && (command.getFactoryHandler().getFacs().size() >= 2 || command.getCurrentFrame() > 30 * 60 * 4)) {
 
             if (!buildingValk && emptyTransports.size() + loadedTransports.size() < roaches.size() + skuttles.size() + (buildingSkuttle ? 1 : 0) + (buildingRoach ? 1 : 0)) {
                 gs.queueUnit(VALK);

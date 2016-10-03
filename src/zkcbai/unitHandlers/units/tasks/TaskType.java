@@ -10,5 +10,5 @@ package zkcbai.unitHandlers.units.tasks;
  * @author User
  */
 public enum TaskType {
-    Various, BuildTask, RepairTask
+    Various, BuildTask, RepairTask, ReclaimTask
 }

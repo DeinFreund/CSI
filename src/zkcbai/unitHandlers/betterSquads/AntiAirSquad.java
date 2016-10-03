@@ -38,7 +38,7 @@ public class AntiAirSquad extends SquadManager {
         }
     }
 
-    final private String[] supportIds = {"corcrash", "armjeth", "spideraa", "vehaa", "hoveraa", "amphaa"};
+    final private String[] supportIds = {"corcrash", "armjeth", "spideraa", "vehaa", "hoveraa", "amphaa", "corsent"};
     public final static Set<UnitDef> antiair = new HashSet();
 
     private Random rnd = new Random();
@@ -71,8 +71,8 @@ public class AntiAirSquad extends SquadManager {
                 airValue += e.getMetalCost();
             }
         }
-        command.debug("AA usefulness: " + (Math.min(0.905f, airValue / (3 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()))));
-        return Math.min(0.905f, airValue / (3 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()));
+        command.debug("AA usefulness: " + (Math.min(0.905f, airValue / (2 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()))));
+        return Math.min(0.905f, airValue / (2 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()));
     }
 
     @Override

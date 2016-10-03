@@ -20,6 +20,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -67,7 +68,7 @@ import zkcbai.unitHandlers.units.tasks.BuildTask;
 public class Command implements AI {
 
     public static final boolean LOG_TO_INFOLOG = false;
-    public static final boolean GUI = false;
+    public static final boolean GUI = true;
 
     private OOAICallback clbk;
     private int ownTeamId;
@@ -93,6 +94,7 @@ public class Command implements AI {
     private final Collection<UpdateListener> updateListeners = new HashSet<>();
     private final Collection<UnitDamagedListener> unitDamagedListeners = new HashSet<>();
     private final TreeMap<Integer, Set<UpdateListener>> singleUpdateListeners = new TreeMap<>();
+    Map<UpdateListener, Integer> listenerUpdateFrames = new HashMap();
 
     private Collection<CommanderHandler> comHandlers = new HashSet<>();
     private FactoryHandler facHandler;
@@ -222,11 +224,16 @@ public class Command implements AI {
      * @return
      */
     public synchronized Collection<Enemy> getEnemyUnits(boolean allEnemies) {
+        long time = System.nanoTime();
         Set<Enemy> list = new HashSet();
         for (Enemy e : enemies.values()) {
             if (allEnemies || !e.isTimedOut()) {
                 list.add(e);
             }
+        }
+        time = System.nanoTime() - time;
+        if (time > 0.5e6) {
+            debug("getenemyunits took " + time + "ns");
         }
         return list;
     }
@@ -309,7 +316,9 @@ public class Command implements AI {
             return null;
         }
         Enemy randomEnemy;
+        int cnt = 0;
         do {
+            if (cnt ++ > 15) return null;
             randomEnemy = enemyList.get(random.nextInt(enemyList.size()));
         } while (!randomEnemy.isAlive());
         return randomEnemy;
@@ -452,6 +461,15 @@ public class Command implements AI {
         if (frame >= 1000000000) {
             return false;
         }
+        if (listenerUpdateFrames.containsKey(listener) && listenerUpdateFrames.get(listener) > getCurrentFrame()) {
+            debug(listener.getClass().getName() + " registered 2nd single update");
+            debugStackTrace();
+            if (frame >= listenerUpdateFrames.get(listener)) {
+                return false;
+            }
+            singleUpdateListeners.get(listenerUpdateFrames.get(listener)).remove(listener);
+        }
+        listenerUpdateFrames.put(listener, frame);
         Set<UpdateListener> list = singleUpdateListeners.get(frame);
         if (list == null) {
             singleUpdateListeners.put(frame, new HashSet());
@@ -465,6 +483,7 @@ public class Command implements AI {
     }
 
     public void removeSingleUpdateListener(UpdateListener listener, int frame) {
+        listenerUpdateFrames.remove(listener);
         singleUpdateListeners.get(frame).remove(listener);
     }
 
@@ -519,7 +538,7 @@ public class Command implements AI {
             Enemy att = null;
             if (attacker == null && dir.lengthSquared() > 0.01) {
                 boolean duplicate = false;
-                for (Enemy e : getEnemyUnitsIn(unit.getPos(), weaponDef.getRange() + 500)) {
+                for (Enemy e : getEnemyUnitsIn(unit.getPos(), (weaponDef.getRange() + 300) * 3)) {
                     if (e.getWeaponDefs().contains(weaponDef)) {
                         duplicate = true;
                     }
@@ -574,17 +593,19 @@ public class Command implements AI {
                 }
             }
             if (closest != null) {
+                debug("Fake " + closest.getDef().getHumanName() + "(" + closest.hashCode() + ") identified as " + enemy.getDef().getHumanName());
                 unitDestroyed(enemy, null);
                 aiEnemy = closest;
+                enemies.remove(closest.getUnitId());
                 closest.setUnitId(enemy.getUnitId());
                 closest.setUnit(enemy);
-                enemies.remove(closest.hashCode());
                 enemies.put(closest.getUnitId(), closest);
                 fakeEnemies.remove(closest);
+                debug("New ID: " + closest.hashCode());
             }
             if (!enemyDefs.contains(enemy.getDef())) {
                 enemyDefs.add(enemy.getDef());
-                debug("New enemy UnitDef: " + enemy.getDef().getHumanName());
+                debug("New enemy UnitDef: " + enemy.getDef().getHumanName() + " DPS: " + getDPS(enemy.getDef()));
                 if (!defSpeedMap.containsKey(enemy.getMaxSpeed())) {
                     defSpeedMap.put(enemy.getMaxSpeed(), enemy.getDef());
                 }
@@ -718,6 +739,10 @@ public class Command implements AI {
     }
 
     public synchronized void enemyDestroyed(Enemy e, Unit attacker) {
+        if (getCurrentFrame() < 0) {
+            debug("Destroyed called by");
+            debugStackTrace();
+        }
         if (e instanceof FakeEnemy) {
             fakeEnemies.remove((FakeEnemy) e);
         }
@@ -810,7 +835,7 @@ public class Command implements AI {
             int updatesEvaluated = 0;
             while (!singleUpdateListeners.isEmpty() && singleUpdateListeners.firstKey() <= frame) {
                 updatesEvaluated += singleUpdateListeners.firstEntry().getValue().size();
-                if (updatesEvaluated > 1000) {
+                if (updatesEvaluated > 9000) {
                     debug(singleUpdateListeners.firstEntry().getValue().size() + " single update listeners for frame " + singleUpdateListeners.firstKey() + ". aborting. (Exception)");
                     break;
                 }
@@ -824,6 +849,9 @@ public class Command implements AI {
                 }
                 singleUpdateListeners.remove(singleUpdateListeners.firstKey());
             }
+            if (updatesEvaluated > 300) {
+                debug("Warning: " + updatesEvaluated + " updates");
+            }
 
             //Check for forgotten units
             if (frame % 150 == 100) {
@@ -832,6 +860,18 @@ public class Command implements AI {
                     debug("Avg update time: " + avgUpdateTime + "ms");
                 }
                 checkedIdle = 0;
+                Runtime runtime = Runtime.getRuntime();
+
+
+                long maxMemory = runtime.maxMemory();
+                long allocatedMemory = runtime.totalMemory();
+                long freeMemory = runtime.freeMemory();
+
+                debug("free memory: " + (freeMemory / 1024) + "");
+                debug("allocated memory: " + (allocatedMemory / 1024) + "");
+                debug("max memory: " + (maxMemory / 1024) + "");
+                debug("total free memory: " + ((freeMemory + (maxMemory - allocatedMemory)) / 1024) + "");
+
             }
 
             while (System.currentTimeMillis() - updateStart < 7 && getCommandDelay() < 45) {
@@ -998,7 +1038,12 @@ public class Command implements AI {
         debug(s, true);
     }
 
+    long lines = 0;
+
     public synchronized void debug(String s, boolean intoInfolog) {
+        if (lines++ > 1e6) {
+            return;
+        }
         if (intoInfolog && LOG_TO_INFOLOG) {
             clbk.getGame().sendTextMessage(s, 0);
             if (!s.contains("DebugStack")) {
@@ -1057,11 +1102,12 @@ public class Command implements AI {
     private float mexradius;
 
     public boolean isPossibleToBuildAt(UnitDef building, AIFloat3 pos, int facing) {
-        long time = System.nanoTime();
+        long time0 = System.nanoTime();
         boolean ret = clbk.getMap().isPossibleToBuildAt(building, pos, facing);
         if (!ret || building.getName().equalsIgnoreCase("cormex")) {
             return ret;
         }
+        long time1 = System.nanoTime();
         int eval = 0;
         List<BuildTask> outdated = new ArrayList();
         Area area = areaManager.getArea(pos);
@@ -1077,6 +1123,7 @@ public class Command implements AI {
                 }
             }
         }
+        long time2 = System.nanoTime();
         for (BuildTask bt : outdated) {
             mark(bt.getPos(), "cleared outdated buildtask for " + building.getHumanName());
             clearBuildTask(bt);
@@ -1088,6 +1135,8 @@ public class Command implements AI {
             }
 
         }
+
+        long time3 = System.nanoTime();
         float mindist = Float.MAX_VALUE;
         for (Mex m : areaManager.getArea(pos).getNearbyMexes()) {
             mindist = Math.min(mindist, m.distanceTo(pos));
@@ -1100,9 +1149,11 @@ public class Command implements AI {
                 return false;
             }
         }
-        time = System.nanoTime() - time;
-        if (time > 0.1e6) {
-            debug("checking build position took " + time + "ns. evaluated " + eval + " / " + buildTasks.size() + " build tasks.");
+
+        long time4 = System.nanoTime();
+
+        if (time4 - time0 > 0.5e6) {
+            debug("checking build position took " + (time4 - time3) + "/" + (time3 - time2) + "/" + (time2 - time1) + "/" + (time1 - time0) + "ns. evaluated " + eval + " / " + buildTasks.size() + " build tasks.");
         }
         //mark(pos, "good pos for " + building.getHumanName());
         //debug("checking for " + building.getHumanName() +" closed mex has a distance of " + mindist);

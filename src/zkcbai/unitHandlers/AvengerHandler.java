@@ -97,7 +97,6 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     @Override
     public void removeUnit(AIUnit u) {
         if (scoutTasks.containsKey(u)) {
-            requestScout(scoutTasks.get(u));
             scoutTasks.remove(u);
         }
         aiunits.remove(u.getUnit().getUnitId());
@@ -156,6 +155,10 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             }
         }
     }
+    
+    public Collection<AIUnit> getRepairingAvengers(){
+        return repairing;
+    }
 
     @Override
     public void reportSpam() {
@@ -189,6 +192,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                     fighters.removeUnit(au, this);
                     fighterDPS -= au.getDPS();
                     au.assignTask(new WaitTask(command.getCurrentFrame() + 100, this));
+                    au.moveTo(command.getStartPos(), command.getCurrentFrame() + 100);
                 }
             }
             for (AIUnit au : repairing.toArray(new AIUnit[repairing.size()])) {
@@ -311,6 +315,10 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
         return enemyAir;
     }
 
+    public float getAvengerDPS(){
+        return fighterDPS;
+    }
+    
     @Override
     public void enemyDiscovered(Enemy e) {
         if (e.getPos().y - clbk.getMap().getElevationAt(e.getPos().x, e.getPos().z) > 38) {

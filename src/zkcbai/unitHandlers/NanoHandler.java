@@ -8,6 +8,7 @@ package zkcbai.unitHandlers;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import zkcbai.Command;
@@ -62,6 +63,10 @@ public class NanoHandler extends UnitHandler implements UpdateListener {
         aiunits.remove(u.hashCode());
         repairPads.remove(u);
         nanos.remove(u);
+    }
+    
+    public Collection<AIUnit> getNanos(){
+        return nanos;
     }
 
     @Override
@@ -119,12 +124,12 @@ public class NanoHandler extends UnitHandler implements UpdateListener {
                 nanoTasks.remove(bt);
             }
         }
-        if ((nanos.size() + nanoTasks.size()) * 10 + 15 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome)) {
+        if ((nanos.size() + nanoTasks.size()) * 9 + 16 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome)) {
             nanoTasks.add(command.getBuilderHandler().requestBuilding(nano,
                     command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
             command.debug(nanoTasks.size() + " Caretakers under construction");
         }
-        if ((repairPadTasks.size() + repairPads.size()) * 10 + 4 < command.getAvengerHandler().getUnits().size()) {
+        if ((repairPadTasks.size() + repairPads.size()) * 10 + 10 < command.getAvengerHandler().getUnits().size() || command.getAvengerHandler().getRepairingAvengers().size() > 3 && repairPadTasks.isEmpty() && repairPads.isEmpty()) {
             repairPadTasks.add(command.getBuilderHandler().requestBuilding(repairPad,
                     command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
             command.debug(repairPadTasks.size() + " Repair Pads under construction");

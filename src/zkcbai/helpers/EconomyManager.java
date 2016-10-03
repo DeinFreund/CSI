@@ -18,7 +18,7 @@ import zkcbai.unitHandlers.units.AIUnit;
 public class EconomyManager extends Helper {
 
     float generosity = 0;
-    float adaption = 5e-3f;
+    float adaption = 2e-3f;
 
     Map<Budget, Float> fraction = new HashMap(); //all fractions should add to 1
     Map<Budget, Float> used = new HashMap();
@@ -30,28 +30,37 @@ public class EconomyManager extends Helper {
     public EconomyManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         totalMetal = clbk.getEconomy().getCurrent(command.metal);
-        fraction.put(Budget.economy, 0.4f);
-        fraction.put(Budget.defense, 0.1f);
-        fraction.put(Budget.offense, 0.5f);
+        fraction.put(Budget.economy, 0.46f);
+        fraction.put(Budget.defense, 0.19f);
+        fraction.put(Budget.offense, 0.42f);
         used.put(Budget.economy, 0f);
         used.put(Budget.defense, 0f);
         used.put(Budget.offense, 0f);
     }
 
     public void useBudget(Budget budget, float amt) {
-        if (getRemainingBudget(budget) < 0) {
+        if (getRemainingBudget(budget) < -1000) {
             command.debug("Warning: " + budget.name() + " budget overdrawn by " + amt + " at ");
             //command.debugStackTrace();
         }
         used.put(budget, used.get(budget) + amt);
     }
 
+    int lastNonExcess = -1000;
+    
     public float getRemainingBudget(Budget budget) {
-        if (clbk.getEconomy().getCurrent(command.metal) > 0.9 * command.getBuilderHandler().getMetalStorage()
-                && clbk.getEconomy().getCurrent(command.energy) > 0.9 * command.getBuilderHandler().getMetalStorage()) {
-            return 1000f;
+        float ret = fraction.get(budget) * (totalMetal + generosity) - used.get(budget);
+        if (clbk.getEconomy().getCurrent(command.metal) > 0.8 * command.getBuilderHandler().getMetalStorage()
+                && clbk.getEconomy().getCurrent(command.energy) > 0.4 * command.getBuilderHandler().getMetalStorage()
+                && command.getCurrentFrame() > 30 * 60 * 1.5) {
+            return Math.max(ret, (command.getCurrentFrame() - lastNonExcess)/(30f * 60) * 2300f);
         }
-        return fraction.get(budget) * (totalMetal + generosity) - used.get(budget);
+        lastNonExcess = command.getCurrentFrame();
+        if (budget == Budget.economy && (command.getBuilderHandler().getEnergyIncome() + command.getBuilderHandler().getEnergyUnderConstruction()) / command.getBuilderHandler().getAverageMetalIncome() > 6){
+            command.debug(((command.getBuilderHandler().getEnergyIncome() + command.getBuilderHandler().getEnergyUnderConstruction()) / command.getBuilderHandler().getAverageMetalIncome()) +  " times energy for Overdrive");
+            return -1000;
+        }
+        return ret;
     }
 
     @Override
@@ -95,10 +104,12 @@ public class EconomyManager extends Helper {
             float mid = 0.33f * command.getBuilderHandler().getMetalStorage();
             float min = Math.min(getRemainingBudget(Budget.economy), Math.min( getRemainingBudget(Budget.defense), getRemainingBudget(Budget.offense)));
             float max = Math.max(getRemainingBudget(Budget.economy), Math.max( getRemainingBudget(Budget.defense), getRemainingBudget(Budget.offense)));
-            if (clbk.getEconomy().getCurrent(command.metal) < mid && max < -500) return;
-            if (clbk.getEconomy().getCurrent(command.metal) > mid && min > 1500) return;
-            generosity += Math.signum(clbk.getEconomy().getCurrent(command.metal) - mid)
-                    * adaption * Math.pow(Math.abs(Math.min(mid * 2, clbk.getEconomy().getCurrent(command.metal)) - mid), 1.7) / 20f;
+            float metal = Math.min(clbk.getEconomy().getCurrent(command.metal),  clbk.getEconomy().getCurrent(command.energy));
+            if (metal < mid && max < -500) return;
+            if (metal > mid && min > 1500) return;
+            
+            generosity += Math.signum(metal - mid)
+                    * adaption * Math.pow(Math.abs(Math.min(mid * 2, metal) - mid), 1.7) / 20f;
         }
 
     }
