@@ -60,7 +60,7 @@ public abstract class UnitHandler implements TaskIssuer, UnitDestroyedListener, 
     
     @Override
     public void unitDestroyed(AIUnit u, Enemy e) {
-        if (aiunits.containsKey(u.getUnit().getUnitId())) {
+        if (aiunits.containsKey(u.hashCode())) {
             removeUnit(u);
         }
     }

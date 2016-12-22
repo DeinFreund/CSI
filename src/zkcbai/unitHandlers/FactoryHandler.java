@@ -64,6 +64,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         squads.add(new SupportSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new AntiAirSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         squads.add(new LichoSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
+        squads.add(new VultureSquad(cmd.getFighterHandler(), cmd, cmd.getCallback()));
         startsquads.add(squads.get(0));
 
         //cmd.addSingleUpdateListener(this, assaultFrame);
@@ -89,8 +90,10 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     public void troopIdle(AIUnit u) {
         if (facmap.containsKey(u)) {
             if (!factoryIdle(facmap.get(u))) {
-                u.wait(command.getCurrentFrame() + 15);
+                u.wait(command.getCurrentFrame() + 30);
+                command.debug("Nothing to do for " + u.getDef().getHumanName());
             } else {
+                command.debug(u.getDef().getHumanName() + " building next unit");
                 facmap.get(u).buildNextUnit();
             }
         } else {
@@ -557,7 +560,12 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         }
 
         public void buildUnit(UnitDef unit, boolean force) {
+
             if (currentTask != null) {
+                if (command.getCurrentFrame() - currentTask.creationTime > 30 * 60 * 7 || command.getCurrentFrame() - currentTask.creationTime > 30 * 10 && currentTask.getResult() == null) {
+                    command.debug("Aborting BuildTask for factory because age and result: " + currentTask.getResult());
+                    force = true;
+                }
                 if (force) {
                     currentTask.cancel();
                     command.getBuilderHandler().unregisterBuildTask(currentTask);
@@ -569,8 +577,9 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
             Budget budget = unit.getBuildSpeed() > 0 ? Budget.economy : Budget.offense;
             if (command.economyManager.getRemainingBudget(budget) < 0 && !force && budget == Budget.offense) {
                 this.unit.assignTask(new WaitTask(command.getCurrentFrame() + 30, this));
-
+                command.debug(this.unit.getDef().getHumanName() + " waiting for budget");
             } else {
+                command.debug(this.unit.getDef().getHumanName() + " building " + unit.getHumanName());
                 currentTask = new BuildTask(unit, this.unit.getPos(), 0, budget, this, clbk, command);
                 command.getBuilderHandler().registerBuildTask(currentTask);
                 this.unit.assignTask(currentTask);

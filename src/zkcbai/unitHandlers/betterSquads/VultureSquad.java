@@ -20,8 +20,8 @@ import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Mex;
 import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.FighterHandler;
+import static zkcbai.unitHandlers.betterSquads.LichoSquad.bombers;
 import static zkcbai.unitHandlers.betterSquads.ScoutSquad.dangerChecker;
-import static zkcbai.unitHandlers.betterSquads.SupportSquad.supports;
 import zkcbai.unitHandlers.units.AISquad;
 import zkcbai.unitHandlers.units.AITroop;
 import zkcbai.unitHandlers.units.AIUnit;
@@ -35,30 +35,31 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class BansheeSquad extends SquadManager {
+public class VultureSquad extends SquadManager {
 
-    public BansheeSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
+    public VultureSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
         this(fighterHandler, command, callback, null);
         for (String s : fighterIds) {
-            fighters.add(command.getCallback().getUnitDefByName(s));
+            scouts.add(command.getCallback().getUnitDefByName(s));
         }
     }
 
-    public BansheeSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, Collection<UnitDef> availableUnits) {
+    public VultureSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, Collection<UnitDef> availableUnits) {
         super(fighterHandler, command, callback, availableUnits);
 
     }
 
-    final static private String[] fighterIds = {"armkam"};
-    public final static Set<UnitDef> fighters = new HashSet();
+    final static private String[] fighterIds = {"corawac"};
+    public final static Set<UnitDef> scouts = new HashSet();
+
 
     @Override
     public List<UnitDef> getRequiredUnits(Collection<UnitDef> availableUnits) {
         Set<UnitDef> unitset = new HashSet(availableUnits);
-        for (UnitDef ud : fighters) {
+        for (UnitDef ud : scouts) {
             if (unitset.contains(ud)) {
                 List<UnitDef> req = new ArrayList();
-                req.add(ud);
+                    req.add(ud);
                 return req;
             }
         }
@@ -67,29 +68,16 @@ public class BansheeSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        float groundValue = 0;
-        float airValue = 0;
-        for (AIUnit au : command.getUnits()) {
-            if (au.isBuilding() || au.getDPS() < 1) {
-                continue;
-            }
-            if (au.getDef().isAbleToFly()) {
-                airValue += au.getMetalCost();
-            } else {
-                groundValue += au.getMetalCost();
-            }
+        int vultures = command.getVultureHandler().getUnits().size();
+        for (UnitDef ud : command.getFactoryHandler().getQueue()){
+            if (scouts.contains(ud)) vultures ++;
         }
-        if (groundValue < 2 * airValue) return 0.0f;
-        if (command.getBansheeHandler().getUnits().size() < 3) {
-            return 0.95f;
+        if (command.getCurrentFrame() > (vultures + 1) * 30 * 60 * 4 && vultures < 4){
+            return 0.91f;
+        }else{
+            return -0.1f;
         }
-        if (command.getCurrentFrame() < 30 * 60 * 2.5) {
-            return 0.9f;
-        }
-        if (command.getBansheeHandler().getUnits().size() < 5) {
-            return 0.5f;
-        }
-        return 0f;
+        //return 0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f;
     }
 
     @Override
@@ -109,6 +97,7 @@ public class BansheeSquad extends SquadManager {
 
     Enemy target = null;
 
+
     @Override
     public void abortedTask(Task t) {
     }
@@ -119,7 +108,7 @@ public class BansheeSquad extends SquadManager {
 
     @Override
     public SquadManager getInstance(Collection<UnitDef> availableUnits) {
-        return new BansheeSquad(fighterHandler, command, clbk, availableUnits);
+        return new VultureSquad(fighterHandler, command, clbk, availableUnits);
     }
 
     @Override

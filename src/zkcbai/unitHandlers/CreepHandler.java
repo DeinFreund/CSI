@@ -88,7 +88,7 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public boolean retreatForRepairs(AITroop u) {
-        return u.getDef().getHealth() > 1800 || u.getMetalCost() > 300;
+        return u.getDef().getHealth() > 1800 || u.getMetalCost() > 300 || true;
     }
 
     private int eval;
@@ -148,7 +148,7 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                         }
 
                         if (ally.getNearestEnemy() != null
-                                && ally.getNearestEnemy().distanceTo(ally.getPos()) < ally.getNearestEnemy().getMaxRange()
+                                && ally.getNearestEnemy().distanceTo(ally.getPos()) < Math.min(ally.getNearestEnemy().getMaxRange(), 700)
                                 && (nearestAlly == null || nearestAlly.distanceTo(creep.getPos()) > ally.distanceTo(creep.getPos()))) {
                             nearestAlly = ally;
                         }
@@ -195,11 +195,11 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                                 && !closestEnemy.getDef().getName().equals("gunshipaa") && !AntiAirSquad.antiair.contains(creep.getDef())) {
                             danger += closestEnemy.getMetalCost() * 4;
                         }
-                        if (danger * 1.5 < nearbyAllyStrength || closestEnemy.distanceTo(closestFriendly.getPos()) - closestFriendly.getEnclosingRadius() < closestEnemy.getMaxRange()) {
-                            if ((closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || closestEnemy.getDef().getName().equalsIgnoreCase("armsolar")
-                                    || closestEnemy.getDef().getName().equalsIgnoreCase("corrazor") || rnd.nextInt(6) < 1) && closestEnemy.getUnit() != null
+                        if (danger * 1.5 < nearbyAllyStrength || creep.getHealth() > 4000 || closestEnemy.distanceTo(closestFriendly.getPos()) - closestFriendly.getEnclosingRadius() < Math.min(closestEnemy.getMaxRange(), 700)) {
+                            if ((closestEnemy.getDef().getName().equalsIgnoreCase("corclog") || rnd.nextInt(6) < 1) && closestEnemy.getUnit() != null
                                     && creep.getMaxRange() < 400 && !creep.getDef().getName().equals("cormist")) {
-                                creep.attack(closestEnemy, command.getCurrentFrame() + 100);
+                                //creep.attack(closestEnemy, command.getCurrentFrame() + 100);
+                                creep.moveTo(closestEnemy.getPos(), command.getCurrentFrame() + 100);
                             } else {
                                 AIFloat3 fpos = closestEnemy.getVel();
                                 fpos.scale(50);
@@ -208,7 +208,7 @@ public class CreepHandler extends UnitHandler implements UpdateListener {
                             }
 
                             continue;
-                        } else if (closestEnemy.distanceTo(creep.getPos()) < closestEnemy.getMaxRange() * 1.1 + 250) {
+                        } else if (closestEnemy.distanceTo(creep.getPos()) < Math.min(closestEnemy.getMaxRange(), 700) * 1.1 + 250) {
 
                             creep.moveTo(creep.getArea().getNearestArea(command.areaManager.SAFE, creep.getMovementType()).getPos(),
                                     command.getCurrentFrame() + 100);

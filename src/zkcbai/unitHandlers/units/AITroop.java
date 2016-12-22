@@ -139,7 +139,7 @@ public abstract class AITroop {
                 if (e.isAntiAir() && !this.getDef().isAbleToFly() && Math.random() > 0.05){
                     continue;
                 }
-                if (nearestEnemy == null || nearestEnemy.distanceTo(getPos()) - nearestEnemy.getMaxRange() > e.distanceTo(getPos()) - e.getMaxRange()) {
+                if (nearestEnemy == null || nearestEnemy.distanceTo(getPos()) - Math.min(nearestEnemy.getMaxRange(), 700) > e.distanceTo(getPos()) - Math.min(e.getMaxRange(), 700)) {
                     nearestEnemy = e;
                 }
             }

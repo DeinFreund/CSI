@@ -72,13 +72,13 @@ public class TurretHandler extends UnitHandler implements UpdateListener {
             freq = 30f;
             if (!u.equals(delayLLT) && command.areaManager.getCommandsPerSecond() > 10 + 20 * u.getUnit().getUnitId() / AIUnit.getMaxUnitId()) {
                 freq = 10f;
-                party = true;
+                //party = true;
             }
         } else if (u.getDef().getName().equals("armdeva")) {
             freq = 0.3f;
-        } else if (u.getDef().getName().equals("corhlt")) {
+        /*} else if (u.getDef().getName().equals("corhlt")) {
             freq = 0.2f;
-            party = true;
+            party = true;*/
         } else if (u.getDef().getName().equals("armartic")) {
             freq = 0.3f;
         } else {

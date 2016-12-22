@@ -269,7 +269,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             dead = true;
             handler.getCommand().debug("polled dead aiunit " + unitId + "");
             handler.getCommand().debugStackTrace();
-            queueDestroy();
+            if (Math.random() > 0.5) queueDestroy();
         }
     }
 
@@ -283,13 +283,6 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             handler.getCommand().debug("reawaken " + getUnit().getUnitId() + "(" + getDef().getHumanName() + ") controlled by " + handler.getClass().getName());
             idle();
         }
-        String tname = "";
-        if (task != null) {
-            tname = task.getClass().getName();
-        }
-        //getCommand().debug("not idle doing " + tname + " because "  + (wakeUpFrame < 0 || wakeUpFrame > 1000000) + 
-        //        "&&" + (handler.getCommand().getCurrentFrame() - lastCommandTime > 100) +
-        //        "&&" + unit.getCurrentCommands().isEmpty());
     }
 
     private void clearUpdateListener() {
@@ -320,7 +313,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             return;
         }
         for (AIUnit au : handler.getCommand().getFactoryHandler().getUnits()) {
-            if (distanceTo(au.getPos()) < 70 && getDef().getSpeed() > 0 && !au.getDef().getName().contains("gunship") && !au.getDef().getName().contains("plane")) {
+            if (distanceTo(au.getPos()) < 70 && getDef().getSpeed() > 0 && !getDef().isAbleToFly() && !au.getDef().getName().contains("gunship") && !au.getDef().getName().contains("plane")) {
                 AIFloat3 npos = new AIFloat3(au.getPos());
                 npos.x += 400;
                 npos = MoveTask.randomize(npos, 300);

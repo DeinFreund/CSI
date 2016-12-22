@@ -20,7 +20,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -50,11 +49,14 @@ import zkcbai.unitHandlers.DropHandler;
 import zkcbai.unitHandlers.FighterHandler;
 import zkcbai.unitHandlers.NanoHandler;
 import zkcbai.unitHandlers.CreepHandler;
+import zkcbai.unitHandlers.SuperweaponHandler;
 import zkcbai.unitHandlers.TurretHandler;
+import zkcbai.unitHandlers.VultureHandler;
 import zkcbai.unitHandlers.betterSquads.AvengerSquad;
 import zkcbai.unitHandlers.betterSquads.BansheeSquad;
 import zkcbai.unitHandlers.betterSquads.RaiderSquad;
 import zkcbai.unitHandlers.betterSquads.ScoutSquad;
+import zkcbai.unitHandlers.betterSquads.VultureSquad;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.FakeEnemy;
 import zkcbai.unitHandlers.units.FakeMex;
@@ -68,6 +70,7 @@ import zkcbai.unitHandlers.units.tasks.BuildTask;
 public class Command implements AI {
 
     public static final boolean LOG_TO_INFOLOG = false;
+    public static final boolean WRITE_LOG = true;
     public static final boolean GUI = true;
 
     private OOAICallback clbk;
@@ -106,6 +109,8 @@ public class Command implements AI {
     private BuilderHandler builderHandler;
     private NanoHandler nanoHandler;
     private DropHandler dropHandler;
+    private SuperweaponHandler superweaponHandler;
+    private VultureHandler vultureHandler;
 
     private final Map<Integer, AIUnit> units = new HashMap<>();
     private final Map<Integer, Enemy> enemies = new HashMap<>();
@@ -141,6 +146,8 @@ public class Command implements AI {
             builderHandler = new BuilderHandler(this, clbk);
             nanoHandler = new NanoHandler(this, clbk);
             dropHandler = new DropHandler(this, clbk);
+            superweaponHandler = new SuperweaponHandler(this, clbk);
+            vultureHandler = new VultureHandler(this, clbk);
 
             economyManager.init();
             losManager.init();
@@ -173,6 +180,10 @@ public class Command implements AI {
         return creepHandler;
     }
 
+    public VultureHandler getVultureHandler() {
+        return vultureHandler;
+    }
+
     public BuilderHandler getBuilderHandler() {
         return builderHandler;
     }
@@ -191,6 +202,10 @@ public class Command implements AI {
 
     public DropHandler getDropHandler() {
         return dropHandler;
+    }
+
+    public SuperweaponHandler getSuperweaponHandler() {
+        return superweaponHandler;
     }
 
     public FighterHandler getFighterHandler() {
@@ -318,7 +333,9 @@ public class Command implements AI {
         Enemy randomEnemy;
         int cnt = 0;
         do {
-            if (cnt ++ > 15) return null;
+            if (cnt++ > 15) {
+                return null;
+            }
             randomEnemy = enemyList.get(random.nextInt(enemyList.size()));
         } while (!randomEnemy.isAlive());
         return randomEnemy;
@@ -537,18 +554,19 @@ public class Command implements AI {
         try {
             Enemy att = null;
             if (attacker == null && dir.lengthSquared() > 0.01) {
+                AIFloat3 npos = new AIFloat3(unit.getPos());
+                AIFloat3 vec = new AIFloat3(dir);
+                vec.normalize();
+                vec.scale(weaponDef.getRange() * 0.8f);
+                npos.add(vec);
+                npos = new AIFloat3(Math.max(0, Math.min(areaManager.getMapWidth(), npos.x)), npos.y, Math.max(0, Math.min(areaManager.getMapHeight(), npos.z)));
                 boolean duplicate = false;
-                for (Enemy e : getEnemyUnitsIn(unit.getPos(), (weaponDef.getRange() + 300) * 3)) {
+                for (Enemy e : getEnemyUnitsIn(npos, (weaponDef.getRange() + 300) * 3)) {
                     if (e.getWeaponDefs().contains(weaponDef)) {
                         duplicate = true;
                     }
                 }
-                if (!duplicate) {
-                    AIFloat3 npos = new AIFloat3(unit.getPos());
-                    AIFloat3 vec = new AIFloat3(dir);
-                    vec.normalize();
-                    vec.scale(weaponDef.getRange() * 0.8f);
-                    npos.add(vec);
+                if (!duplicate && areaManager.getArea(npos).getZone() != ZoneManager.Zone.own) {
                     addFakeEnemy(new FakeSlasher(npos, weaponDef, this, clbk));
                 }
             }
@@ -582,6 +600,12 @@ public class Command implements AI {
     @Override
     public synchronized int enemyEnterLOS(Unit enemy) {
         try {
+            if (enemy.getDef().getName().equalsIgnoreCase("wolverine_mine")) {
+                if (enemies.containsKey(enemy.getUnitId())) {
+                    enemies.get(enemy.getUnitId()).destroyMyself();
+                }
+                return 0;
+            }
             if (!enemies.containsKey(enemy.getUnitId())) {
                 enemyDiscovered(new Enemy(enemy, this, clbk));
             }
@@ -739,24 +763,45 @@ public class Command implements AI {
     }
 
     public synchronized void enemyDestroyed(Enemy e, Unit attacker) {
-        if (getCurrentFrame() < 0) {
-            debug("Destroyed called by");
-            debugStackTrace();
-        }
-        if (e instanceof FakeEnemy) {
-            fakeEnemies.remove((FakeEnemy) e);
-        }
-        Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
-        AIUnit frenemy = null;
-        if (attacker != null && units.containsKey(attacker.getUnitId())) {
-            frenemy = units.get(attacker.getUnitId());
-        }
-        e.destroyed();
-        for (UnitDestroyedListener listener : unitDestroyedListenersc) {
-            listener.unitDestroyed(e, frenemy);
-        }
-        if (enemies.remove(e.getUnitId()) == null && !(e instanceof FakeEnemy)) {
-            throw new AssertionError("Enemy not in enemy map");
+        Timer timer = new Timer(5000, null);
+        try {
+            final Thread mainThread = Thread.currentThread();
+            timer.setRepeats(false);
+            timer.addActionListener(new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    debug("Lagging out (enemy Destroyed), printing stack trace: ", false);
+                    for (StackTraceElement ste : mainThread.getStackTrace()) {
+                        debug(ste.toString(), false);
+                    }
+                    mainThread.stop(new RuntimeException("Lockup"));
+                }
+            });
+            timer.start();
+            if (getCurrentFrame() < 0) {
+                debug("Destroyed called by");
+                debugStackTrace();
+            }
+            if (e instanceof FakeEnemy) {
+                fakeEnemies.remove((FakeEnemy) e);
+            }
+            Collection<UnitDestroyedListener> unitDestroyedListenersc = new ArrayList(unitDestroyedListeners);
+            AIUnit frenemy = null;
+            if (attacker != null && units.containsKey(attacker.getUnitId())) {
+                frenemy = units.get(attacker.getUnitId());
+            }
+            e.destroyed();
+            for (UnitDestroyedListener listener : unitDestroyedListenersc) {
+                listener.unitDestroyed(e, frenemy);
+            }
+            if (enemies.remove(e.getUnitId()) == null && !(e instanceof FakeEnemy)) {
+                throw new AssertionError("Enemy not in enemy map");
+            }
+        } catch (Throwable ex) {
+            debug("Exception in unitDestroyed: ", ex);
+        } finally {
+            timer.stop();
         }
     }
 
@@ -862,7 +907,6 @@ public class Command implements AI {
                 checkedIdle = 0;
                 Runtime runtime = Runtime.getRuntime();
 
-
                 long maxMemory = runtime.maxMemory();
                 long allocatedMemory = runtime.totalMemory();
                 long freeMemory = runtime.freeMemory();
@@ -952,8 +996,16 @@ public class Command implements AI {
                         aiunit = bansheeHandler.addUnit(unit);
                         break;
                     }
+                    if (unit.getDef().equals(superweaponHandler.BERTHA) || unit.getDef().equals(superweaponHandler.METEOR)) {
+                        aiunit = superweaponHandler.addUnit(unit);
+                        break;
+                    }
                     if (unit.getDef().equals(dropHandler.VALK) || unit.getDef().equals(dropHandler.SKUTTLE) || unit.getDef().equals(dropHandler.ROACH) || unit.getDef().equals(dropHandler.GNAT) || unit.getDef().equals(dropHandler.LICHO)) {
                         aiunit = dropHandler.addUnit(unit);
+                        break;
+                    }
+                    if (VultureSquad.scouts.contains(unit.getDef())) {
+                        aiunit = vultureHandler.addUnit(unit);
                         break;
                     }
                     if (unit.getDef().isAbleToAttack() && unit.getDef().getSpeed() > 0) {
@@ -1041,7 +1093,7 @@ public class Command implements AI {
     long lines = 0;
 
     public synchronized void debug(String s, boolean intoInfolog) {
-        if (lines++ > 1e6) {
+        if (lines++ > 1e6 || !WRITE_LOG) {
             return;
         }
         if (intoInfolog && LOG_TO_INFOLOG) {

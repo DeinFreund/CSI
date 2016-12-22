@@ -59,7 +59,7 @@ public class FakeSlasher extends FakeEnemy {
                 best = ud;
             }
         }
-        if (best == null) {
+        if (best == null || ("corsilo dante armwin").contains(best.getName())) {
             best = cmd.getCallback().getUnitDefByName("cormist");
         }
         return best;

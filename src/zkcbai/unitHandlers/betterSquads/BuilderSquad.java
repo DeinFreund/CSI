@@ -10,11 +10,10 @@ import com.springrts.ai.oo.clb.UnitDef;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 import zkcbai.Command;
+import zkcbai.UpdateListener;
 import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.EconomyManager;
 import zkcbai.helpers.ZoneManager.Area;
@@ -30,15 +29,16 @@ import zkcbai.unitHandlers.units.tasks.Task;
  *
  * @author User
  */
-public class BuilderSquad extends SquadManager {
+public class BuilderSquad extends SquadManager implements UpdateListener {
 
     public BuilderSquad(FighterHandler fighterHandler, Command command, OOAICallback callback) {
         this(fighterHandler, command, callback, null);
         for (UnitDef ud : command.getCallback().getUnitDefs()) {
-            if (ud.getBuildOptions().size() > 5 && !ud.getName().equalsIgnoreCase("armca")) {
+            if (ud.getBuildOptions().size() > 5 && !ud.getName().equalsIgnoreCase("armca") && !ud.isAbleToFly()) {
                 constructors.add(ud);
             }
         }
+        command.addSingleUpdateListener(this, 30 * 60 * 4);
     }
 
     public BuilderSquad(FighterHandler fighterHandler, Command command, OOAICallback callback, Collection<UnitDef> availableUnits) {
@@ -46,7 +46,7 @@ public class BuilderSquad extends SquadManager {
 
     }
 
-    final static List<UnitDef> constructors = new ArrayList();
+    final static Set<UnitDef> constructors = new HashSet();
 
     private AISquad aisquad;
 
@@ -84,14 +84,17 @@ public class BuilderSquad extends SquadManager {
         float builderValue = 0;
         float armyValue = 0;
         for (AIUnit au : command.getUnits()) {
-            if (au.getDef().getBuildOptions().size() > 3){
+            if (au.getDef().getBuildOptions().size() > 3) {
                 builderValue += au.getDef().getBuildSpeed() * 30;
-            }else
-            if (!au.isBuilding() && au.getDPS() > 1) {
-                armyValue += au.getMetalCost();
+            } else {
+                if (!au.isBuilding() && au.getDPS() > 1) {
+                    armyValue += au.getMetalCost();
+                }
             }
         }
-        if (builderValue * 2 > armyValue) return 0f;
+        if (builderValue * 2 > armyValue) {
+            return 0f;
+        }
         int bp = 0;
         int buildersBuilding = 0;
         for (UnitDef ud : command.getFactoryHandler().getQueue()) {
@@ -104,8 +107,14 @@ public class BuilderSquad extends SquadManager {
             bp += au.getDef().getBuildSpeed();
         }
         if (bp - 20 > 2.5 * command.getBuilderHandler().getMetalIncome() + Math.min(10, command.economyManager.getRemainingBudget(EconomyManager.Budget.economy) / 100) || buildersBuilding * 2 >= command.getFactoryHandler().getFacs().size()
-                || bp > 200 || bp > (command.getCurrentFrame() + 30 * 60) * 10 / (30 * 35)) {
-            return -1f;
+                || bp > 200 || bp > (command.getCurrentFrame() + 30 * 60) * 10 / (30 * 15)) {
+            if (bp > 200) {
+                command.debug("Too much buildpower");
+            }
+            if (bp > (command.getCurrentFrame() + 30 * 60) * 10 / (30 * 15)){
+                command.debug("Too many cons too early");
+            }
+            return -10f;
         } else {
             //command.debug("Total BP only " + bp + "/" + (int)(2 * command.getBuilderHandler().getMetalIncome() + 10) + " m/s");
             return 0.91f;
@@ -186,5 +195,25 @@ public class BuilderSquad extends SquadManager {
     @Override
     public boolean retreatForRepairs(AITroop u) {
         return u.getArea().getZone() != Zone.hostile;
+    }
+
+    @Override
+    public void update(int frame) {
+        float airbp = 0;
+        float totalbp = 0;
+        for (AIUnit au : command.getUnits()) {
+            if (au.getDef().getBuildOptions().size() > 3) {
+                totalbp += au.getDef().getBuildSpeed();
+                if (au.getDef().isAbleToFly()) {
+                    airbp += au.getDef().getBuildSpeed();
+                }
+            }
+        }
+        if (airbp + 20 < 0.3 * totalbp) {
+            constructors.add(command.getCallback().getUnitDefByName("gunshipcon")); //add wasp after a few minutes
+        } else {
+            constructors.remove(command.getCallback().getUnitDefByName("gunshipcon")); //add wasp after a few minutes
+        }
+        command.addSingleUpdateListener(this, frame + 30 * 30);
     }
 }

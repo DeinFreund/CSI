@@ -92,6 +92,10 @@ public class AssaultSquad extends SquadManager {
             }
             all += e.getMetalCost();
         }
+        if (command.getCreepHandler().getUnits().size() > 100) {
+            command.debug("Too many units for assault");
+            return -1f;
+        }
         command.debug("Assault usefulness: " + (0.9f - 0.88f * raiders / all));
         return 0.9f - 0.88f * raiders / all;
     }

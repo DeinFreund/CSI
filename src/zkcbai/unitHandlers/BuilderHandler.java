@@ -6,7 +6,6 @@ import com.springrts.ai.oo.clb.Team;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
 import com.springrts.ai.oo.clb.WeaponMount;
-import com.sun.javafx.util.Utils;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.ArrayDeque;
@@ -45,7 +44,6 @@ import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.ReclaimTask;
 import zkcbai.unitHandlers.units.tasks.RepairTask;
 import zkcbai.unitHandlers.units.tasks.Task;
-import zkcbai.unitHandlers.units.tasks.TaskType;
 import zkcbai.utility.Pair;
 
 /*
@@ -145,7 +143,6 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         radar = command.getCallback().getUnitDefByName("corrad");
         bertha = command.getCallback().getUnitDefByName("armbrtha");
         lazer = command.getCallback().getUnitDefByName("zenith");
-        workers.addAll(aiunits.values());
     }
 
     @Override
@@ -153,6 +150,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         AIUnit au = new AIUnit(u, this);
         command.debug("registered " + u.getDef().getHumanName() + " with id " + u.getUnitId());
         aiunits.put(u.getUnitId(), au);
+        workers.add(au);
         return au;
     }
 
@@ -184,7 +182,10 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if (!reachable.contains(command.areaManager.getArea(bt.getPos()))) {
                 continue;
             }
-            if (command.defenseManager.getGeneralDanger(bt.getPos()) > 0.7 * nearbyMilitary){
+            if (command.defenseManager.getGeneralDanger(bt.getPos()) > 0.7 * nearbyMilitary) {
+                continue;
+            }
+            if (u.getDef().isAbleToFly() && (command.areaManager.getArea(bt.getPos()).distanceToFront() < 1600 || !command.areaManager.getArea(bt.getPos()).isSafe())) {
                 continue;
             }
 
@@ -200,16 +201,18 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             for (AIUnit au : command.getUnitsIn(bt.getPos(), 900)) {
                 if (workers.contains(au)) {
                     AIFloat3 bpos = au.getPos();
-                    switch (au.getTask().getTaskType()) {
-                        case BuildTask:
-                            bpos = ((BuildTask) au.getTask()).getPos();
-                            break;
-                        case RepairTask:
-                            bpos = ((RepairTask) au.getTask()).getTarget().getPos();
-                            break;
-                        case ReclaimTask:
-                            bpos = ((ReclaimTask) au.getTask()).getTarget();
-                            break;
+                    if (au.getTask() != null) {
+                        switch (au.getTask().getTaskType()) {
+                            case BuildTask:
+                                bpos = ((BuildTask) au.getTask()).getPos();
+                                break;
+                            case RepairTask:
+                                bpos = ((RepairTask) au.getTask()).getTarget().getPos();
+                                break;
+                            case ReclaimTask:
+                                bpos = ((ReclaimTask) au.getTask()).getTarget();
+                                break;
+                        }
                     }
                     score -= 300 * 500f / (Command.distance2D(bt.getPos(), bpos) + 500f);
                 }
@@ -247,6 +250,15 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 if (command.getCurrentFrame() > 30 * 60 * 7) {
                     score += 1000;
                 }
+                if (command.getCurrentFrame() > 30 * 60 * 11) {
+                    score += 1000;
+                }
+                if (command.getCurrentFrame() > 30 * 60 * 15) {
+                    score += 1000;
+                }
+                if (command.getCurrentFrame() > 30 * 60 * 22) {
+                    score += 1000;
+                }
             }
             if (bt.getBuilding().getName().equals("armfus")) {
                 if (clbk.getEconomy().getCurrent(command.energy) > 400 && command.economyManager.getRemainingBudget(Budget.economy) < 1100) {
@@ -257,6 +269,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
             if ((bt.getBuilding().getName().equals("armsolar") || bt.getBuilding().getName().equals("armwin")) && command.getCurrentFrame() > 30 * 60 * 2.3) {
                 score += 1500 * avgMetalIncome / getEnergyIncome() - 900;
+            }
+            if ((bt.getBuilding().getName().equals("armsolar") || bt.getBuilding().getName().equals("armwin") ||  bt.getBuilding().getName().equals("armestor")) && getEnergyIncome() > getMetalIncome() * 2){
+                score += getEnergyIncome() / getMetalIncome() * 1000;
             }
             if ((bt.getBuilding().isAbleToAssist() || bt.getBuilding().getBuildOptions().size() > 5)
                     && clbk.getEconomy().getCurrent(command.metal) > 0.5 * getMetalStorage()
@@ -281,13 +296,16 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 command.debug("Not enough energy");
                 continue;
             }
-            if (command.defenseManager.getGeneralDanger(rt.getTarget().getPos()) > 0.7 * nearbyMilitary){
+            if (command.defenseManager.getGeneralDanger(rt.getTarget().getPos()) > 0.7 * nearbyMilitary) {
+                continue;
+            }
+            if (u.getDef().isAbleToFly() && (command.areaManager.getArea(rt.getTarget().getPos()).distanceToFront() < 1600 || !command.areaManager.getArea(rt.getTarget().getPos()).isSafe())) {
                 continue;
             }
             if (u.equals(rt.getTarget())) {
                 continue;
             }
-            float score = -u.distanceTo(rt.getTarget().getPos()) / 3f - rt.getWorkers().size() * 250 - command.areaManager.getArea(rt.getTarget().getPos()).getDanger() * 0.1000f + rt.getTarget().getMetalCost();
+            float score = -u.distanceTo(rt.getTarget().getPos()) / 3f - rt.getWorkers().size() * 750 - command.areaManager.getArea(rt.getTarget().getPos()).getDanger() * 0.1000f + rt.getTarget().getMetalCost();
 
             if (rt.getWorkers().contains(u)) {
                 score += 800;
@@ -310,10 +328,16 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if (clbk.getEconomy().getCurrent(command.energy) < 350 || energyIncome < avgMetalIncome * 1.1) {
                 continue;
             }
-            if (command.defenseManager.getGeneralDanger(a.getPos()) > 0.7 * nearbyMilitary){
+            if (clbk.getEconomy().getCurrent(command.metal) / getMetalStorage() > 0.83 ) {
                 continue;
             }
-            float score = -u.distanceTo(a.getPos()) + a.getReclaim();
+            if (command.defenseManager.getGeneralDanger(a.getPos()) > 0.7 * nearbyMilitary) {
+                continue;
+            }
+            if (u.getDef().isAbleToFly() && (a.distanceToFront() < 1600 || !a.isSafe())) {
+                continue;
+            }
+            float score = -2*u.distanceTo(a.getPos()) + a.getReclaim();
             if (best == null || score > bestscore) {
                 bestscore = score;
                 best = new ReclaimTask(a.getPos(), a.getEnclosingRadius(), this, command);
@@ -431,6 +455,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     @Override
     public void removeUnit(AIUnit u) {
         AIUnit ret = aiunits.remove(u.hashCode());
+        workers.remove(u);
 
         command.debug("removed unit " + u.getDef().getHumanName() + " with id " + u.getUnit().getUnitId() + ": " + ret);
     }
@@ -563,6 +588,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
         final float searchRadiusMult = 0.4f;
         for (final Edge edge : unbuiltEdges) { //each edge is contained twice, so only attaching to start has to be evalued
+            if (command.getCommandDelay() > 30 * 1 && rnd.nextInt(command.getCommandDelay() / 30 + 1) > 0) {
+                continue;
+            }
             for (final UnitDef building : eBuildings) {
                 final float buildingRange = Float.valueOf(building.getCustomParams().get("pylonrange"));
                 AIFloat3 dir = new AIFloat3(edge.end.pos);
@@ -603,7 +631,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                             && Command.distance2D(pos, edge.end.pos) < 0.97 * (edge.end.range + buildingRange)
                             && command.areaManager.getArea(pos).isReachable()) {
                         //command.mark(pos, "midposs");
-                        
+
                         float efficiency = (distance(pos, edge.start.pos) + distance(pos, edge.end.pos)) / (edge.start.range + 2 * buildingRange + edge.end.range);
                         possibilities.add(new BuildPossibility(building, pos, cost / efficiency));
                     }
@@ -843,9 +871,10 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 underConstruction += bt.getBuilding().getCost(command.metal);
             }
         }
+        boolean noFrontDefense = false;
         if (underConstruction > aiunits.size() * 46 + clbk.getEconomy().getCurrent(command.metal) / 5) {
             command.debug("Already building " + underConstruction + "m worth of defenses");
-            return;
+            noFrontDefense = true;
         }
 
         int ownAreas, enemyAreas, totalAreas;
@@ -887,25 +916,25 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
         long time3 = System.currentTimeMillis();
         Area worst = null;
-        float maxStingerDPS = 400;
+        float maxStingerDPS = 500;
         if (enemyAreas + ownAreas < 0.75 * totalAreas) {
             maxStingerDPS = 0; // 1 stinger = 280
         }
         Area nearestEnemyArea = null;
         for (Area a : command.areaManager.getAreas()) {
-            if (a.getZone() == Zone.hostile && (nearestEnemyArea == null || a.distanceTo(command.getStartPos()) < nearestEnemyArea.distanceTo(command.getStartPos()))){
+            if (a.getZone() == Zone.hostile && (nearestEnemyArea == null || a.distanceTo(command.getStartPos()) < nearestEnemyArea.distanceTo(command.getStartPos()))) {
                 nearestEnemyArea = a;
             }
             if (!a.isSecondFront() || !a.isReachable()) {
                 continue;
             }
-            if (a.getDefenseDPS() > 200 && a.getDefenseDPS() < maxStingerDPS
+            if (a.getDefenseDPS() > 330 && a.getDefenseDPS() < maxStingerDPS
                     && (worst == null || worst.getDefenseDPS() > a.getDefenseDPS() || (a.getDefenseDPS() - worst.getDefenseDPS() < 90 && a.getNegativeFlow() > worst.getNegativeFlow()))) {
                 worst = a;
-                command.mark(a.getPos(), a.getDefenseDPS() + " -> stinger");
+                //command.mark(a.getPos(), a.getDefenseDPS() + " -> stinger");
             }
         }
-        if (worst != null) {
+        if (worst != null && !noFrontDefense) {
             BuildTask bt = new BuildTask(stinger, worst.getPos(), Budget.defense, this, clbk, command, 5, 150, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("front stinger");
@@ -943,7 +972,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 bestdef = a.getPos();
             }
         }
-        if ((bestllts >= 2 || command.getCurrentFrame() > 30 * 60 * 7 || command.economyManager.getRemainingBudget(Budget.defense) > 300) && bestllts >= bestdefs && bestllt != null) {
+        if ((bestllts >= 2 || command.getCurrentFrame() > 30 * 60 * 7 || command.economyManager.getRemainingBudget(Budget.defense) > 300) && bestllts >= bestdefs && bestllt != null && !noFrontDefense) {
             BuildTask bt = new BuildTask(llt, bestllt, Budget.defense, this, clbk, command, 5, 150, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("mex llt");
@@ -951,7 +980,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             registerBuildTask(bt);
             this.defenseNodes.add(gn);
             taskDefenseNodeFinder.put(bt.getTaskId(), gn);
-        } else if ((bestdefs >= 2 || command.getCurrentFrame() > 30 * 60 * 7 || command.economyManager.getRemainingBudget(Budget.defense) > 300) && bestdef != null) {
+        } else if ((bestdefs >= 2 || command.getCurrentFrame() > 30 * 60 * 7 || command.economyManager.getRemainingBudget(Budget.defense) > 300) && bestdef != null && !noFrontDefense) {
             BuildTask bt = new BuildTask(defender, bestdef, Budget.defense, this, clbk, command, 5, 150, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("mex defender");
@@ -961,7 +990,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             taskDefenseNodeFinder.put(bt.getTaskId(), gn);
         }
         worst = null;
-        float maxDefenderDPS = 250;
+        float maxDefenderDPS = 400;
         if (enemyAreas + ownAreas < 0.75 * totalAreas) {
             maxDefenderDPS = 80; // 1 defender = 87
         }
@@ -978,7 +1007,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
 
         long time6 = System.currentTimeMillis();
-        if (worst != null && ownAreas + enemyAreas > 0.7 * totalAreas) {
+        if (worst != null && ownAreas + enemyAreas > 0.7 * totalAreas && !noFrontDefense) {
             BuildTask bt = new BuildTask(defender, worst.getPos(), Budget.defense, this, clbk, command, 5, 300, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("front defender");
@@ -1004,26 +1033,27 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 bbbs++;
             }
         }
+
         final Area nearestEnemy = nearestEnemyArea;
-        if (bbbs >= 2 && ownAreas > 2 * enemyAreas && lazors < 1 && command.getCurrentFrame() > 30 * 60 * 20 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {;
+        if (bbbs >= 2 && ownAreas > 1.4 * enemyAreas && lazors < 1 && command.getCurrentFrame() > 30 * 60 * 20 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {;
             BuildTask bt = new BuildTask(lazer, command.getStartPos(), Budget.defense, this, clbk, command, 5, -1, true, new PositionChecker() {
-            @Override
-            public boolean checkPosition(AIFloat3 pos) {
-                return nearestEnemy.distanceTo(pos) > command.areaManager.getMapWidth() / 3f;
-            }
-        });
+                @Override
+                public boolean checkPosition(AIFloat3 pos) {
+                    return nearestEnemy.distanceTo(pos) > command.areaManager.getMapWidth() / 3f;
+                }
+            });
             bt.setInfo("superwep");
             command.registerBuildTask(bt);
             registerBuildTask(bt);
-        } else if (ownAreas > 1.3 * enemyAreas && command.economyManager.getRemainingBudget(Budget.defense) > 900 && berthas + lazors < 1 && command.getCurrentFrame() > 30 * 60 * 12 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
+        } else if (ownAreas > Math.min(1.4, 0.3 + bbbs * 0.6) * enemyAreas && (command.economyManager.getRemainingBudget(Budget.defense) > 900 || command.getCurrentFrame() > 30 * 60 * 18 * 100 / avgMetalIncome && bbbs < 1) && berthas + lazors < 1 && command.getCurrentFrame() > 30 * 60 * 12 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
 
             command.debug("Queued bertha because " + ownAreas + " > 1.3 * " + enemyAreas);
             BuildTask bt = new BuildTask(bertha, command.getStartPos(), Budget.defense, this, clbk, command, 5, 2000, true, new PositionChecker() {
-            @Override
-            public boolean checkPosition(AIFloat3 pos) {
-                return nearestEnemy.distanceTo(pos) > command.areaManager.getMapWidth() / 3.5f;
-            }
-        });
+                @Override
+                public boolean checkPosition(AIFloat3 pos) {
+                    return nearestEnemy.distanceTo(pos) > command.areaManager.getMapWidth() / 3.5f;
+                }
+            });
             bt.setInfo("superwep");
             command.registerBuildTask(bt);
             registerBuildTask(bt);
@@ -1094,7 +1124,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     taskGridNodeFinder.remove(bt.taskID);
                     defenseNodes.remove(taskDefenseNodeFinder.get(bt.taskID));
                     taskDefenseNodeFinder.remove(bt.taskID);
-                    command.mark(bt.getPos(), "culled " + bt.getBuilding().getHumanName());
+                    //command.mark(bt.getPos(), "culled " + bt.getBuilding().getHumanName());
                 }
             }
         }
@@ -1169,8 +1199,13 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
             command.debug(energy + " energy buildings planned");
             lastEnergyCheck = command.getCurrentFrame();
-            if ((energyIncome + getEnergyUnderConstruction() < 1.3 * avgMetalIncome || (enemymex + ownmex) > 0.75 * totmex)) {
-                if (command.economyManager.getRemainingBudget(Budget.economy) > 100 && planQueue.isEmpty() && gridNodes.size() < 500 && (energy < Math.min(27, 5 + aiunits.size() * 3) || clbk.getEconomy().getCurrent(command.energy) < 350)) {
+            if (/*(energyIncome + getEnergyUnderConstruction() < 1.3 * avgMetalIncome)*/true) {
+                int ebuildings = 0;
+                for (BuildTask bt: constructions){
+                    if (bt.getBuilding().getName().equalsIgnoreCase("armsolar") || bt.getBuilding().getName().equalsIgnoreCase("armwin") || bt.getBuilding().getName().equalsIgnoreCase("armestor"))
+                        ebuildings ++;
+                }
+                if (ebuildings < workers.size() * 2 && command.economyManager.getRemainingBudget(Budget.economy) > 100 && planQueue.isEmpty() && gridNodes.size() < 500/* && (energy < Math.min(27, 5 + aiunits.size() * 3) || clbk.getEconomy().getCurrent(command.energy) < 350)*/) {
 // && planningGridMutex.tryAcquire()
                     //command.debug("Planning grid async.");
                     //Thread planningThread = new Thread(new Runnable() {
@@ -1181,18 +1216,21 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     //planningThread.start();
 
                 }
-                if (command.economyManager.getRemainingBudget(Budget.economy) > 1000 && energyIncome > 35) {
-                    boolean buildingFus = false;
+                if(!(ebuildings < workers.size() * 2)){
+                    command.debug("Too many constructions");
+                }
+                UnitDef fusion = (fusions < 4) ? clbk.getUnitDefByName("armfus") : clbk.getUnitDefByName("cafus");
+                if (command.economyManager.getRemainingBudget(Budget.economy) - 100 > fusion.getCost(command.metal) && energyIncome > 35) {
+                    int buildingFus = 0;
                     for (BuildTask bt : constructions) {
-                        if (bt.getBuilding().equals(clbk.getUnitDefByName("armfus"))) {
-                            buildingFus = true;
-                            break;
+                        if (bt.getBuilding().equals(clbk.getUnitDefByName("armfus")) || bt.getBuilding().equals(clbk.getUnitDefByName("cafus"))) {
+                            buildingFus++;
                         }
                     }
-                    if (!buildingFus) {
+                    if (buildingFus < 2) {
                         fusions++;
                         AIFloat3 pos = command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos();
-                        BuildTask bt = new BuildTask(clbk.getUnitDefByName("armfus"), pos, Budget.economy, this, clbk, command, 5, true);
+                        BuildTask bt = new BuildTask(fusion, pos, Budget.economy, this, clbk, command, 5, true);
                         GridNode gn = new GridNode(bt);
                         command.registerBuildTask(bt);
                         registerBuildTask(bt);
@@ -1346,6 +1384,8 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         long time2 = System.currentTimeMillis();
+        
+        command.debug("planned grid: " + planQueue.size() + " new buildings");
         if (time2 - time > 100) {
             if (PLANNING > MIN_PLANNING) {
                 PLANNING -= 3;
@@ -1385,9 +1425,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         if (u.getDef().equals(storage)) {
             storageUnits.add(u);
         }
-        if (u.getDef().equals(lazer)){
-            u.getUnit().setFireState(2, (short)0, Integer.MAX_VALUE);
-        }
+//        if (u.getDef().equals(lazer)){
+//            u.getUnit().setFireState(2, (short)0, Integer.MAX_VALUE);
+//        }
     }
 
     protected static float distance(AIFloat3 a, AIFloat3 b) {

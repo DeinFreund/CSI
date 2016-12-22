@@ -91,11 +91,11 @@ public class LichoSquad extends SquadManager {
                 fightervalue += au.getMetalCost();
             }
         }
-        if (groundvalue + 300 < 2 * fightervalue){
+        if (groundvalue + 300 < 2 * fightervalue || command.getCurrentFrame() < 30*60*3){
             return 0f;
         }
 
-        if (command.getCurrentFrame() - 30 * 60 * 10 > bomber * 30 * 60 * 8) {
+        if (command.getCurrentFrame() - 30 * 60 * 9 > bomber * 30 * 60 * 8) {
             return 0.91f;
         }
         if (command.economyManager.getRemainingBudget(EconomyManager.Budget.offense) > 1800) {

@@ -38,7 +38,7 @@ public class SupportSquad extends SquadManager {
         }
     }
 
-    final private String[] supportIds = {"armsnipe", "amphassault", "armmanni", "firewalker", "shieldfelon", "armcrabe", "corgol"};
+    final private String[] supportIds = {"armsnipe", "amphassault", "armmanni", "firewalker", "shieldfelon", "armcrabe", "corgol", "armmerl"};
     final static Set<UnitDef> supports = new HashSet();
 
     private Random rnd = new Random();

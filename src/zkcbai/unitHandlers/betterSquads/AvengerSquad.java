@@ -84,10 +84,10 @@ public class AvengerSquad extends SquadManager {
         for (Enemy e : command.getAvengerHandler().getEnemyAir()){
             enemyairvalue += e.getMetalCost();
         }
-        if (groundvalue + 300 < 3 * fightervalue){
+        if (groundvalue + 300 < 3 * fightervalue && command.getAvengerHandler().getUnits().size() > 2){
             return 0f;
         }
-        return Math.min(0.9f, enemyairvalue / (aavalue + 100f) + 0.1f);
+        return Math.min(0.9f, enemyairvalue / (aavalue + 100f) + ((command.getAvengerHandler().getUnits().size() < 3) ? 0.3f : -0.01f));
         //return 0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f;
     }
 

@@ -145,6 +145,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
             MoveTask mt = (MoveTask) t;
             if (AvengerSquad.fighters.contains(mt.getLastExecutingUnit().getDef())) {
                 fighters.addUnit((AIUnit) mt.getLastExecutingUnit());
+                ((AIUnit) mt.getLastExecutingUnit()).setRetreat(AIUnit.RetreatState.Retreat65);
             } else {
                 scouts.add((AIUnit) mt.getLastExecutingUnit());
             }
@@ -176,6 +177,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
         super.unitDestroyed(au, killer);
         friendlyAir.remove(au);
         scouts.remove(au);
+        repairing.remove(au);
     }
 
     @Override
@@ -229,6 +231,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
                     scoutPos.remove(entry.getSecond());
                     continue;
                 }
+                entry.getFirst().setRetreat(AIUnit.RetreatState.RetreatOff);
                 entry.getFirst().assignTask(new MoveTask(entry.getSecond().getPos(), Integer.MAX_VALUE, this, command.pathfinder.AVOID_ANTIAIR, command).setInfo("scout"));
                 fighters.removeUnit(entry.getFirst(), this);
                 scouts.remove(entry.getFirst());
@@ -321,7 +324,7 @@ public class AvengerHandler extends UnitHandler implements UpdateListener, Enemy
     
     @Override
     public void enemyDiscovered(Enemy e) {
-        if (e.getPos().y - clbk.getMap().getElevationAt(e.getPos().x, e.getPos().z) > 38) {
+        if (e.getPos().y - clbk.getMap().getElevationAt(e.getPos().x, e.getPos().z) > 48 && e.getVel().length() > clbk.getUnitDefByName("bomberdive").getSpeed() - 0.01f) {
             command.mark(e.getPos(), "Hostile aircraft assumed");
             enemyAir.add(e);
         }

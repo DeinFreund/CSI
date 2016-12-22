@@ -21,6 +21,7 @@ import zkcbai.helpers.Pathfinder;
 import zkcbai.helpers.Pathfinder.MovementType;
 import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
+import zkcbai.helpers.ZoneManager.Zone;
 
 /**
  *
@@ -37,7 +38,7 @@ public class Enemy {
     protected final Command command;
     protected UnitDef unitDef;
     protected boolean neverSeen = true;
-    protected float maxVelocity = 0.5f;
+    protected float maxVelocity = 0f;
     protected AIFloat3 lastPos = new AIFloat3();
     protected AIFloat3 lastVel = new AIFloat3();
     protected AIFloat3 lastPosPossible;
@@ -54,6 +55,8 @@ public class Enemy {
     protected boolean antiair = false;
     protected boolean isFlier = false;
     private static Set<UnitDef> aaUnits;
+
+    private final float warriorspeed;
 
     public Enemy(Unit u, Command cmd, OOAICallback clbk) {
         this(u.getPos(), cmd, clbk);
@@ -80,6 +83,7 @@ public class Enemy {
             aaUnits.add(clbk.getUnitDefByName("slowmort")); //moderator
             aaUnits.add(clbk.getUnitDefByName("cormist")); //moderator
         }
+        warriorspeed = clbk.getUnitDefByName("armwar").getSpeed();
     }
 
     private int deadpollFrame = -1;
@@ -89,7 +93,7 @@ public class Enemy {
         if (alive || command.getCurrentFrame() == destroyFrame) {
             return;
         }
-        command.debug("polled dead");
+        command.debug("polled dead enemy " + hashCode());
         command.debugStackTrace();;
         if (deadpollFrame == command.getCurrentFrame() && deadpollFrame != destroyFrame && command.getCurrentFrame() - deadpollFrame > 0) {
             destroyed();
@@ -111,7 +115,11 @@ public class Enemy {
         return Pathfinder.MovementType.getMovementType(getDef());
     }
 
-    protected void destroyMyself() {
+    private int lastDestroyQueue = -1;
+    
+    public void destroyMyself() {
+        if (lastDestroyQueue == command.getCurrentFrame()) return;
+        lastDestroyQueue = command.getCurrentFrame();
         final Enemy meMyselfAndI = this;
         command.debug("queued destroy of " + (unitDef != null ? unitDef.getHumanName() : hashCode()));
         command.addSingleUpdateListener(new UpdateListener() {
@@ -156,6 +164,10 @@ public class Enemy {
     public int getLastAccuratePosTime() {
         return lastAccPosTime;
     }
+    
+    public boolean hasBeenSeen(){
+        return !neverSeen;
+    }
 
     protected int lastPosCheck = -100;
 
@@ -175,7 +187,7 @@ public class Enemy {
         lastPosCheck = command.getCurrentFrame();
 
         if ((shouldBeVisible(lastPosPossible) && !isVisible())) {
-            command.debug(getDef().getHumanName() + " correcting visible position");
+            //command.debug(getDef().getHumanName() + " correcting visible position");
             update(command.getCurrentFrame());
         }
         time = System.nanoTime() - time;
@@ -185,11 +197,14 @@ public class Enemy {
         if (isBuilding() && !neverSeen) {
             return lastPos;
         }
-        if (unit != null && unit.getPos().length() > 0) {
-            lastPos = lastPosPossible = unit.getPos();
-            lastSeen = command.getCurrentFrame();
-            lastVel = getVel();
-            return new AIFloat3(lastPos);
+        if (unit != null) {
+            AIFloat3 pos = unit.getPos();
+            if (pos.length() > 0) {
+                lastPos = lastPosPossible = pos;
+                lastSeen = command.getCurrentFrame();
+                lastVel = getVel();
+                return new AIFloat3(lastPos);
+            }
         }
         return new AIFloat3(lastPosPossible);
     }
@@ -212,7 +227,7 @@ public class Enemy {
         if (unitDef == null) {
             identify();
         }
-        
+
         time = System.nanoTime() - time;
         if (time > 0.5e6) {
             command.debug("getdef took " + time + "ns");
@@ -346,7 +361,7 @@ public class Enemy {
         @Override
         public boolean checkArea(ZoneManager.Area a) {
             if (getDef().getCloakCost() <= 0 || getDef().isAbleToRepair() || timeSinceLastSeen() > 700 || getDef().isAbleToFly()) {
-                return !(a.isVisible() || command.getCurrentFrame() - a.getLastVisible() < 30 * 60 * 3);
+                return !(a.isVisible() || command.getCurrentFrame() - a.getLastVisible() < 30 * 60 * 3) && a.getZone() == Zone.hostile;
             } else {
                 return clbk.getFriendlyUnitsIn(a.getPos(), a.getEnclosingRadius() + 40 + getDef().getDecloakDistance()).isEmpty();
             }
@@ -388,7 +403,7 @@ public class Enemy {
             polledDead();
         }
         long time = System.nanoTime();
-        boolean retval = timeSinceLastSeen() > 1000 * 100 / Math.max(getDef().getSpeed(), clbk.getUnitDefByName("armwar").getSpeed()) * 30 / Math.max(30, command.getCommandDelay());
+        boolean retval = timeSinceLastSeen() > 1000 * 100 / Math.max(getDef().getSpeed(), warriorspeed) * 30 / Math.max(30, command.getCommandDelay());
         time = System.nanoTime() - time;
         if (time > 0.5e6) {
             command.debug("istimedout took " + time + "ns");
@@ -415,6 +430,11 @@ public class Enemy {
             health = unit.getHealth();
             lastAccPos = unit.getPos();
             lastAccPosTime = frame;
+            if (unit.getPos().y < -10) {
+                destroyMyself();
+                command.debug("Destroying underwater " + getDef().getHumanName() + " " + hashCode());
+            }
+
         }
         //command.debug(getDef().getHumanName() + " : " + shouldBeVisible(lastPosPossible) + " " + isVisible());
 
@@ -425,11 +445,11 @@ public class Enemy {
             lastSeen = command.getCurrentFrame();
             lastVel = unit.getVel();
         } else if (shouldBeVisible(lastPosPossible)) {
-            command.debug("new pos for " + getDef().getHumanName());
+            //command.debug("new pos for " + getDef().getHumanName());
             if (isBuilding) {
-                destroyMyself();
                 command.debug("Building not actually there: " + getDef().getHumanName());
-                lastPos = lastPosPossible = new AIFloat3();
+                //lastPos = lastPosPossible = new AIFloat3();
+                destroyMyself();
             } else {
                 Area npos;
                 AIFloat3 likelyPos = new AIFloat3(lastVel);
@@ -439,7 +459,7 @@ public class Enemy {
                 if (npos != null) {
                     lastPosPossible = npos.getPos();
                 } else {
-                    command.debug("No possible pos found for " + getDef().getHumanName());
+                    //command.debug("No possible pos found for " + getDef().getHumanName());
                     destroyMyself();
                 }
             }
@@ -467,19 +487,16 @@ public class Enemy {
         if (!isAlive()) {
             polledDead();
         }
-        inLOS = true;
 
         if (neverSeen) {
             health = unit.getHealth();
             unitDef = unit.getDef();
-            if (unitDef.getName().equalsIgnoreCase("wolverine_mine")) {
-                destroyMyself();
-            }
             identify();
             if (unitDef.getName().equals("cormex")) {
                 command.areaManager.getNearestMex(getPos()).setEnemyMex(this);
             }
         }
+        inLOS = true;
         neverSeen = false;
         lastSeen = command.getCurrentFrame();
         update(command.getCurrentFrame());
@@ -517,7 +534,7 @@ public class Enemy {
         }
         long time = System.nanoTime();
 
-        if (unit != null && unit.getDef() != null){
+        if (unit != null && unit.getDef() != null) {
             unitDef = unit.getDef();
         }
         if (unit != null && neverSeen && (unitDef == null || unitDef.getSpeed() < maxVelocity - 0.001f)) {
@@ -529,12 +546,17 @@ public class Enemy {
         if (unitDef == null) {
             unitDef = clbk.getUnitDefByName("armpw");
         }
+        if (unitDef.getName().equalsIgnoreCase("wolverine_mine")) {
+            unitDef = clbk.getUnitDefByName("armwin");
+            destroyMyself();
+        }
         maxRange = 0;
         for (WeaponMount wm : unitDef.getWeaponMounts()) {
             maxRange = Math.max(wm.getWeaponDef().getRange(), maxRange);
         }
         health = unitDef.getHealth();
         metalcost = unitDef.getCost(command.metal);
+        command.debug("Identified " + unitDef.getHumanName() + "(" + hashCode() + ") with metal cost " + metalcost);
         dps = Command.getDPS(getDef());
         isBuilding = getDef().getSpeed() <= 0.01;
         antiair = dps > 0 && getDef().getWeaponMounts().get(0).getWeaponDef().isAbleToAttackGround() == false || aaUnits.contains(getDef());

@@ -5,22 +5,15 @@
  */
 package zkcbai.unitHandlers;
 
-import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.OOAICallback;
 import com.springrts.ai.oo.clb.Unit;
-import com.springrts.ai.oo.clb.UnitDef;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import zkcbai.Command;
 import zkcbai.EnemyDiscoveredListener;
 import zkcbai.EnemyEnterLOSListener;
 import zkcbai.UnitFinishedListener;
 import zkcbai.UpdateListener;
-import zkcbai.helpers.ZoneManager;
 import zkcbai.helpers.ZoneManager.Area;
 import zkcbai.helpers.ZoneManager.Zone;
 import zkcbai.unitHandlers.units.AISquad;
@@ -29,7 +22,6 @@ import zkcbai.unitHandlers.units.AIUnit;
 import zkcbai.unitHandlers.units.Enemy;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
 import zkcbai.unitHandlers.units.tasks.Task;
-import zkcbai.utility.Pair;
 
 /**
  *
@@ -125,6 +117,8 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
         return false;
     }
 
+    private Enemy oldtarget = null;
+
     @Override
     public void update(int frame) {
         if (frame % 50 == 37) {
@@ -164,44 +158,53 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                 for (Enemy e : command.getEnemyUnits(false)) {
 
                     Area enemyArea = command.areaManager.getArea(e.getPos());
-                    if (enemyArea.getEnemyAADPS() <= 0.1){
+                    if (enemyArea.getEnemyAADPS() <= 0.1) {
                         enemyArea.updateAADPS();
                     }
-                    if (enemyArea.getNearestArea(command.areaManager.FRIENDLY).distanceTo(e.getPos()) > 800){
+                    if (enemyArea.getNearestArea(command.areaManager.FRIENDLY).distanceTo(e.getPos()) > 800) {
                         continue;
                     }
-                    if (enemyArea.getEnemyAADPS() + (enemyArea.getZone() == Zone.hostile ? 120 : -10) > 10  * banshees.getUnits().size() * banshees.getUnits().size()) {
+                    if (enemyArea.getEnemyAADPS() + (enemyArea.getZone() == Zone.hostile ? 120 : -10) > 10 * banshees.getUnits().size() * banshees.getUnits().size()) {
                         continue;
                     }
-                    float score = e.getMetalCost() / e. getHealth() * 1000 / (500 + 3 * banshees.distanceTo(e.getPos())) * 100 / (100 + enemyArea.getEnemyAADPS()) * 200 / (e.getDPS() + 200);
+                    float score = e.getMetalCost() / e.getHealth() * 1000 / (500 + 3 * banshees.distanceTo(e.getPos())) * 100 / (100 + enemyArea.getEnemyAADPS()) * 200 / (e.getDPS() + 200);
                     float nearbyAlly = 0;
                     float nearbyNoFighter = 0;
-                    for (AIUnit au : command.getUnitsIn(e.getPos(), 800)){
-                        if (au.getDef().isAbleToAttack()) nearbyAlly += au.getMetalCost();
-                        else nearbyNoFighter += au.getMetalCost();
+                    for (AIUnit au : command.getUnitsIn(e.getPos(), 800)) {
+                        if (au.getDef().isAbleToAttack()) {
+                            nearbyAlly += au.getMetalCost();
+                        } else {
+                            nearbyNoFighter += au.getMetalCost();
+                        }
                     }
-                    if (nearbyAlly < 150 && nearbyNoFighter > 50){
+                    if (nearbyAlly < 150 && nearbyNoFighter > 50) {
                         score *= 3;
                     }
                     if (e.getDef().isAbleToCloak() && e.getMetalCost() > 200 && !e.isAntiAir() && enemyArea.getZone() != Zone.hostile) {
                         score *= 5;
                     }
-                    if (command.getCommandDelay() > 60 && !e.isVisible()){
+                    if (command.getCommandDelay() > 60 && !e.isVisible()) {
                         score /= 10;
                     }
-                    if (e.getDef().getSpeed() > 0.9 * command.getCallback().getUnitDefByName("corhurc2").getSpeed()){
+                    if (e.getDef().getSpeed() > 0.9 * command.getCallback().getUnitDefByName("corhurc2").getSpeed()) {
                         score /= 4;
                     }
-                    if (e.getDef().getName().equals("armsolar")){ 
+                    if (e.getDef().getName().equals("armsolar")) {
                         score /= 4; //compensate for armor
                     }
-                    if (enemyArea.getZone() == Zone.own) score *=3;
+                    if (enemyArea.getZone() == Zone.own) {
+                        score *= 3;
+                    }
+                    if (e.equals(oldtarget)) {
+                        score *= 1.2;
+                    }
                     if (score > best) {
                         target = e;
                         best = score;
                     }
                 }
                 if (target != null) {
+                    oldtarget = target;
                     command.debug("Banshees going for " + target.getDef().getHumanName());
                     if (banshees.distanceTo(target.getPos()) > 1600) {
                         banshees.assignTask(new MoveTask(target.getPos(), command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
@@ -209,7 +212,8 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                         banshees.attack(target, command.getCurrentFrame() + 60);
                     }
                 } else {
-                    banshees.assignTask(new MoveTask(banshees.getArea().getNearestArea(command.getCurrentFrame() < 30 * 60 * 5 ? command.areaManager.FRIENDLY : command.areaManager.SAFE).getPos(), 
+                    oldtarget = null;
+                    banshees.assignTask(new MoveTask(banshees.getArea().getNearestArea(command.getCurrentFrame() < 30 * 60 * 5 ? command.areaManager.FRIENDLY : command.areaManager.SAFE).getPos(),
                             command.getCurrentFrame() + 60, this, command.pathfinder.AVOID_ANTIAIR, command));
                     command.debug("no target for banshees");
                 }

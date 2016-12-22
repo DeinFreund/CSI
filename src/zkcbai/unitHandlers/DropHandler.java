@@ -133,7 +133,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
 
             Enemy vip = null;
             if (loadedTransports.get(u).getDef().equals(SKUTTLE)) {
-                vip = getAOETarget(SKUTTLE.getDeathExplosion().getAreaOfEffect(), 0.93f * SKUTTLE.getDeathExplosion().getDamage().getTypes().get(1), ROACH.getDeathExplosion().getEdgeEffectiveness(), 599, 150, new AIFloat3(), Float.MAX_VALUE, true);
+                vip = getAOETarget(SKUTTLE.getDeathExplosion().getAreaOfEffect(), 0.93f * SKUTTLE.getDeathExplosion().getDamage().getTypes().get(1), SKUTTLE.getDeathExplosion().getEdgeEffectiveness(), 599, 150, new AIFloat3(), Float.MAX_VALUE, true, 0.8f);
 
                 /*for (Enemy e : command.getEnemyUnits(true)) {
                     if (command.distance2D(e.getPos(), e.getLastAccuratePos()) > 500 || e.isAbleToFly()) {
@@ -174,7 +174,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                     return;
                 }
             } else if (loadedTransports.get(u).getDef().equals(ROACH)) {
-                vip = getAOETarget(ROACH.getDeathExplosion().getAreaOfEffect(), 0.92f * ROACH.getDeathExplosion().getDamage().getTypes().get(1), ROACH.getDeathExplosion().getEdgeEffectiveness(), 0.92f * (ROACH.getCost(command.metal) + VALK.getCost(command.metal)), 150, new AIFloat3(), Float.MAX_VALUE, true);
+                vip = getAOETarget(ROACH.getDeathExplosion().getAreaOfEffect(), 0.92f * ROACH.getDeathExplosion().getDamage().getTypes().get(1), ROACH.getDeathExplosion().getEdgeEffectiveness(), 0.92f * (ROACH.getCost(command.metal) + VALK.getCost(command.metal)), 150, new AIFloat3(), Float.MAX_VALUE, true, 1);
 
                 if (vip != null && command.getCommandDelay() < 30) {
                     if (u.distanceTo(vip.getPos()) > 2500) {
@@ -201,7 +201,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 vip = lichoTarget.get(u);
             } else {
                 WeaponDef wd = LICHO.getWeaponMounts().get(0).getWeaponDef();
-                vip = getAOETarget(wd.getAreaOfEffect(), wd.getDamage().getTypes().get(1), wd.getEdgeEffectiveness(), 0f, 300, u.getPos(), (u.getArea().getZone() == ZoneManager.Zone.hostile || (u.getNearestEnemy() != null && u.getNearestEnemy().distanceTo(u.getPos()) < 800)) ? 1800 : Float.MAX_VALUE, false);
+                vip = getAOETarget(wd.getAreaOfEffect(), 0.98f * wd.getDamage().getTypes().get(1), wd.getEdgeEffectiveness(), 0f, 300, u.getPos(), (u.getArea().getZone() == ZoneManager.Zone.hostile || (u.getNearestEnemy() != null && u.getNearestEnemy().distanceTo(u.getPos()) < 800)) ? 1800 : Float.MAX_VALUE, false, 3);
 
             }
             boolean isRepairing = false;
@@ -252,19 +252,19 @@ public class DropHandler extends UnitHandler implements UpdateListener {
         u.wait(command.getCurrentFrame() + 30);
     }
 
-    protected Enemy getAOETarget(final float blastradius, final float damage, final float edgeEffectiveness, final float minValue, final float maxAA, final AIFloat3 pos, final float searchRange, final boolean nofliers) {
+    protected Enemy getAOETarget(final float blastradius, final float damage, final float edgeEffectiveness, final float minValue, final float maxAA, final AIFloat3 pos, final float searchRange, final boolean nofliers, final float timeoutMult) {
         final float falloff = (1f - edgeEffectiveness) / blastradius;
         float bestMetal = 0;
         Enemy vip = null;
         for (Enemy e : command.getEnemyUnits(true)) {
-            if (e.timeSinceLastSeen() > 30 * 10 || (e.getDef().isAbleToFly() && nofliers) || Command.distance2D(e.getPos(), e.getLastPos()) > 200
+            if (e.timeSinceLastSeen() > timeoutMult * 30 * 10 || (e.getDef().isAbleToFly() && nofliers) || Command.distance2D(e.getPos(), e.getLastPos()) > 200
                     || e.distanceTo(pos) > searchRange || (e.getDef().isAbleToCloak() && (e.getMetalCost() < 1000 || e.timeSinceLastSeen() > 30 * 3))) {
                 continue;
             }
             float metalKilled = 0;
             for (Enemy near : command.getEnemyUnitsIn(e.getPos(), blastradius)) {
 
-                if (near.timeSinceLastSeen() > 30 * 5 || (near.getDef().isAbleToFly() && (nofliers || e.getDef().getSpeed() > clbk.getUnitDefByName("corvamp").getSpeed() - 0.01))) {
+                if (near.timeSinceLastSeen() > 30 * 5 * timeoutMult || (near.getDef().isAbleToFly() && (nofliers || e.getDef().getSpeed() > clbk.getUnitDefByName("corvamp").getSpeed() - 0.01))) {
                     continue;
                 }
                 if (near.getHealth() > damage * (1 - near.distanceTo(e.getPos()) * falloff)) {
@@ -333,11 +333,16 @@ public class DropHandler extends UnitHandler implements UpdateListener {
 
     @Override
     public void unitDestroyed(Enemy e, AIUnit killer) {
-
+        for (AIUnit au : lichos){
+            if (lichoTarget.containsKey(au) && lichoTarget.get(au).equals(e)) lichoTarget.remove(au);
+        }
     }
 
     public Set<AIUnit> getGnats() {
         return gnats;
+    }
+    public Set<AIUnit> getLichos() {
+        return lichos;
     }
 
     @Override

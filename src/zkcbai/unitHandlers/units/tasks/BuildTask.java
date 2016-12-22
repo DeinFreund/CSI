@@ -40,6 +40,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     OOAICallback clbk;
     List<AITroop> assignedUnits;
     static Command command;
+    public final int creationTime;
 
     public static AIFloat3 findClosestBuildSite(UnitDef building, AIFloat3 approxPos, int minDist, int facing, Command command, boolean reachable) {
         return findClosestBuildSite(building, approxPos, minDist, facing, command, -1f, reachable, null);
@@ -67,7 +68,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @return AIFloat(-1, -1, -1) if no valid position was found and a search range was specified
      */
     public static AIFloat3 findClosestBuildSite(UnitDef building, AIFloat3 approxPos, int minDist, int facing, Command command, float heightRange, boolean reachable, PositionChecker checker, float searchRange) {
-        final float step = 16;
+        final float step = 48;
         float _minDist = 8 * minDist;
         AIFloat3 bestPos = null;
         //command.debug("finding buildsite for "  + building.getHumanName());
@@ -257,6 +258,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
         this.facing = facing;
         this.clbk = clbk;
         this.budget = budget;
+        this.creationTime = command.getCurrentFrame();
         BuildTask.command = command;
         this.lastExecution = command.getCurrentFrame();
         if (building.getSpeed() <= 0 && !command.isPossibleToBuildAt(building, pos, facing)) {

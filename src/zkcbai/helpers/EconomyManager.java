@@ -31,8 +31,8 @@ public class EconomyManager extends Helper {
         super(cmd, clbk);
         totalMetal = clbk.getEconomy().getCurrent(command.metal);
         fraction.put(Budget.economy, 0.46f);
-        fraction.put(Budget.defense, 0.19f);
-        fraction.put(Budget.offense, 0.42f);
+        fraction.put(Budget.defense, 0.16f);
+        fraction.put(Budget.offense, 0.44f);
         used.put(Budget.economy, 0f);
         used.put(Budget.defense, 0f);
         used.put(Budget.offense, 0f);
@@ -58,7 +58,7 @@ public class EconomyManager extends Helper {
         lastNonExcess = command.getCurrentFrame();
         if (budget == Budget.economy && (command.getBuilderHandler().getEnergyIncome() + command.getBuilderHandler().getEnergyUnderConstruction()) / command.getBuilderHandler().getAverageMetalIncome() > 6){
             command.debug(((command.getBuilderHandler().getEnergyIncome() + command.getBuilderHandler().getEnergyUnderConstruction()) / command.getBuilderHandler().getAverageMetalIncome()) +  " times energy for Overdrive");
-            return -1000;
+            return Math.min(ret, 200);
         }
         return ret;
     }

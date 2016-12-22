@@ -100,6 +100,10 @@ public class RaiderSquad extends SquadManager {
                 vis++;
             }
         }
+        if (command.getCreepHandler().getUnits().size() > 100) {
+            command.debug("Too many units for raider");
+            return -1f;
+        }
             command.debug("Raider usefulness: " + (0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f));
         return 0.9f - (Math.min(0.5f, Math.max(0.1f, (float) vis / command.areaManager.getAreas().size())) - 0.1f) / 0.4f;
     }

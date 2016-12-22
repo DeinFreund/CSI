@@ -129,7 +129,7 @@ public class NanoHandler extends UnitHandler implements UpdateListener {
                     command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
             command.debug(nanoTasks.size() + " Caretakers under construction");
         }
-        if ((repairPadTasks.size() + repairPads.size()) * 10 + 10 < command.getAvengerHandler().getUnits().size() || command.getAvengerHandler().getRepairingAvengers().size() > 3 && repairPadTasks.isEmpty() && repairPads.isEmpty()) {
+        if ((repairPadTasks.size() + repairPads.size()) * 10 + 10 < command.getAvengerHandler().getUnits().size() || (command.getAvengerHandler().getRepairingAvengers().size() > 3 || command.getDropHandler().getLichos().size() > 1 ) && repairPadTasks.isEmpty() && repairPads.isEmpty()) {
             repairPadTasks.add(command.getBuilderHandler().requestBuilding(repairPad,
                     command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
             command.debug(repairPadTasks.size() + " Repair Pads under construction");
