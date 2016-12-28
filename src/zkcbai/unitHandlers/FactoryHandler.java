@@ -242,6 +242,17 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         for (Area a : command.areaManager.getAreas()) {
             a.setReachable(false);
         }
+        for (AIUnit au : command.getUnits()) {
+            if (au.getDef().getBuildSpeed() > 1 && au.getDef().getBuildOptions().size() > 5 && !au.isBuilding()) {
+                MovementType mt = Pathfinder.MovementType.getMovementType(au.getDef());
+                if (mt == MovementType.air) {
+                    continue;
+                }
+                for (Area a : au.getArea().getConnectedAreas(mt)) {
+                    a.setReachable();
+                }
+            }
+        }
         for (AIUnit au : aiunits.values()) {
             MovementType mt = Pathfinder.MovementType.getMovementType(au.getDef().getBuildOptions().get(0));
             if (mt == MovementType.air) {
@@ -489,7 +500,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 final Set<Area> facareas = new HashSet();
                 final UnitDef fac = getNextFac(facareas);
 
-                BuildTask bt = new BuildTask(fac, command.areaManager.getArea(command.getStartPos()).getNearestArea(command.areaManager.SAFE).getPos(), null, this, clbk, command, 10, -1f, false, new PositionChecker() {
+                BuildTask bt = new BuildTask(fac, command.areaManager.getArea(command.getStartPos()).getNearestArea(command.areaManager.SAFE).getPos(), null, this, clbk, command, 15, -1f, false, new PositionChecker() {
                     @Override
                     public boolean checkPosition(AIFloat3 pos) {
                         return (facareas.contains(command.areaManager.getArea(pos)));
@@ -562,7 +573,9 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
         public void buildUnit(UnitDef unit, boolean force) {
 
             if (currentTask != null) {
-                if (command.getCurrentFrame() - currentTask.creationTime > 30 * 60 * 7 || command.getCurrentFrame() - currentTask.creationTime > 30 * 10 && currentTask.getResult() == null) {
+                if (currentTask.isDone()) {
+                    currentTask = null;
+                } else if (command.getCurrentFrame() - currentTask.creationTime > 30 * 60 * 7 || command.getCurrentFrame() - currentTask.creationTime > 30 * 10 && currentTask.getResult() == null) {
                     command.debug("Aborting BuildTask for factory because age and result: " + currentTask.getResult());
                     force = true;
                 }

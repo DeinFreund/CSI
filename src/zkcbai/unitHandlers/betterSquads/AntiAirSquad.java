@@ -71,6 +71,11 @@ public class AntiAirSquad extends SquadManager {
                 airValue += e.getMetalCost();
             }
         }
+        if (2 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size() > 1.2 * airValue){
+            return -1f;
+        }
+        command.debug("Enemy air value: " + airValue);
+        command.debug("Antiair value: " + antiairValue);
         command.debug("AA usefulness: " + (Math.min(0.905f, airValue / (2 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()))));
         return Math.min(0.905f, airValue / (2 * antiairValue + 100 + 70 * command.getAvengerHandler().getUnits().size()));
     }

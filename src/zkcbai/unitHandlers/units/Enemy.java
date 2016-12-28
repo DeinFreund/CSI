@@ -324,10 +324,8 @@ public class Enemy {
         if (!isAlive()) {
             polledDead();
         }
-        AIFloat3 pos = new AIFloat3(getPos());
-        pos.sub(trg);
-        pos.y = 0;
-        return pos.length();
+        AIFloat3 pos = getPos();
+        return (float)Math.sqrt((trg.x - pos.x)*(trg.x - pos.x) + (trg.z - pos.z) * (trg.z - pos.z));
     }
 
     public boolean shouldBeVisible(AIFloat3 pos) {

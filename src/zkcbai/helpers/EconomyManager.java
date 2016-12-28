@@ -30,8 +30,8 @@ public class EconomyManager extends Helper {
     public EconomyManager(Command cmd, OOAICallback clbk) {
         super(cmd, clbk);
         totalMetal = clbk.getEconomy().getCurrent(command.metal);
-        fraction.put(Budget.economy, 0.46f);
-        fraction.put(Budget.defense, 0.16f);
+        fraction.put(Budget.economy, 0.43f);
+        fraction.put(Budget.defense, 0.18f);
         fraction.put(Budget.offense, 0.44f);
         used.put(Budget.economy, 0f);
         used.put(Budget.defense, 0f);

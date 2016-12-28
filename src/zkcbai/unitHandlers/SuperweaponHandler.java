@@ -61,7 +61,7 @@ public class SuperweaponHandler extends UnitHandler {
             for (Enemy e : command.getEnemyUnits(false)) {
                 if (e.distanceTo(au.getPos()) < au.getMaxRange() * 0.99 && ! e.isAbleToFly()) {
                     map.put(-e.getMetalCost() + (float)Math.random(), e);
-                    if (e.getMetalCost() > 29999 && (e.hasBeenSeen() || rnd.nextBoolean())) return e;
+                    if ((e.getMetalCost() > 29999 || ("cafus amgeo corsilo").contains(e.getDef().getName().toLowerCase())) && (e.hasBeenSeen() || rnd.nextBoolean())) return e;
                 }
             }
 

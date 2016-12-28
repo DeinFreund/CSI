@@ -121,29 +121,39 @@ public abstract class AITroop {
     /**
      * Distance is measured by Geometric Distance - Enemy Range
      *
-     * @return nearest enemy within 1200 elmos
+     * @return nearest enemy within 2000 elmos
      */
     public Enemy getNearestEnemy() {
         Command command = handler.getCommand();
+
+        Enemy old = nearestEnemy;
         if ((command.getCurrentFrame() - lastNearestEnemy > 20 && nearestEnemy == null)
                 || handler.getCommand().getCurrentFrame() - lastNearestEnemy > 70 || (nearestEnemy != null && !nearestEnemy.isAlive())) {
-            Set<Enemy> enemies = command.getEnemyUnitsIn(getPos(), 700);
-            if (enemies.isEmpty()) {
-                enemies = command.getEnemyUnitsIn(getPos(), 1500);
-            }
+            Set<Enemy> enemies;
+            int range = 700;
             nearestEnemy = null;
-            for (Enemy e : enemies) {
-                if (e.getDef().isAbleToFly() && !getDef().isAbleToFly()) {
-                    continue;
-                }
-                if (e.isAntiAir() && !this.getDef().isAbleToFly() && Math.random() > 0.05){
-                    continue;
-                }
-                if (nearestEnemy == null || nearestEnemy.distanceTo(getPos()) - Math.min(nearestEnemy.getMaxRange(), 700) > e.distanceTo(getPos()) - Math.min(e.getMaxRange(), 700)) {
-                    nearestEnemy = e;
+            while (nearestEnemy == null && range < 2000) {
+                enemies = command.getEnemyUnitsIn(getPos(), range);
+                range += 1100;
+                for (Enemy e : enemies) {
+                    if (e.getDef().isAbleToFly() && !getDef().isAbleToFly()) {
+                        continue;
+                    }
+                    if (e.isAntiAir() && !this.getDef().isAbleToFly() && Math.random() > 0.05) {
+                        //continue;
+                    }
+                    if (nearestEnemy == null || nearestEnemy.distanceTo(getPos()) - Math.min(nearestEnemy.getMaxRange(), 700) > e.distanceTo(getPos()) - Math.min(e.getMaxRange(), 700)) {
+                        nearestEnemy = e;
+                    }
                 }
             }
             lastNearestEnemy = command.getCurrentFrame();
+        }
+        if (nearestEnemy == null && old != null && old.isAlive()){
+            nearestEnemy = old;
+        }
+        if (nearestEnemy == null && getArea().distanceToFront() < 1000 || getArea().getZone() == ZoneManager.Zone.hostile) {
+            command.debug("No enemy near front " + getDef().getHumanName());
         }
         return nearestEnemy;
     }

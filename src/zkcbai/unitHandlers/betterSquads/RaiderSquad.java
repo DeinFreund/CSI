@@ -90,7 +90,7 @@ public class RaiderSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() < 30 * 60 * 3) {
+        if (command.getCurrentFrame() < 30 * 60 * 2 / command.getCommanderHandlers().size() * command.areaManager.getMapWidth() * command.areaManager.getMapHeight() / 5000 / 5000) {
             command.debug("Raider usefulness: 0.7");
             return 0.7f;
         }

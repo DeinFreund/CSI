@@ -84,6 +84,7 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
     }
 
     float randomizeFirst = 60;
+    private boolean givenMove = false;
 
     @Override
     public boolean execute(AITroop u) {
@@ -98,30 +99,33 @@ public class MoveTask extends Task implements PathfindingCompleteListener {
         if (u.getCommand().getCurrentFrame() - lastPath > repathTime && !requestingPath) {
             updatePath(u);
         }
-        if (path == null && requestingPath) {
-            if (u.getUnits().iterator().next().getUnit().getCurrentCommands().isEmpty()) {
-                u.moveTo(target, command.getCurrentFrame() + delay);
-            } else {
-                u.wait(command.getCurrentFrame() + delay);
+        if ((u.getCommand().getCurrentFrame() < timeout)) {
+            if (path == null && requestingPath) {
+                if (/*u.getUnits().iterator().next().getUnit().getCurrentCommands().isEmpty()*/!givenMove) {
+                    u.moveTo(target, command.getCurrentFrame() + delay);
+                    givenMove = true;
+                } else {
+                    u.wait(command.getCurrentFrame() + delay);
+                }
+                return false;
             }
-            return false;
-        }
-        if (errors > 15) {
-            command.debug("MoveTask aborted because of too many errors");
-            completed(u);
-            issuer.abortedTask(this);
-            return true;
-        }
-        while ((!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 280 * Math.max(0.7, u.getDef().getSpeed() / GLAIVE.getSpeed()) && path.size() > 1) || (u.distanceTo(path.getFirst()) < 180)))) {
+            if (errors > 15) {
+                command.debug("MoveTask aborted because of too many errors");
+                completed(u);
+                issuer.abortedTask(this);
+                return true;
+            }
+            while ((!path.isEmpty() && ((u.distanceTo(path.getFirst()) < 280 * Math.max(0.7, u.getDef().getSpeed() / GLAIVE.getSpeed()) && path.size() > 1) || (u.distanceTo(path.getFirst()) < 180)))) {
 //               || (u.getDef().isAbleToFly() && u.getUnits().size() > 1 && u.distanceTo(path.getFirst()) < 1000) ) {
-            path.pollFirst();
-            //command.debug("removing first checkpoint");
+                path.pollFirst();
+                //command.debug("removing first checkpoint");
+            }
+            if (path.isEmpty() && u.distanceTo(target) > 50) {
+                u.moveTo(target, u.getCommand().getCurrentFrame() + delay);
+                return false;
+            }
         }
-        if (path.isEmpty() && u.distanceTo(target) > 50) {
-            u.moveTo(target, u.getCommand().getCurrentFrame() + delay);
-            return false;
-        }
-        if (path.isEmpty() || (u.getCommand().getCurrentFrame() >= timeout)) {
+        if ((u.getCommand().getCurrentFrame() >= timeout) || path.isEmpty()) {
             completed(u);
             issuer.finishedTask(this);
             return true;

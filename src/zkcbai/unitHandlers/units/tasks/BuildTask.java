@@ -197,8 +197,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param reachable whether the construction site should be in a reachable area
      */
     public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, boolean reachable) {//simplified constructor
-        this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, -1f, reachable, null),
-                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, budget, issuer, clbk, command);
+        this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.x > clbk.getMap().getWidth() * 4) ? 3 : 1, command, -1f, reachable, null),
+                (approxPos.x > clbk.getMap().getWidth() * 4) ? 3 : 1, budget, issuer, clbk, command);
     }
 
     /**
@@ -215,8 +215,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param reachable whether the construction site should be in a reachable area
      */
     public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable) {//simplified constructor
-        this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, heightRange, reachable, null),
-                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, budget, issuer, clbk, command);
+        this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.x > clbk.getMap().getWidth() * 4) ? 3 : 1, command, heightRange, reachable, null),
+                (approxPos.x > clbk.getMap().getWidth() * 4) ? 3 : 1, budget, issuer, clbk, command);
     }
 
     /**
@@ -234,8 +234,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
      * @param checker position checker that returns whether a set of coordinates is an allowed buildpos<br>null means all positions are valid area
      */
     public BuildTask(UnitDef building, AIFloat3 approxPos, Budget budget, TaskIssuer issuer, OOAICallback clbk, Command command, int minDist, float heightRange, boolean reachable, PositionChecker checker) {//simplified constructor
-        this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, command, heightRange, reachable, checker),
-                (approxPos.z > clbk.getMap().getHeight() * 4) ? 2 : 0, budget, issuer, clbk, command);
+        this(building, findClosestBuildSite(building, approxPos, minDist, (approxPos.x > clbk.getMap().getWidth() * 4) ? 3 : 1, command, heightRange, reachable, checker),
+                (approxPos.x > clbk.getMap().getWidth() * 4) ? 3 : 1, budget, issuer, clbk, command);
     }
 
     /**

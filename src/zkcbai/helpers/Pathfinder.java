@@ -272,7 +272,7 @@ public final class Pathfinder extends Helper {
                 //command.mark(start, "start (impossible path)");
                 //command.mark(target, "end (impossible path)");
                 command.debug("Impossible path");
-                command.debugStackTrace();
+                //command.debugStackTrace();
                 res.add(target);
                 return res;
             }

@@ -146,10 +146,11 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
                     best = au;
                 }
             }
-            if (best.distanceTo(getPos()) < 300) {
+            AIFloat3 bestpos = best.getArea().getNearestArea(getCommand().areaManager.SAFE).getPos();
+            if (distanceTo(bestpos) < 200) {
                 retreatTask = new WaitTask(getCommand().getCurrentFrame() + 30, this);
             } else {
-                retreatTask = (new MoveTask(best.getPos(), getCommand().getCurrentFrame() + 30, this, getCommand()));
+                retreatTask = (new MoveTask(bestpos, getCommand().getCurrentFrame() + 30, this, getCommand()));
             }
         } else {
             retreatTask = (new MoveTask(getArea().getNearestArea(getCommand().areaManager.SAFE, getMovementType()).getPos(), getCommand().getCurrentFrame() + 30, this, getCommand()));
@@ -175,7 +176,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     @Override
     public UnitDef getDef() {
-        checkDead();
+        //checkDead();
         return unit.getDef();
     }
 
@@ -278,6 +279,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         if (handler instanceof DevNullHandler || handler.getCommand() == null) {
             return;
         }
+        damaged(null, 0);
         if ((wakeUpFrame < getCommand().getCurrentFrame() || wakeUpFrame > 1000000) && handler.getCommand().getCurrentFrame() - lastCommandTime > 30
                 && unit.getCurrentCommands().isEmpty()) {
             handler.getCommand().debug("reawaken " + getUnit().getUnitId() + "(" + getDef().getHumanName() + ") controlled by " + handler.getClass().getName());
@@ -384,7 +386,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     @Override
     public AIFloat3 getPos() {
-        checkDead();
+        //checkDead();
         return new AIFloat3(unit.getPos());
     }
 
@@ -579,7 +581,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             timeout = Integer.MAX_VALUE;
         }
         lastCommandTime = handler.getCommand().getCurrentFrame();
-        if (timeout < wakeUpFrame || wakeUpFrame <= getCommand().getCurrentFrame()) {
+        if (timeout < wakeUpFrame || wakeUpFrame < getCommand().getCurrentFrame()) {
             clearUpdateListener();
             if (handler.getCommand().addSingleUpdateListener(this, timeout)) {
                 wakeUpFrame = timeout;

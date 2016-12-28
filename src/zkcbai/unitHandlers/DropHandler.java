@@ -168,7 +168,7 @@ public class DropHandler extends UnitHandler implements UpdateListener {
                 }
 
                 if (vip != null && command.getCurrentFrame() - vip.getLastAccuratePosTime() > 300) {
-                    command.getAvengerHandler().requestScout(command.areaManager.getArea(vip.getPos()));
+                    //command.getAvengerHandler().requestScout(command.areaManager.getArea(vip.getPos()));
                 } else if (vip != null/* && !command.getAvengerHandler().getUnits().isEmpty()*/ && !gnats.isEmpty()) {
                     u.assignTask(new DropTask(vip, this, command));
                     return;

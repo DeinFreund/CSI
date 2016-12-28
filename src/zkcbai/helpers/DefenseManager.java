@@ -73,7 +73,7 @@ public class DefenseManager extends Helper implements EnemyEnterLOSListener, Uni
              result += 200;
              continue;
              }*/
-            result += ((e.distanceTo(pos) <= e.getMaxRange() + 350) ? 1 : 0) * (e.getDef().getCustomParams().containsKey("commtype") ? 500 : e.getDef().getCost(command.metal));
+            result += ((e.distanceTo(pos) <= e.getMaxRange() + 350 && !e.isAntiAir()) ? 1 : 0) * (e.getDef().getCustomParams().containsKey("commtype") ? 400 : e.getDef().getCost(command.metal));
         }
         time = System.nanoTime() - time;
         if (time > 0.5e6) {

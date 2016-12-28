@@ -70,7 +70,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
     protected float MAX_HEURISTIC = 0.7f;
     protected Semaphore planningGridMutex = new Semaphore(1);
 
-    protected final UnitDef llt, defender, storage, stinger, radar, bertha, lazer;
+    protected final UnitDef llt, defender, storage, stinger, radar, bertha, lazer, razor;
 
     protected Set<AIUnit> storageUnits = new HashSet<>();
     protected Set<BuildTask> constructions = new HashSet<>();
@@ -139,6 +139,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         llt = command.getCallback().getUnitDefByName("corllt");
         defender = command.getCallback().getUnitDefByName("corrl");
         stinger = command.getCallback().getUnitDefByName("corhlt");
+        razor = command.getCallback().getUnitDefByName("corrazor");
         storage = clbk.getUnitDefByName("armmstor");
         radar = command.getCallback().getUnitDefByName("corrad");
         bertha = command.getCallback().getUnitDefByName("armbrtha");
@@ -198,6 +199,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
             float score = -u.distanceTo(bt.getPos()) - (bp + ((bt.getBuilding().getSpeed() > 0.1) ? 8f * command.getFactoryHandler().getFacs().size() : 0f) + (bp > Math.max(10, avgMetalIncome * 0.7 - 10) ? 100f : 0f)) * 300 * 150 / bt.getBuilding().getCost(command.metal) - command.areaManager.getArea(bt.getPos()).getDanger() * 0.1000f;
 
+            score += (command.getCurrentFrame() - bt.creationTime)/1.5f;
             for (AIUnit au : command.getUnitsIn(bt.getPos(), 900)) {
                 if (workers.contains(au)) {
                     AIFloat3 bpos = au.getPos();
@@ -270,8 +272,8 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if ((bt.getBuilding().getName().equals("armsolar") || bt.getBuilding().getName().equals("armwin")) && command.getCurrentFrame() > 30 * 60 * 2.3) {
                 score += 1500 * avgMetalIncome / getEnergyIncome() - 900;
             }
-            if ((bt.getBuilding().getName().equals("armsolar") || bt.getBuilding().getName().equals("armwin") ||  bt.getBuilding().getName().equals("armestor")) && getEnergyIncome() > getMetalIncome() * 2){
-                score += getEnergyIncome() / getMetalIncome() * 1000;
+            if ((bt.getBuilding().getName().equals("armsolar") || bt.getBuilding().getName().equals("armwin") || bt.getBuilding().getName().equals("armestor")) && getEnergyIncome() > getMetalIncome() * 2) {
+                score += getEnergyIncome() / getMetalIncome() * 2000;
             }
             if ((bt.getBuilding().isAbleToAssist() || bt.getBuilding().getBuildOptions().size() > 5)
                     && clbk.getEconomy().getCurrent(command.metal) > 0.5 * getMetalStorage()
@@ -328,7 +330,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if (clbk.getEconomy().getCurrent(command.energy) < 350 || energyIncome < avgMetalIncome * 1.1) {
                 continue;
             }
-            if (clbk.getEconomy().getCurrent(command.metal) / getMetalStorage() > 0.83 ) {
+            if (clbk.getEconomy().getCurrent(command.metal) / getMetalStorage() > 0.83) {
                 continue;
             }
             if (command.defenseManager.getGeneralDanger(a.getPos()) > 0.7 * nearbyMilitary) {
@@ -337,7 +339,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             if (u.getDef().isAbleToFly() && (a.distanceToFront() < 1600 || !a.isSafe())) {
                 continue;
             }
-            float score = -2*u.distanceTo(a.getPos()) + a.getReclaim();
+            float score = -2 * u.distanceTo(a.getPos()) + a.getReclaim();
             if (best == null || score > bestscore) {
                 bestscore = score;
                 best = new ReclaimTask(a.getPos(), a.getEnclosingRadius(), this, command);
@@ -425,8 +427,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 }, command.getCurrentFrame() + 10);
             } else if (t.getInfo().contains("radar")) {
 
-            } else if (!(t.getInfo().contains("requested") || t.getInfo().contains("mex") || t.getInfo().contains("radar") || t.getInfo().contains("storage") || t.getInfo().contains("superwep"))) {
-                throw new AssertionError("Unknown task " + ((BuildTask) t).getBuilding().getHumanName() + " info: " + t.getInfo() + " known: " + known + " id: " + t.getTaskId());
+            } else if (!(t.getInfo().contains("requested") || t.getInfo().contains("mex") || t.getInfo().contains("radar") || t.getInfo().contains("storage") || t.getInfo().contains("superwep") || t.getInfo().contains("antiair"))) {
+                command.debug(("Unknown task " + ((BuildTask) t).getBuilding().getHumanName() + " info: " + t.getInfo() + " known: " + known + " id: " + t.getTaskId()));
+                command.debugStackTrace();;
             }
         } else if (t instanceof RepairTask) {
             RepairTask rt = (RepairTask) t;
@@ -577,6 +580,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
          //    possibilities.add(new BuildPossibility(command.getCallback().getUnitDefByName("armsolar"), pos, Float.MAX_VALUE));
          }
          }*/
+        float energyIncome = this.energyIncome - getEnergyUnderConstruction();
         final UnitDef[] eBuildings;
         if (energyIncome > avgMetalIncome * 1.5) {
             eBuildings = new UnitDef[]{command.getCallback().getUnitDefByName("armsolar"),
@@ -607,15 +611,19 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                 cost -= 0.25 * (building.getCustomParams().containsKey("income_energy") ? Float.valueOf(building.getCustomParams().get("income_energy")) : 0f);
                 cost += 0.25f * building.getCost(command.metal) / 35f;
                 cost -= 0.25f * building.getHealth() / building.getCost(command.metal) / 7.1f;
+
                 if (edge.start.building.getName().equals("cormex")) {
                     cost -= 1;
                 }
+
                 if (building.getName().equals("armestor")) {
                     if (energyIncome > MIN_PYLON_ENERGY_INCOME) {
                         cost *= 0.8;
                     } else {
                         cost *= 2;
                     }
+                } else if (command.areaManager.getArea(edge.start.pos).distanceToFront() < 800 && command.getCurrentFrame() > 30 * 60 * 4) {
+                    cost += 2;
                 }
                 final AIFloat3 pos = new AIFloat3(edge.start.pos);
                 if (edge.end.distanceTo(edge.start) < 0.94 * buildingRange) {
@@ -863,6 +871,8 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         return res;
     }
 
+    private int facllts = 0;
+
     public void buildDefense() {
         int underConstruction = 0;
         long time1 = System.currentTimeMillis();
@@ -904,14 +914,21 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         for (Factory fac : unprotectedFacs) {
-            BuildTask bt = new BuildTask(llt, fac.unit.getPos(), Budget.defense, this, clbk, command, 5, true);
-            GridNode gn = new GridNode(bt);
-            bt.setInfo("fac llt");
-            command.registerBuildTask(bt);
-            registerBuildTask(bt);
-            this.defenseNodes.add(gn);
-            taskDefenseNodeFinder.put(bt.getTaskId(), gn);
-            return;
+            if (noFrontDefense || facllts > command.getFactoryHandler().getFacs().size() * 2) {
+                break;
+            }
+            AIFloat3 pos = BuildTask.findClosestBuildSite(llt, fac.unit.getPos(), 3, 1, command, true);
+            if (fac.unit.distanceTo(pos) < 0.99 * Command.getMaxRange(llt)) {
+                BuildTask bt = new BuildTask(llt, pos, 1, Budget.defense, this, clbk, command);
+                GridNode gn = new GridNode(bt);
+                bt.setInfo("fac llt");
+                facllts++;
+                command.registerBuildTask(bt);
+                registerBuildTask(bt);
+                this.defenseNodes.add(gn);
+                taskDefenseNodeFinder.put(bt.getTaskId(), gn);
+                return;
+            }
         }
 
         long time3 = System.currentTimeMillis();
@@ -935,13 +952,14 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         if (worst != null && !noFrontDefense) {
-            BuildTask bt = new BuildTask(stinger, worst.getPos(), Budget.defense, this, clbk, command, 5, 150, true);
+            BuildTask bt = new BuildTask(stinger, worst.getPos(), Budget.defense, this, clbk, command, 4, 200, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("front stinger");
             command.registerBuildTask(bt);
             registerBuildTask(bt);
             this.defenseNodes.add(gn);
             taskDefenseNodeFinder.put(bt.getTaskId(), gn);
+            registerBuildTask((BuildTask) new BuildTask(razor, worst.getPos(), Budget.defense, this, clbk, command, 4, true).setInfo("antiair"));
         }
 
         long time4 = System.currentTimeMillis();
@@ -973,7 +991,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         if ((bestllts >= 2 || command.getCurrentFrame() > 30 * 60 * 7 || command.economyManager.getRemainingBudget(Budget.defense) > 300) && bestllts >= bestdefs && bestllt != null && !noFrontDefense) {
-            BuildTask bt = new BuildTask(llt, bestllt, Budget.defense, this, clbk, command, 5, 150, true);
+            BuildTask bt = new BuildTask(llt, bestllt, Budget.defense, this, clbk, command, 4, 150, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("mex llt");
             command.registerBuildTask(bt);
@@ -981,7 +999,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             this.defenseNodes.add(gn);
             taskDefenseNodeFinder.put(bt.getTaskId(), gn);
         } else if ((bestdefs >= 2 || command.getCurrentFrame() > 30 * 60 * 7 || command.economyManager.getRemainingBudget(Budget.defense) > 300) && bestdef != null && !noFrontDefense) {
-            BuildTask bt = new BuildTask(defender, bestdef, Budget.defense, this, clbk, command, 5, 150, true);
+            BuildTask bt = new BuildTask(defender, bestdef, Budget.defense, this, clbk, command, 4, 150, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("mex defender");
             command.registerBuildTask(bt);
@@ -1008,7 +1026,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
         long time6 = System.currentTimeMillis();
         if (worst != null && ownAreas + enemyAreas > 0.7 * totalAreas && !noFrontDefense) {
-            BuildTask bt = new BuildTask(defender, worst.getPos(), Budget.defense, this, clbk, command, 5, 300, true);
+            BuildTask bt = new BuildTask(defender, worst.getPos(), Budget.defense, this, clbk, command, 4, 300, true);
             GridNode gn = new GridNode(bt);
             bt.setInfo("front defender");
             command.registerBuildTask(bt);
@@ -1036,7 +1054,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
 
         final Area nearestEnemy = nearestEnemyArea;
         if (bbbs >= 2 && ownAreas > 1.4 * enemyAreas && lazors < 1 && command.getCurrentFrame() > 30 * 60 * 20 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {;
-            BuildTask bt = new BuildTask(lazer, command.getStartPos(), Budget.defense, this, clbk, command, 5, -1, true, new PositionChecker() {
+            BuildTask bt = new BuildTask(lazer, command.getStartPos(), Budget.defense, this, clbk, command, 4, -1, true, new PositionChecker() {
                 @Override
                 public boolean checkPosition(AIFloat3 pos) {
                     return nearestEnemy.distanceTo(pos) > command.areaManager.getMapWidth() / 3f;
@@ -1048,7 +1066,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         } else if (ownAreas > Math.min(1.4, 0.3 + bbbs * 0.6) * enemyAreas && (command.economyManager.getRemainingBudget(Budget.defense) > 900 || command.getCurrentFrame() > 30 * 60 * 18 * 100 / avgMetalIncome && bbbs < 1) && berthas + lazors < 1 && command.getCurrentFrame() > 30 * 60 * 12 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
 
             command.debug("Queued bertha because " + ownAreas + " > 1.3 * " + enemyAreas);
-            BuildTask bt = new BuildTask(bertha, command.getStartPos(), Budget.defense, this, clbk, command, 5, 2000, true, new PositionChecker() {
+            BuildTask bt = new BuildTask(bertha, command.getStartPos(), Budget.defense, this, clbk, command, 4, 2000, true, new PositionChecker() {
                 @Override
                 public boolean checkPosition(AIFloat3 pos) {
                     return nearestEnemy.distanceTo(pos) > command.areaManager.getMapWidth() / 3.5f;
@@ -1132,7 +1150,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         if (/*avgMetalIncome + getMetalUnderConstruction() < energyIncome + getEnergyUnderConstruction() &&*/frame - lastMexCheck > 40 && !aiunits.isEmpty()) {
             long time = System.currentTimeMillis();
             lastMexCheck = frame;
-            float toBuild = energyIncome + getEnergyUnderConstruction() - avgMetalIncome - getMetalUnderConstruction();
+            float toBuild = energyIncome - avgMetalIncome - getMetalUnderConstruction();
             toBuild = 10000;
             TreeMap<Float, Mex> dists = new TreeMap<>();
             for (Mex m : command.areaManager.getMexes()) {
@@ -1201,11 +1219,13 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             lastEnergyCheck = command.getCurrentFrame();
             if (/*(energyIncome + getEnergyUnderConstruction() < 1.3 * avgMetalIncome)*/true) {
                 int ebuildings = 0;
-                for (BuildTask bt: constructions){
-                    if (bt.getBuilding().getName().equalsIgnoreCase("armsolar") || bt.getBuilding().getName().equalsIgnoreCase("armwin") || bt.getBuilding().getName().equalsIgnoreCase("armestor"))
-                        ebuildings ++;
+                for (BuildTask bt : constructions) {
+                    if (bt.getBuilding().getName().equalsIgnoreCase("armsolar") || bt.getBuilding().getName().equalsIgnoreCase("armwin") || bt.getBuilding().getName().equalsIgnoreCase("armestor")) {
+                        ebuildings++;
+                    }
                 }
-                if (ebuildings < workers.size() * 2 && command.economyManager.getRemainingBudget(Budget.economy) > 100 && planQueue.isEmpty() && gridNodes.size() < 500/* && (energy < Math.min(27, 5 + aiunits.size() * 3) || clbk.getEconomy().getCurrent(command.energy) < 350)*/) {
+                if (ebuildings < workers.size() * 2 && command.economyManager.getRemainingBudget(Budget.economy) > 100 && planQueue.isEmpty() && gridNodes.size() < 500
+                        || clbk.getEconomy().getCurrent(command.energy) < 350 || getEnergyIncome() < getAverageMetalIncome() + getMetalUnderConstruction()) {
 // && planningGridMutex.tryAcquire()
                     //command.debug("Planning grid async.");
                     //Thread planningThread = new Thread(new Runnable() {
@@ -1216,7 +1236,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     //planningThread.start();
 
                 }
-                if(!(ebuildings < workers.size() * 2)){
+                if (!(ebuildings < workers.size() * 2)) {
                     command.debug("Too many constructions");
                 }
                 UnitDef fusion = (fusions < 4) ? clbk.getUnitDefByName("armfus") : clbk.getUnitDefByName("cafus");
@@ -1230,7 +1250,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
                     if (buildingFus < 2) {
                         fusions++;
                         AIFloat3 pos = command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos();
-                        BuildTask bt = new BuildTask(fusion, pos, Budget.economy, this, clbk, command, 5, true);
+                        BuildTask bt = new BuildTask(fusion, pos, Budget.economy, this, clbk, command, 4, true);
                         GridNode gn = new GridNode(bt);
                         command.registerBuildTask(bt);
                         registerBuildTask(bt);
@@ -1251,9 +1271,9 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
         planQueue.clear();
 
-        if (avgMetalIncome > storages * 15 + 20 && command.economyManager.getRemainingBudget(Budget.economy) > 0) {
+        if (avgMetalIncome > storages * 15 + 20 && command.economyManager.getRemainingBudget(Budget.economy) > 0 && command.getFactoryHandler().getFacs().size() > 0) {
             storages++;
-            BuildTask bt = new BuildTask(storage, command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos(), Budget.economy, this, clbk, command, 5, true);
+            BuildTask bt = new BuildTask(storage, command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos(), Budget.economy, this, clbk, command, 4, true);
             bt.setInfo("storage");
             command.registerBuildTask(bt);
             registerBuildTask(bt);
@@ -1384,7 +1404,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             }
         }
         long time2 = System.currentTimeMillis();
-        
+
         command.debug("planned grid: " + planQueue.size() + " new buildings");
         if (time2 - time > 100) {
             if (PLANNING > MIN_PLANNING) {

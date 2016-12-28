@@ -161,7 +161,7 @@ public class BansheeHandler extends UnitHandler implements UpdateListener, Enemy
                     if (enemyArea.getEnemyAADPS() <= 0.1) {
                         enemyArea.updateAADPS();
                     }
-                    if (enemyArea.getNearestArea(command.areaManager.FRIENDLY).distanceTo(e.getPos()) > 800) {
+                    if (enemyArea.getZone() == Zone.hostile && enemyArea.distanceToFront() > 800) {
                         continue;
                     }
                     if (enemyArea.getEnemyAADPS() + (enemyArea.getZone() == Zone.hostile ? 120 : -10) > 10 * banshees.getUnits().size() * banshees.getUnits().size()) {

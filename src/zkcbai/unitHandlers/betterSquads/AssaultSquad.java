@@ -50,13 +50,16 @@ public class AssaultSquad extends SquadManager {
         }
     }
 
-    final private String[] assaultIds = {"armzeus", "corthud", "corraid", "correap", "amphfloater", "shipraider", "nsaclash","spiderassault","slowmort"};
+    final private String[] assaultIds = {"armzeus", "corthud", "corraid", "correap", "amphfloater", "shipraider", "nsaclash","spiderassault","slowmort", "armsnipe", "amphassault",   "corgol"};
     final static Set<UnitDef> assaults = new HashSet();
     final private String[] riotIds = {"armwar", "cormak", "arm_venom", "spiderriot", "amphriot", "corlevlr", "tawf114", "shipraider", "hoverassault", "jumpblackhole"};
     final static Set<UnitDef> riots = new HashSet();
 
     final private String[] porcIds = {"corrl", "armllt", "armdeva" , "corhlt", "armpb"};
     final private Set<UnitDef> porc = new HashSet();
+    
+    private float minWeight = 0;
+    private float maxWeight = 300;
 
     private AISquad aisquad;
     private Random rnd = new Random();
@@ -66,15 +69,14 @@ public class AssaultSquad extends SquadManager {
         List<UnitDef> possAssault = new ArrayList();
         List<UnitDef> possRiot = new ArrayList();
         for (UnitDef ud : availableUnits){
-            if (riots.contains(ud)) possRiot.add(ud);
-            if (assaults.contains(ud)) possAssault.add(ud);
+            if (riots.contains(ud) && ud.getCost(command.metal) > minWeight && ud.getCost(command.metal) < maxWeight) possRiot.add(ud);
+            if (assaults.contains(ud)&& ud.getCost(command.metal) > minWeight && ud.getCost(command.metal) < maxWeight) possAssault.add(ud);
         }
         List<UnitDef> retval = new ArrayList();
         if (!possAssault.isEmpty()){
             retval.add(possAssault.get(rnd.nextInt(possAssault.size())));
-            retval.add(possAssault.get(rnd.nextInt(possAssault.size())));
         }
-        if (!possRiot.isEmpty()){
+        if (!possRiot.isEmpty() && rnd.nextInt(2) == 0){
             retval.add(possRiot.get(rnd.nextInt(possRiot.size())));
         }
         return retval;
@@ -82,7 +84,7 @@ public class AssaultSquad extends SquadManager {
 
     @Override
     public float getUsefulness() {
-        if (command.getCurrentFrame() < 30*60*2) return 0.01f;
+        if (command.getCurrentFrame() < 30*60*0.5) return 0.01f;
         float raiders = 0;
         float all = 0;
         for (Enemy e : command.getEnemyUnits(true)){
@@ -92,12 +94,31 @@ public class AssaultSquad extends SquadManager {
             }
             all += e.getMetalCost();
         }
+        int assaults = 0;
+        for (AIUnit au : command.getCreepHandler().getUnits()){
+            if (RaiderSquad.raiders.contains(au.getDef()) || AssaultSquad.assaults.contains(au.getDef()) || riots.contains(au.getDef())) assaults ++;
+        }
+        minWeight = 50f *(float) Math.pow( (assaults),  0.7)*0;
+        //maxWeight = 50f *(float) Math.pow( (assaults),  1.1) + 250;
+        maxWeight =  (command.getCurrentFrame() / (30 * 60) + 1) * 7 * command.getBuilderHandler().getMetalIncome();
+        command.debug("Assault weight span: " + minWeight + " - " + maxWeight);
+        /*
         if (command.getCreepHandler().getUnits().size() > 100) {
             command.debug("Too many units for assault");
             return -1f;
+        }*/
+        float mini = 0.1f;
+        if (command.areaManager.getMapWidth() * command.areaManager.getMapHeight() < 5000 * 5000 * command.getCommanderHandlers().size()){
+            mini = 0.4f;
         }
-        command.debug("Assault usefulness: " + (0.9f - 0.88f * raiders / all));
-        return 0.9f - 0.88f * raiders / all;
+        if (command.areaManager.getMapWidth() * command.areaManager.getMapHeight() < 4000 * 4000 * command.getCommanderHandlers().size()){
+            mini = 0.6f;
+        }
+        if (command.areaManager.getMapWidth() * command.areaManager.getMapHeight() < 3000 * 3000 * command.getCommanderHandlers().size()){
+            mini = 0.8f;
+        }
+        command.debug("Assault usefulness: " + Math.max(mini, Math.min(0.9f, 1f - 0.88f * raiders / all)));
+        return Math.max(mini, Math.min(0.9f, 1f - 0.88f * raiders / all));
     }
 
     @Override

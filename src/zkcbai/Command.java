@@ -475,28 +475,33 @@ public class Command implements AI {
     }
 
     public boolean addSingleUpdateListener(UpdateListener listener, int frame) {
-        if (frame >= 1000000000) {
-            return false;
-        }
-        if (listenerUpdateFrames.containsKey(listener) && listenerUpdateFrames.get(listener) > getCurrentFrame()) {
-            debug(listener.getClass().getName() + " registered 2nd single update");
-            debugStackTrace();
-            if (frame >= listenerUpdateFrames.get(listener)) {
+        try {
+            if (frame >= 1000000000) {
                 return false;
             }
-            singleUpdateListeners.get(listenerUpdateFrames.get(listener)).remove(listener);
+            if (listenerUpdateFrames.containsKey(listener) && listenerUpdateFrames.get(listener) > getCurrentFrame()) {
+                debug(listener.getClass().getName() + " registered 2nd single update");
+                debugStackTrace();
+                if (frame >= listenerUpdateFrames.get(listener)) {
+                    return false;
+                }
+                singleUpdateListeners.get(listenerUpdateFrames.get(listener)).remove(listener);
+            }
+            listenerUpdateFrames.put(listener, frame);
+            Set<UpdateListener> list = singleUpdateListeners.get(frame);
+            if (list == null) {
+                singleUpdateListeners.put(frame, new HashSet());
+            }
+            if (singleUpdateListeners.get(frame).size() > 1000) {
+                debug(singleUpdateListeners.get(frame).size() + " updates queued for frame " + frame);
+                debugStackTrace();
+            }
+            singleUpdateListeners.get(frame).add(listener);
+            return true;
+        } catch (Exception ex) {
+            debug("Failed to add updatelistener at frame " + frame + ": ", ex);
         }
-        listenerUpdateFrames.put(listener, frame);
-        Set<UpdateListener> list = singleUpdateListeners.get(frame);
-        if (list == null) {
-            singleUpdateListeners.put(frame, new HashSet());
-        }
-        if (singleUpdateListeners.get(frame).size() > 1000) {
-            debug(singleUpdateListeners.get(frame).size() + " updates queued for frame " + frame);
-            debugStackTrace();
-        }
-        singleUpdateListeners.get(frame).add(listener);
-        return true;
+        return false;
     }
 
     public void removeSingleUpdateListener(UpdateListener listener, int frame) {
@@ -853,7 +858,7 @@ public class Command implements AI {
     public int update(int frame) {
         Timer timer = new Timer(5000, null);
         try {
-            long updateStart = System.currentTimeMillis();
+            long updateStart = System.nanoTime();
             final Thread mainThread = Thread.currentThread();
             timer.setRepeats(false);
             timer.addActionListener(new ActionListener() {
@@ -918,7 +923,8 @@ public class Command implements AI {
 
             }
 
-            while (System.currentTimeMillis() - updateStart < 7 && getCommandDelay() < 45) {
+            long checkStart = System.nanoTime();
+            while (System.nanoTime() - checkStart < 0.8e6 && getCommandDelay() < 45) {
                 if (getRandomUnit() != null) {
                     for (int i = 0; i < 7; i++) {
                         getRandomUnit().checkIdle();
@@ -931,7 +937,7 @@ public class Command implements AI {
                 }
                 checkedIdle += 14;
             }
-            avgUpdateTime = (System.currentTimeMillis() - updateStart) * 0.02f + avgUpdateTime * 0.98f;
+            avgUpdateTime = (System.nanoTime()- updateStart) / 1e6f * 0.02f + avgUpdateTime * 0.98f;
 
         } catch (Throwable e) {
             debug("Exception in update: ", e);
@@ -988,7 +994,7 @@ public class Command implements AI {
                         }
                         break;
                     }
-                    if (AvengerSquad.fighters.contains(unit.getDef()) || (ScoutSquad.scouts.contains(unit.getDef()) && (!RaiderSquad.raiders.contains(unit.getDef())) || avengerHandler.getUnits().size() < 2)) {
+                    if (AvengerSquad.fighters.contains(unit.getDef())) {
                         aiunit = avengerHandler.addUnit(unit);
                         break;
                     }
@@ -1190,12 +1196,12 @@ public class Command implements AI {
 
         long time3 = System.nanoTime();
         float mindist = Float.MAX_VALUE;
-        for (Mex m : areaManager.getArea(pos).getNearbyMexes()) {
+        /*for (Mex m : areaManager.getArea(pos).getNearbyMexes()) {
             mindist = Math.min(mindist, m.distanceTo(pos));
             if (m.distanceTo(pos) < mexradius + 1.5 * building.getRadius() + 50 && !m.isBuilt()) {
                 return false;
             }
-        }
+        }*/
         for (AIUnit au : facHandler.getUnits()) {
             if (au.distanceTo(pos) < 200 + building.getRadius() * 1.5) {
                 return false;

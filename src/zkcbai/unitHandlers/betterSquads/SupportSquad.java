@@ -38,7 +38,8 @@ public class SupportSquad extends SquadManager {
         }
     }
 
-    final private String[] supportIds = {"armsnipe", "amphassault", "armmanni", "firewalker", "shieldfelon", "armcrabe", "corgol", "armmerl"};
+    //final private String[] supportIds = {"armsnipe", "amphassault", "armmanni", "firewalker", "shieldfelon", "armcrabe", "corgol", "armmerl"};
+    final private String[] supportIds = {"armsnipe", "armmanni", "firewalker"/*, "armmerl"*/};
     final static Set<UnitDef> supports = new HashSet();
 
     private Random rnd = new Random();
@@ -71,7 +72,7 @@ public class SupportSquad extends SquadManager {
             }
         }
         command.debug("Support useful: " + Math.min(0.9f, -(float)Math.log(Math.max(0.00001, 1f - assaultValue / (supportValue * 2 + 1000)))));
-        return Math.min(0.9f, assaultValue / (supportValue * 2 + 1000));
+        return Math.min(0.905f, assaultValue / (supportValue * 3 + 1000));
     }
 
     @Override
