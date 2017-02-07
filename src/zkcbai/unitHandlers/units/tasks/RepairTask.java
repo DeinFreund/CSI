@@ -133,11 +133,11 @@ public class RepairTask extends Task implements TaskIssuer, UnitDestroyedListene
     @Override
     public void update(int frame) {
         if (finished) return;
-        command.addSingleUpdateListener(this, command.getCurrentFrame() + 50);
         if (target.repaired()) {
             completed(null);
             issuer.finishedTask(this);
         }
+        command.addSingleUpdateListener(this, command.getCurrentFrame() + 50);
     }
 
     @Override

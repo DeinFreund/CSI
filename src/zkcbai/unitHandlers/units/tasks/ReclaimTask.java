@@ -44,9 +44,9 @@ public class ReclaimTask extends Task implements TaskIssuer {
             issuer.abortedTask(this);
             return true;
         }
-        if ((u.distanceTo(target) < 300 && command.getCallback().getFeaturesIn(target, range).isEmpty())) {
+        if ((u.distanceTo(target) < 200 && command.getCallback().getFeaturesIn(target, range).isEmpty())) {
             command.areaManager.getArea(target).updateReclaim();
-            if (command.areaManager.getArea(target).getReclaim() > 0.1f ) {
+            if (command.areaManager.getArea(target).getReclaim() > 0.1f  && command.areaManager.getArea(target).isInLOS()) {
                 command.debug("Reclaim not properly updated");
                 command.debugStackTrace();
                 u.wait(command.getCurrentFrame() + 30);

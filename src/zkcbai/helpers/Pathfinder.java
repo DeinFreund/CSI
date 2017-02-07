@@ -314,7 +314,7 @@ public final class Pathfinder extends Helper {
         }
 
         public float getMaxSlope() {
-            return getMaxSlope(this.type);
+            return getMaxSlope(this.type) * 0.99f;
         }
 
         public static MovementType getMovementType(UnitDef ud) {
@@ -339,11 +339,11 @@ public final class Pathfinder extends Helper {
         private float getMaxSlope(_MovementType t) {
             switch (t) {
                 case bot:
-                    return command.getCallback().getUnitDefByName("armpw").getMoveData().getMaxSlope();
+                    return command.getCallback().getUnitDefByName("armpw").getMoveData().getMaxSlope() * 0.99f;
                 case spider:
-                    return command.getCallback().getUnitDefByName("armflea").getMoveData().getMaxSlope();
+                    return command.getCallback().getUnitDefByName("armflea").getMoveData().getMaxSlope()* 0.99f;
                 case vehicle:
-                    return command.getCallback().getUnitDefByName("corgator").getMoveData().getMaxSlope();
+                    return command.getCallback().getUnitDefByName("corgator").getMoveData().getMaxSlope()* 0.99f;
                 case air:
                     return 1f;
                 default:

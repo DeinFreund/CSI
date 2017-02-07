@@ -259,6 +259,15 @@ public class ZKCBAI extends com.springrts.ai.oo.AbstractOOAI {
     }
 
     @Override
+    public int unitCaptured(Unit unit, int oldTeam, int newTeam) {
+        if (slave) {
+            return 0;
+        }
+        ai.unitCaptured(unit, oldTeam, newTeam);
+        return 0;
+    }
+
+    @Override
     public int unitFinished(Unit unit) {
         if (slave) {
             List<Unit> l = new ArrayList();

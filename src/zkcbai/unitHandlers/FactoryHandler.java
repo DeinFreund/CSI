@@ -90,7 +90,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
     public void troopIdle(AIUnit u) {
         if (facmap.containsKey(u)) {
             if (!factoryIdle(facmap.get(u))) {
-                u.wait(command.getCurrentFrame() + 30);
+                u.wait(command.getCurrentFrame() + 60 + (int)(Math.random() * 60));
                 command.debug("Nothing to do for " + u.getDef().getHumanName());
             } else {
                 command.debug(u.getDef().getHumanName() + " building next unit");
@@ -343,9 +343,10 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                     }
                     Set<Area> set = a.getConnectedAreas(mt);
                     float size = set.size();
+                    if (size < command.areaManager.getAreas().size() / 5) continue;
                     for (Area area : set) {
                         if (area.isReachable()) {
-                            size -= 0.9f;
+                            size -= 0.8f;
                         }
                     }
                     if (size > bestsize || (size >= bestsize && set.size() > bestset.size())) {
@@ -496,7 +497,7 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 }
             }
             command.debug(command.getBuilderHandler().getAverageMetalIncome() + " > " + 15 * (factories.size() + facsBuilding));
-            if (command.getBuilderHandler().getAverageMetalIncome() > 15 * (factories.size() + facsBuilding) + 10 && factories.size() + facsBuilding < 7 && facsBuilding < 2) {
+            if (command.getBuilderHandler().getAverageMetalIncome() > 15 * (factories.size() + facsBuilding) + 10 && factories.size() + facsBuilding < 7 && facsBuilding < 2 || ((factories.size() + facsBuilding) < command.getCurrentFrame() / (30*60*10) + 1 && frame > 30 * 60)) {
                 final Set<Area> facareas = new HashSet();
                 final UnitDef fac = getNextFac(facareas);
 

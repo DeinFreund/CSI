@@ -116,9 +116,11 @@ public class Enemy {
     }
 
     private int lastDestroyQueue = -1;
-    
+
     public void destroyMyself() {
-        if (lastDestroyQueue == command.getCurrentFrame()) return;
+        if (lastDestroyQueue == command.getCurrentFrame()) {
+            return;
+        }
         lastDestroyQueue = command.getCurrentFrame();
         final Enemy meMyselfAndI = this;
         command.debug("queued destroy of " + (unitDef != null ? unitDef.getHumanName() : hashCode()));
@@ -164,14 +166,28 @@ public class Enemy {
     public int getLastAccuratePosTime() {
         return lastAccPosTime;
     }
-    
-    public boolean hasBeenSeen(){
+
+    public boolean hasBeenSeen() {
         return !neverSeen;
+    }
+
+    private int lastPosCache = -1000;
+    private AIFloat3 posCache = new AIFloat3();
+
+    public AIFloat3 getPos() {
+        if (command.getCurrentFrame() - lastPosCache > 15) {
+            posCache = _getPos();
+            lastPosCache = command.getCurrentFrame();
+        }
+        AIFloat3 likelyPos = new AIFloat3(lastVel);
+        likelyPos.scale(command.getCurrentFrame() - lastPosCache);
+        likelyPos.add(posCache);
+        return likelyPos;
     }
 
     protected int lastPosCheck = -100;
 
-    public AIFloat3 getPos() {
+    public AIFloat3 _getPos() {
         if (!isAlive()) {
             polledDead();
         }
@@ -325,7 +341,7 @@ public class Enemy {
             polledDead();
         }
         AIFloat3 pos = getPos();
-        return (float)Math.sqrt((trg.x - pos.x)*(trg.x - pos.x) + (trg.z - pos.z) * (trg.z - pos.z));
+        return (float) Math.sqrt((trg.x - pos.x) * (trg.x - pos.x) + (trg.z - pos.z) * (trg.z - pos.z));
     }
 
     public boolean shouldBeVisible(AIFloat3 pos) {
@@ -396,22 +412,20 @@ public class Enemy {
         return command.getCurrentFrame() - lastSeen;
     }
 
+    private float _timedOutTime = 30; //updated in update
+    
     public boolean isTimedOut() {
         if (!isAlive()) {
             polledDead();
         }
-        long time = System.nanoTime();
-        boolean retval = timeSinceLastSeen() > 1000 * 100 / Math.max(getDef().getSpeed(), warriorspeed) * 30 / Math.max(30, command.getCommandDelay());
-        time = System.nanoTime() - time;
-        if (time > 0.5e6) {
-            command.debug("istimedout took " + time + "ns");
-        }
+        boolean retval = timeSinceLastSeen() > _timedOutTime;
         return retval;
     }
 
     private int lastUpdate = 0;
 
     public void update(int frame) {
+        _timedOutTime = 1000 * 100 / Math.max(getDef().getSpeed(), warriorspeed) * 30 / Math.max(30, command.getCommandDelay());
         long time0 = System.nanoTime();
         lastUpdate = frame;
         if (!isAlive()) {
@@ -449,6 +463,7 @@ public class Enemy {
                 //lastPos = lastPosPossible = new AIFloat3();
                 destroyMyself();
             } else {
+                command.debug("Repositioning " + getDef().getHumanName());
                 Area npos;
                 AIFloat3 likelyPos = new AIFloat3(lastVel);
                 likelyPos.scale(Math.min(600, command.getCurrentFrame() - lastSeen));

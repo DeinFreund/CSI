@@ -106,8 +106,16 @@ public class DropHandler extends UnitHandler implements UpdateListener {
         }
     }
 
+    private int lastcmd = -100;
+    
     @Override
     public void troopIdle(AIUnit u) {
+        if (command.getCommandDelay() > 15 || command.getCurrentFrame() - lastcmd < 45){
+            u.assignTask(new WaitTask(command.getCurrentFrame() + 30, this));
+            command.debug("Pausing " + u.getDef().getHumanName());
+            return;
+        }
+        lastcmd = command.getCurrentFrame();
         if (emptyTransports.contains(u)) {
             AIUnit payload = null;
             for (AIUnit au : roaches) {

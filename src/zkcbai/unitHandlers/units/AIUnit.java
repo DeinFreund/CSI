@@ -9,17 +9,15 @@ import com.springrts.ai.oo.AIFloat3;
 import com.springrts.ai.oo.clb.Group;
 import com.springrts.ai.oo.clb.Unit;
 import com.springrts.ai.oo.clb.UnitDef;
-import com.springrts.ai.oo.clb.WeaponMount;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import zkcbai.Command;
 import zkcbai.UpdateListener;
-import zkcbai.helpers.AreaChecker;
 import zkcbai.helpers.Pathfinder;
-import zkcbai.helpers.ZoneManager;
 import zkcbai.unitHandlers.DevNullHandler;
 import zkcbai.unitHandlers.betterSquads.AntiAirSquad;
 import zkcbai.unitHandlers.units.tasks.MoveTask;
@@ -36,10 +34,11 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     private static final float REPAIR_PERCENTAGE = 0.55f;
     private static final float REPAIR_HP = 8000f;
-    
+
     private static int maxUnitID = 0;
 
     private final Unit unit;
+    private final UnitDef def;
     private final int unitId;
     private int wakeUpFrame = -1;
     private int lastCommandTime = -1;
@@ -50,11 +49,13 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     private RepairTask repairTask;
     private Task retreatTask = null;
     private Set<RepairListener> repairListeners = new HashSet();
+    private Random rnd = new Random();
 
     public AIUnit(Unit u, Command cmd) {
         super(cmd);
         unit = u;
         unitId = u.getUnitId();
+        def = u.getDef();
         maxUnitID = Math.max(unitId, maxUnitID);
 
         if (u.getDef().getSpeed() > 0) {
@@ -69,6 +70,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         super(handler);
         unit = u;
         unitId = unit.getUnitId();
+        def = u.getDef();
         maxUnitID = Math.max(unitId, maxUnitID);
         handler.getCommand().debug(unitId + " (" + getDef().getHumanName() + ") is now controlled by a " + handler.getClass().getName());
 
@@ -119,7 +121,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     @Override
     public List<AIUnit> getUnits() {
-        checkDead();
+        if (rnd.nextInt(27) == 0)checkDead();
         List<AIUnit> res = new ArrayList();
         res.add(this);
         return res;
@@ -176,8 +178,17 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
 
     @Override
     public UnitDef getDef() {
-        //checkDead();
-        return unit.getDef();
+        if (rnd.nextInt(17) == 0) {
+            UnitDef def = unit.getDef();
+            if (def == null) {
+                checkDead();
+            } else if (def != this.def) {
+                getCommand().debug("Changed def " + this.def.getHumanName() + " -> " + def.getHumanName());
+                getCommand().debugStackTrace();
+            }
+            return def;
+        }
+        return this.def;
     }
 
     public UnitType getType() {
@@ -254,6 +265,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
     }
 
     private void queueDestroy() {
+        handler.getCommand().debug("queued destroy of " + hashCode());
         handler.getCommand().addSingleUpdateListener(new UpdateListener() {
             @Override
             public void update(int frame) {
@@ -270,7 +282,9 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             dead = true;
             handler.getCommand().debug("polled dead aiunit " + unitId + "");
             handler.getCommand().debugStackTrace();
-            if (Math.random() > 0.5) queueDestroy();
+            if (Math.random() > 0.5) {
+                queueDestroy();
+            }
         }
     }
 
@@ -280,6 +294,7 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
             return;
         }
         damaged(null, 0);
+        repaired();
         if ((wakeUpFrame < getCommand().getCurrentFrame() || wakeUpFrame > 1000000) && handler.getCommand().getCurrentFrame() - lastCommandTime > 30
                 && unit.getCurrentCommands().isEmpty()) {
             handler.getCommand().debug("reawaken " + getUnit().getUnitId() + "(" + getDef().getHumanName() + ") controlled by " + handler.getClass().getName());
@@ -792,8 +807,8 @@ public class AIUnit extends AITroop implements UpdateListener, TaskIssuer {
         return u != null && hashCode() == u.hashCode();
     }
 
-    public static int getMaxUnitId(){
+    public static int getMaxUnitId() {
         return maxUnitID;
     }
-    
+
 }

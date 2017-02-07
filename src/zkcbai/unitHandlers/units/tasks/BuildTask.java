@@ -366,7 +366,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             result = null;
         }
         if (result == null) {
-            for (Unit unit : command.getCallback().getFriendlyUnitsIn(pos, 65)) {
+            for (Unit unit : command.getCallback().getFriendlyUnitsIn(pos, (building.getSpeed() > 0.1f) ? 65f : 10f)) {
                 if (unit.isBeingBuilt() && unit.getDef().equals(building)) {
                     result = unit;
                     break;
@@ -382,7 +382,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
             AIFloat3 trg = new AIFloat3();
             trg.interpolate(pos, u.getPos(), 100f / u.distanceTo(pos));
 
-            u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 30 * 5, this, command.pathfinder.AVOID_ENEMIES, command).queue(this));
+            u.assignTask(new MoveTask(trg, command.getCurrentFrame() + 30 * 12, this, command.pathfinder.AVOID_ENEMIES, command).queue(this));
             return false;
         }
         if (u.distanceTo(pos) > 2 * u.getDef().getBuildDistance() && Math.random() < 0.1) {
@@ -506,8 +506,8 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
  /*if (u.getDef().equals(building) && building.getSpeed() > 0.1){
             command.mark(u.getPos(), "finished " + u.getUnit().getUnitId() +  " = " + (result != null ? result.getUnitId() : -1) + " dist: " + u.distanceTo(pos));
         }*/
-        if ((u.getUnit().getDef().equals(building) && u.distanceTo(pos) < 65) || (result != null && result.getUnitId() == u.getUnit().getUnitId())) {
-            command.debug("finished " + building.getHumanName() + ": " + u.getUnit().getUnitId());
+        if ((u.getUnit().getDef().equals(building) && (u.distanceTo(pos) < 10 || building.getSpeed() > 0.1f && u.distanceTo(pos) < 90)) || (result != null && result.getUnitId() == u.getUnit().getUnitId())) {
+            command.debug("finished " + building.getHumanName() + ": " + u.getUnit().getUnitId() + " for bt " + getTaskId() + " (" + getInfo() + ") at position " + getPos());
 
             completed(u);
             result = u.getUnit();
@@ -524,7 +524,7 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
 
     @Override
     public void unitCreated(Unit u, AIUnit builder) {
-        if (u.getDef().equals(building) && Command.distance2D(pos, u.getPos()) < 65 && result == null) {
+        if (u.getDef().equals(building) && (Command.distance2D(pos, u.getPos()) < 10 || building.getSpeed() > 0.1f && Command.distance2D(pos, u.getPos()) < 90) && result == null) {
             //command.mark(u.getPos(), "unit created " + hashCode());
             result = u;
         }
@@ -533,6 +533,11 @@ public class BuildTask extends Task implements TaskIssuer, UnitFinishedListener,
     @Override
     public void cancel() {
         //command.debug("Cancelled BuildTask " + getTaskId() +" for " + building.getHumanName());
+
+        if (!aborted && budget != null) {
+            command.economyManager.useBudget(budget, -building.getCost(command.metal));
+            command.debug("Refunded " + building.getCost(command.metal) + " to " + budget.name());
+        }
         aborted = true;
         cleanup();
     }

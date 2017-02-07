@@ -62,7 +62,7 @@ public abstract class SquadHandler extends UnitHandler{
      * @return time to unite with aiUnit u in frames(is incorrect)
      */
     public float timeTo(AIUnit u) {
-        return u.distanceTo(getPos()) / u.getUnit().getMaxSpeed();
+        return u.distanceTo(getPos()) / u.getUnit().getDef().getSpeed();
     }
     
     public abstract UnitType getType();

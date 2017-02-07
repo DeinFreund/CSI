@@ -94,7 +94,7 @@ public class ScoutSquad extends SquadManager implements EnemyEnterLOSListener {
         if (command.getFactoryHandler().getBuildOptions().contains(clbk.getUnitDefByName("fighter")) || (command.getCreepHandler().getUnits().size() < 3 && command.getCurrentFrame() > 30 * 60))  {
             return 0;
         }
-        if (command.getAvengerHandler().getUnits().isEmpty()) return 0.91f;
+        //if (command.getAvengerHandler().getUnits().isEmpty()) return 0.91f;
         return 0f;
     }
 

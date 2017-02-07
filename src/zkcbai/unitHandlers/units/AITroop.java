@@ -89,17 +89,27 @@ public abstract class AITroop {
         return MovementType.getMovementType(getDef());
     }
 
-    public float getMetalCost() {
-        float res = 0;
+    private float metalcost = 0;
+    private int lastUnitHash = -1;
+    
+    public float getMetalCost(){
+        if (getUnits().size() != lastUnitHash){
+            updateMetalCost();
+            lastUnitHash = getUnits().size();
+        }
+        return metalcost;
+    }
+    
+    private void updateMetalCost() {
+        metalcost = 0;
         for (AIUnit u : getUnits().toArray(new AIUnit[getUnits().size()])) {
             if (u.getDef() != null) {
-                res += u.getDef().getCost(handler.getCommand().metal);
+                metalcost += u.getDef().getCost(handler.getCommand().metal);
             } else {
                 handler.getCommand().debug("Requested MetalCost but UnitDef is null");
                 handler.getCommand().unitDestroyed(u.getUnit(), null);
             }
         }
-        return res;
     }
 
     public float distanceTo3D(AIFloat3 trg) {
@@ -132,7 +142,7 @@ public abstract class AITroop {
             Set<Enemy> enemies;
             int range = 700;
             nearestEnemy = null;
-            while (nearestEnemy == null && range < 2000) {
+            while (nearestEnemy == null && range < 2000 + getMetalCost()) {
                 enemies = command.getEnemyUnitsIn(getPos(), range);
                 range += 1100;
                 for (Enemy e : enemies) {
@@ -237,7 +247,7 @@ public abstract class AITroop {
                 long t = System.currentTimeMillis();
                 doTask();
                 t = System.currentTimeMillis() - t;
-                if (t > 1) {
+                if (t > 1 && task != null && task.getClass() != null) {
                     getCommand().debug("Executing " + task.getClass().getName() + " took " + t + " ms.");
                 }
             } else {

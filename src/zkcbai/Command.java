@@ -266,7 +266,7 @@ public class Command implements AI {
     protected int commandDelay = 0;
 
     public int getCommandDelay() {
-        return commandDelay;
+        return commandDelay - 20; //ivorynet
     }
 
     public void setCommandDelay(int delay) {
@@ -571,7 +571,7 @@ public class Command implements AI {
                         duplicate = true;
                     }
                 }
-                if (!duplicate && areaManager.getArea(npos).getZone() != ZoneManager.Zone.own) {
+                if (!duplicate && (areaManager.getArea(npos).getZone() == ZoneManager.Zone.hostile || getCurrentFrame() < 30 * 60 * 10 )){
                     addFakeEnemy(new FakeSlasher(npos, weaponDef, this, clbk));
                 }
             }
@@ -635,8 +635,8 @@ public class Command implements AI {
             if (!enemyDefs.contains(enemy.getDef())) {
                 enemyDefs.add(enemy.getDef());
                 debug("New enemy UnitDef: " + enemy.getDef().getHumanName() + " DPS: " + getDPS(enemy.getDef()));
-                if (!defSpeedMap.containsKey(enemy.getMaxSpeed())) {
-                    defSpeedMap.put(enemy.getMaxSpeed(), enemy.getDef());
+                if (!defSpeedMap.containsKey(enemy.getDef().getSpeed())) {
+                    defSpeedMap.put(enemy.getDef().getSpeed(), enemy.getDef());
                 }
             }
             aiEnemy.enterLOS();
@@ -646,7 +646,7 @@ public class Command implements AI {
             }
 //            debug("Health, Speed, Cost: ");
 //            debug(enemy.getHealth() + "/" + enemy.getMaxHealth());
-//            debug(enemy.getSpeed() + "/" + enemy.getMaxSpeed());
+//            debug(enemy.getSpeed() + "/" + enemy.getDef().getSpeed());
 //            debug(enemy.getVel().length());
 //            debug(enemy.getDef().getCost(metal));
 
@@ -739,6 +739,11 @@ public class Command implements AI {
         return 0;
     }
 
+    @Override
+    public int unitCaptured(Unit unit, int oldTeam, int newTeam) {
+        return unitDestroyed(unit, null);
+    }
+    
     @Override
     public synchronized int unitDestroyed(Unit unit, Unit attacker) {
         try {

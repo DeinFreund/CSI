@@ -46,7 +46,7 @@ public class LosManager extends Helper {
     public void update(int frame) {
 
         try {
-            if (frame % 8 == 3 && command.getCommandDelay() < 60) {
+            if (frame % (8 + frame / 5000) == 3 && command.getCommandDelay() < 60) {
                 this.losMap = map.getLosMap();
                 updateLosImage();
             }

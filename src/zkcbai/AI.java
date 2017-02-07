@@ -32,4 +32,5 @@ public interface AI{
     public int update(int frame);
     public int unitCreated(Unit unit, Unit builder);
     public int unitFinished(Unit unit);
+    public int unitCaptured(Unit unit, int oldTeam, int newTeam);
 }

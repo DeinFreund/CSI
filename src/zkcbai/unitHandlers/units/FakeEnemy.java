@@ -35,12 +35,12 @@ public abstract class FakeEnemy extends Enemy implements UpdateListener {
         }
         removeTime = command.getCurrentFrame() + 30 * 60 * Math.max(4, (int) fakeUnitDef.getCost(command.metal) / 200);
 
-        command.debug("Fake " + fakeUnitDef.getHumanName() + " will be removed at " + removeTime);
         cmd.addSingleUpdateListener(this, removeTime + 10);
         identify();
         if (isBuilding) {
             removeTime += 30 * 60 * 5;
         }
+        command.debug("Fake " + fakeUnitDef.getHumanName() + "(Building: " + isBuilding  + ") will be removed at " + removeTime);
     }
 
     @Override
