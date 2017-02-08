@@ -124,8 +124,8 @@ public class NanoHandler extends UnitHandler implements UpdateListener {
                 nanoTasks.remove(bt);
             }
         }
-        if ((nanos.size() + nanoTasks.size()) * 9 + 16 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome)) {
-            nanoTasks.add(command.getBuilderHandler().requestBuilding(nano,
+        if ((nanos.size() + nanoTasks.size()) * 9 + 16 < Math.min(command.getBuilderHandler().avgMetalIncome, command.getBuilderHandler().energyIncome) && !command.getFactoryHandler().getFacs().isEmpty()) {
+            nanoTasks.add(command.getBuilderHandler().requestBuilding(nano, 
                     command.getFactoryHandler().getFacs().toArray(new Factory[command.getFactoryHandler().getFacs().size()])[(int) (Math.random() * command.getFactoryHandler().getFacs().size())].unit.getPos()));
             command.debug(nanoTasks.size() + " Caretakers under construction");
         }

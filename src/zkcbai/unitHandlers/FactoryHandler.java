@@ -358,12 +358,12 @@ public class FactoryHandler extends UnitHandler implements UpdateListener {
                 float score = ((float) Math.random() / 20f + 1f) * (bestsize + 1) * getMovementTypeMultiplier(mt);
                 for (Factory f : factories) {
                     if (f.unit.getDef().equals(ud)) {
-                        score /= 10;
+                        score /= 100;
                     }
                 }
                 for (BuildTask bt : command.getBuildTasks()) {
                     if (bt.getBuilding().equals(ud)) {
-                        score /= 10;
+                        score /= 100;
                     }
                 }
                 if (score > bestScore) {

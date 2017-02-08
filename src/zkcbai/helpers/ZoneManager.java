@@ -1283,7 +1283,7 @@ public class ZoneManager extends Helper implements UnitDestroyedListener, EnemyD
                         && (e.distanceTo(pos) - getEnclosingRadius() < e.getMaxRange() || e.getDef().getSpeed() > 0)) {
                     enemyAadps += e.getDPS() * mul;
                 } else if ((e.distanceTo(pos) - getEnclosingRadius() < e.getMaxRange() || e.getDef().getSpeed() > 0) && e.getMaxRange() > 300) {
-                    enemyAadps += e.getDPS() / 7f * mul;
+                    enemyAadps += e.getDPS() / 4f * mul;
                 }
             }
             long time4 = System.nanoTime();

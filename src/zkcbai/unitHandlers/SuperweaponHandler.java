@@ -60,7 +60,7 @@ public class SuperweaponHandler extends UnitHandler {
             TreeMap<Float, Enemy> map = new TreeMap();
             for (Enemy e : command.getEnemyUnits(false)) {
                 if (e.distanceTo(au.getPos()) < au.getMaxRange() * 0.99 && ! e.isAbleToFly()) {
-                    map.put(-e.getMetalCost() * (e.isBuilding() ? 1f : 0.3f)  - e.getArea().getNearbyEnemies().size() * 100 + (float)Math.random(), e);
+                    map.put((-e.getMetalCost() * (e.isBuilding() ? 1f : 0.3f)  - e.getArea().getNearbyEnemies().size() * 100) / ((e.distanceTo(au.getPos()) + 400) / (e.getMaxRange() + 400)) + (float)Math.random(), e);
                     if ((e.getMetalCost() > 29999 || ("cafus amgeo corsilo").contains(e.getDef().getName().toLowerCase()) && e.getMetalCost() > 800) && (e.hasBeenSeen() && rnd.nextInt(3) < 2 || rnd.nextBoolean())) return e;
                 }
             }

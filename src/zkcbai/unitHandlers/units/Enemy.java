@@ -76,8 +76,8 @@ public class Enemy {
         if (aaUnits == null) {
             aaUnits = new HashSet<>();
 
-            aaUnits.add(clbk.getUnitDefByName("corrl"));
-            aaUnits.add(clbk.getUnitDefByName("corllt"));
+            //aaUnits.add(clbk.getUnitDefByName("corrl"));
+            //aaUnits.add(clbk.getUnitDefByName("corllt"));
             aaUnits.add(clbk.getUnitDefByName("gunshipsupport"));//rapier
             aaUnits.add(clbk.getUnitDefByName("fighter"));
             aaUnits.add(clbk.getUnitDefByName("slowmort")); //moderator

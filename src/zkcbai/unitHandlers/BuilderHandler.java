@@ -1058,7 +1058,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
         }
 
         final Area nearestEnemy = nearestEnemyArea;
-        if (bbbs >= 2 && ownAreas > 1.4 * enemyAreas && lazors < 1 && command.getCurrentFrame() > 30 * 60 * 20 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {;
+        if (bbbs >= 2 && ownAreas > 1.4 * enemyAreas && lazors < 1 && command.getCurrentFrame() > 30 * 60 * 20 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
             BuildTask bt = new BuildTask(lazer, command.getStartPos(), Budget.defense, this, clbk, command, 4, -1, true, new PositionChecker() {
                 @Override
                 public boolean checkPosition(AIFloat3 pos) {
@@ -1068,7 +1068,7 @@ public class BuilderHandler extends UnitHandler implements UpdateListener, UnitF
             bt.setInfo("superwep");
             command.registerBuildTask(bt);
             registerBuildTask(bt);
-        } else if (ownAreas > Math.min(1.4, 0.3 + bbbs * 0.6) * enemyAreas && (command.economyManager.getRemainingBudget(Budget.defense) > 900 || command.getCurrentFrame() > 30 * 60 * 18 * 100 / avgMetalIncome && bbbs < 1) && berthas + lazors < 1 && command.getCurrentFrame() > 30 * 60 * 12 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
+        } else if (ownAreas > Math.min(1.4, 0.3 + Math.max(0, bbbs - (int)(command.economyManager.getRemainingBudget(Budget.defense) / 2000)) * 0.6) * enemyAreas && (command.economyManager.getRemainingBudget(Budget.defense) > 900 || command.getCurrentFrame() > 30 * 60 * 18 * 100 / avgMetalIncome && bbbs < 1) && berthas + lazors < 1 && command.getCurrentFrame() > 30 * 60 * 12 && Math.min(command.areaManager.getMapWidth(), command.areaManager.getMapHeight()) > 5000) {
 
             command.debug("Queued bertha because " + ownAreas + " > 1.3 * " + enemyAreas);
             BuildTask bt = new BuildTask(bertha, command.getStartPos(), Budget.defense, this, clbk, command, 4, 2000, true, new PositionChecker() {
